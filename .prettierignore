@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+build/
+dist/
+.env*
+*.lock
+*.log
+.git/
+public/
+coverage/
+.nyc_output/
+*.min.js
+*.min.css
