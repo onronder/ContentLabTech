@@ -7,34 +7,51 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
-// Validate environment variables
-const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-const supabaseSecretKey = process.env["SUPABASE_SECRET_KEY"];
+// Lazy-loaded Supabase admin client to avoid build-time env var requirements
+let _supabaseAdmin: ReturnType<typeof createClient<Database>> | null = null;
 
-if (!supabaseUrl || !supabaseSecretKey) {
-  throw new Error(
-    "Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY"
-  );
-}
+function getSupabaseAdmin() {
+  if (!_supabaseAdmin) {
+    // Validate environment variables
+    const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+    const supabaseSecretKey = process.env["SUPABASE_SECRET_KEY"];
 
-// Validate secret key format
-if (!supabaseSecretKey.startsWith("sb_secret_")) {
-  throw new Error("Invalid secret key format. Expected format: sb_secret_...");
-}
+    if (!supabaseUrl || !supabaseSecretKey) {
+      throw new Error(
+        "Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY"
+      );
+    }
 
-// Server-side Supabase client with secret key (administrative privileges)
-export const supabaseAdmin = createClient<Database>(
-  supabaseUrl,
-  supabaseSecretKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-    global: {
-      headers: {
-        "X-Client-Info": "contentlab-nexus-server",
+    // Validate secret key format
+    if (!supabaseSecretKey.startsWith("sb_secret_")) {
+      throw new Error(
+        "Invalid secret key format. Expected format: sb_secret_..."
+      );
+    }
+
+    // Server-side Supabase client with secret key (administrative privileges)
+    _supabaseAdmin = createClient<Database>(supabaseUrl, supabaseSecretKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
       },
+      global: {
+        headers: {
+          "X-Client-Info": "contentlab-nexus-server",
+        },
+      },
+    });
+  }
+
+  return _supabaseAdmin;
+}
+
+// Export for backward compatibility
+export const supabaseAdmin = new Proxy(
+  {} as ReturnType<typeof createClient<Database>>,
+  {
+    get(target, prop) {
+      return getSupabaseAdmin()[prop as keyof typeof target];
     },
   }
 );
@@ -58,7 +75,7 @@ export const adminOperations = {
   }) => {
     validateServerSideUsage();
 
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    const { data, error } = await getSupabaseAdmin().auth.admin.createUser({
       email: userData.email,
       password: userData.password,
       ...(userData.user_metadata && { user_metadata: userData.user_metadata }),
@@ -72,7 +89,8 @@ export const adminOperations = {
   deleteUser: async (userId: string) => {
     validateServerSideUsage();
 
-    const { data, error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    const { data, error } =
+      await getSupabaseAdmin().auth.admin.deleteUser(userId);
 
     return { data, error };
   },
@@ -81,7 +99,7 @@ export const adminOperations = {
   listUsers: async (page = 1, perPage = 50) => {
     validateServerSideUsage();
 
-    const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+    const { data, error } = await getSupabaseAdmin().auth.admin.listUsers({
       page,
       perPage,
     });
@@ -96,7 +114,7 @@ export const adminOperations = {
   ) => {
     validateServerSideUsage();
 
-    const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
+    const { data, error } = await getSupabaseAdmin().auth.admin.updateUserById(
       userId,
       {
         user_metadata: metadata,
@@ -110,7 +128,7 @@ export const adminOperations = {
   generateRecoveryLink: async (email: string) => {
     validateServerSideUsage();
 
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    const { data, error } = await getSupabaseAdmin().auth.admin.generateLink({
       type: "recovery",
       email,
     });
@@ -122,7 +140,7 @@ export const adminOperations = {
   generateSignupLink: async (email: string, password: string) => {
     validateServerSideUsage();
 
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    const { data, error } = await getSupabaseAdmin().auth.admin.generateLink({
       type: "signup",
       email,
       password,
@@ -135,7 +153,7 @@ export const adminOperations = {
   generateMagicLink: async (email: string) => {
     validateServerSideUsage();
 
-    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    const { data, error } = await getSupabaseAdmin().auth.admin.generateLink({
       type: "magiclink",
       email,
     });
@@ -154,7 +172,7 @@ export const adminTeamOperations = {
   }) => {
     validateServerSideUsage();
 
-    const { data: team, error: teamError } = await supabaseAdmin
+    const { data: team, error: teamError } = await getSupabaseAdmin()
       .from("teams")
       .insert({
         name: teamData.name,
@@ -167,7 +185,7 @@ export const adminTeamOperations = {
     if (teamError) return { data: null, error: teamError };
 
     // Add owner as team member
-    const { error: memberError } = await supabaseAdmin
+    const { error: memberError } = await getSupabaseAdmin()
       .from("team_members")
       .insert({
         team_id: team.id,
@@ -177,7 +195,7 @@ export const adminTeamOperations = {
 
     if (memberError) {
       // Cleanup: delete team if member creation fails
-      await supabaseAdmin.from("teams").delete().eq("id", team.id);
+      await getSupabaseAdmin().from("teams").delete().eq("id", team.id);
       return { data: null, error: memberError };
     }
 
@@ -189,10 +207,13 @@ export const adminTeamOperations = {
     validateServerSideUsage();
 
     // Delete team members first
-    await supabaseAdmin.from("team_members").delete().eq("team_id", teamId);
+    await getSupabaseAdmin()
+      .from("team_members")
+      .delete()
+      .eq("team_id", teamId);
 
     // Delete team
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from("teams")
       .delete()
       .eq("id", teamId)
@@ -207,7 +228,7 @@ export const auditLogger = {
   log: async (action: string, details: Record<string, unknown>) => {
     validateServerSideUsage();
 
-    const { error } = await supabaseAdmin.from("audit_logs").insert({
+    const { error } = await getSupabaseAdmin().from("audit_logs").insert({
       action,
       details,
       timestamp: new Date().toISOString(),
@@ -220,3 +241,4 @@ export const auditLogger = {
 };
 
 export default supabaseAdmin;
+export { getSupabaseAdmin };

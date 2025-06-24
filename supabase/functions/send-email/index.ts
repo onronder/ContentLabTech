@@ -5,6 +5,13 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { render } from "https://esm.sh/@react-email/render@0.0.12";
+import React from "https://esm.sh/react@18.2.0";
+
+// Import React Email templates
+import VerificationEmail from "../../../emails/VerificationEmail.tsx";
+import WelcomeEmail from "../../../emails/WelcomeEmail.tsx";
+import PasswordResetEmail from "../../../emails/PasswordResetEmail.tsx";
 
 // Types
 interface EmailRequest {
@@ -52,7 +59,7 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Email templates
+// React Email template rendering
 function getEmailTemplate(
   template: string,
   data: Record<string, unknown>
@@ -60,71 +67,56 @@ function getEmailTemplate(
   const baseUrl =
     Deno.env.get("NEXT_PUBLIC_APP_URL") || "https://contentlab-nexus.com";
 
+  let subject: string;
+  let component: React.ReactElement;
+
   switch (template) {
     case "verification":
-      return {
-        subject: "Verify your ContentLab Nexus account",
-        html: `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <title>Verify Your Email</title>
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #eee; }
-                .logo { font-size: 24px; font-weight: bold; color: #2563eb; }
-                .content { padding: 30px 0; }
-                .button { display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; text-decoration: none; border-radius: 8px; font-weight: 500; margin: 20px 0; }
-                .footer { border-top: 1px solid #eee; padding-top: 20px; font-size: 14px; color: #666; }
-                .security-note { background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; font-size: 14px; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="header">
-                  <div class="logo">ContentLab Nexus</div>
-                </div>
-                
-                <div class="content">
-                  <h1>Welcome to ContentLab Nexus!</h1>
-                  <p>Hello ${data.name || "there"},</p>
-                  <p>Thank you for signing up for ContentLab Nexus. To complete your registration and secure your account, please verify your email address by clicking the button below:</p>
-                  
-                  <div style="text-align: center;">
-                    <a href="${data.confirmationUrl}" class="button">Verify Email Address</a>
-                  </div>
-                  
-                  <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-                  <p style="word-break: break-all; color: #2563eb;">${data.confirmationUrl}</p>
-                  
-                  <div class="security-note">
-                    <strong>Security Note:</strong> This verification link will expire in 24 hours for your security. If you didn't create an account with ContentLab Nexus, you can safely ignore this email.
-                  </div>
-                  
-                  <p>Once verified, you'll have access to:</p>
-                  <ul>
-                    <li>Content analytics and performance tracking</li>
-                    <li>Team collaboration tools</li>
-                    <li>Advanced content management features</li>
-                    <li>Custom integrations and API access</li>
-                  </ul>
-                  
-                  <p>Welcome aboard!</p>
-                </div>
-                
-                <div class="footer">
-                  <p>Best regards,<br>The ContentLab Nexus Team</p>
-                  <p>If you have any questions, contact us at <a href="mailto:${EMAIL_FROM}">${EMAIL_FROM}</a></p>
-                  <p><em>This is an automated message. Please do not reply to this email.</em></p>
-                </div>
-              </div>
-            </body>
-          </html>
-        `,
-        text: `
+      subject = "Verify your ContentLab Nexus account";
+      component = React.createElement(VerificationEmail, {
+        userName: data.name as string,
+        verificationUrl: data.confirmationUrl as string,
+      });
+      break;
+
+    case "welcome":
+      subject = "Welcome to ContentLab Nexus! 🎉";
+      component = React.createElement(WelcomeEmail, {
+        userName: data.name as string,
+        dashboardUrl: `${baseUrl}/dashboard`,
+      });
+      break;
+
+    case "password-reset":
+      subject = "Reset your ContentLab Nexus password";
+      component = React.createElement(PasswordResetEmail, {
+        userName: data.name as string,
+        resetUrl: data.resetUrl as string,
+      });
+      break;
+
+    default:
+      throw new Error(`Unknown email template: ${template}`);
+  }
+
+  // Render React component to HTML
+  const html = render(component);
+
+  // Generate plain text version (simplified)
+  const text = generatePlainText(template, data, baseUrl);
+
+  return { subject, html, text };
+}
+
+// Generate plain text versions of emails
+function generatePlainText(
+  template: string,
+  data: Record<string, unknown>,
+  baseUrl: string
+): string {
+  switch (template) {
+    case "verification":
+      return `
 Welcome to ContentLab Nexus!
 
 Hello ${data.name || "there"},
@@ -141,81 +133,10 @@ If you have any questions, contact us at ${EMAIL_FROM}
 
 Best regards,
 The ContentLab Nexus Team
-        `.trim(),
-      };
+      `.trim();
 
     case "welcome":
-      return {
-        subject: "Welcome to ContentLab Nexus! 🎉",
-        html: `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <title>Welcome to ContentLab Nexus</title>
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { text-align: center; padding: 20px 0; }
-                .logo { font-size: 24px; font-weight: bold; color: #2563eb; }
-                .celebration { font-size: 48px; text-align: center; margin: 20px 0; }
-                .content { padding: 20px 0; }
-                .button { display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #2563eb, #7c3aed); color: white; text-decoration: none; border-radius: 8px; font-weight: 500; margin: 20px 0; }
-                .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 30px 0; }
-                .feature { padding: 20px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #2563eb; }
-                .footer { border-top: 1px solid #eee; padding-top: 20px; font-size: 14px; color: #666; }
-                @media (max-width: 600px) { .feature-grid { grid-template-columns: 1fr; } }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="header">
-                  <div class="logo">ContentLab Nexus</div>
-                  <div class="celebration">🎉</div>
-                </div>
-                
-                <div class="content">
-                  <h1>Your account is ready!</h1>
-                  <p>Hello ${data.name || "there"},</p>
-                  <p>Congratulations! Your email has been verified and your ContentLab Nexus account is now fully activated.</p>
-                  
-                  <div style="text-align: center;">
-                    <a href="${baseUrl}/dashboard" class="button">Go to Dashboard</a>
-                  </div>
-                  
-                  <h2>What's next?</h2>
-                  <div class="feature-grid">
-                    <div class="feature">
-                      <h3>📊 Analytics</h3>
-                      <p>Track your content performance with detailed insights and metrics.</p>
-                    </div>
-                    <div class="feature">
-                      <h3>👥 Teams</h3>
-                      <p>Invite team members and collaborate on projects together.</p>
-                    </div>
-                    <div class="feature">
-                      <h3>⚡ Integrations</h3>
-                      <p>Connect your favorite tools and automate your workflow.</p>
-                    </div>
-                    <div class="feature">
-                      <h3>🔧 Settings</h3>
-                      <p>Customize your workspace and notification preferences.</p>
-                    </div>
-                  </div>
-                  
-                  <p>Need help getting started? Check out our <a href="${baseUrl}/docs" style="color: #2563eb;">documentation</a> or reach out to our support team.</p>
-                </div>
-                
-                <div class="footer">
-                  <p>Best regards,<br>The ContentLab Nexus Team</p>
-                  <p>Questions? Contact us at <a href="mailto:${EMAIL_FROM}">${EMAIL_FROM}</a></p>
-                </div>
-              </div>
-            </body>
-          </html>
-        `,
-        text: `
+      return `
 Welcome to ContentLab Nexus! 🎉
 
 Hello ${data.name || "there"},
@@ -234,71 +155,10 @@ Need help? Contact us at ${EMAIL_FROM}
 
 Best regards,
 The ContentLab Nexus Team
-        `.trim(),
-      };
+      `.trim();
 
     case "password-reset":
-      return {
-        subject: "Reset your ContentLab Nexus password",
-        html: `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
-              <title>Reset Your Password</title>
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; }
-                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                .header { text-align: center; padding: 20px 0; border-bottom: 1px solid #eee; }
-                .logo { font-size: 24px; font-weight: bold; color: #2563eb; }
-                .content { padding: 30px 0; }
-                .button { display: inline-block; padding: 12px 24px; background: #dc2626; color: white; text-decoration: none; border-radius: 8px; font-weight: 500; margin: 20px 0; }
-                .security-alert { background: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 20px 0; }
-                .footer { border-top: 1px solid #eee; padding-top: 20px; font-size: 14px; color: #666; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="header">
-                  <div class="logo">ContentLab Nexus</div>
-                </div>
-                
-                <div class="content">
-                  <h1>Reset Your Password</h1>
-                  <p>Hello ${data.name || "there"},</p>
-                  <p>We received a request to reset the password for your ContentLab Nexus account. If you made this request, click the button below to set a new password:</p>
-                  
-                  <div style="text-align: center;">
-                    <a href="${data.resetUrl}" class="button">Reset Password</a>
-                  </div>
-                  
-                  <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-                  <p style="word-break: break-all; color: #dc2626;">${data.resetUrl}</p>
-                  
-                  <div class="security-alert">
-                    <strong>🔒 Security Information:</strong>
-                    <ul>
-                      <li>This password reset link will expire in 1 hour</li>
-                      <li>If you didn't request this reset, you can safely ignore this email</li>
-                      <li>Your password will remain unchanged until you create a new one</li>
-                      <li>For security, this link can only be used once</li>
-                    </ul>
-                  </div>
-                  
-                  <p>If you continue to have problems or didn't request this reset, please contact our support team immediately.</p>
-                </div>
-                
-                <div class="footer">
-                  <p>Best regards,<br>The ContentLab Nexus Security Team</p>
-                  <p>Security concerns? Contact us at <a href="mailto:${EMAIL_FROM}">${EMAIL_FROM}</a></p>
-                  <p><em>This is an automated security message.</em></p>
-                </div>
-              </div>
-            </body>
-          </html>
-        `,
-        text: `
+      return `
 Reset Your Password - ContentLab Nexus
 
 Hello ${data.name || "there"},
@@ -316,11 +176,10 @@ SECURITY INFORMATION:
 Security concerns? Contact us at ${EMAIL_FROM}
 
 The ContentLab Nexus Security Team
-        `.trim(),
-      };
+      `.trim();
 
     default:
-      throw new Error(`Unknown email template: ${template}`);
+      return "";
   }
 }
 
