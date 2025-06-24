@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from "react";
 
 import { useSupabaseAuth } from "./use-supabase-auth";
 import { supabase } from "@/lib/supabase/client";
+import { getCSRFHeaders } from "@/hooks/useCSRFToken";
 
 interface UserProfile {
   id: string;
@@ -235,32 +236,54 @@ export const useUserProfile = () => {
   };
 
   // Delete user account
-  const deleteAccount = async (): Promise<{
+  const deleteAccount = async (
+    confirmEmail: string
+  ): Promise<{
     success: boolean;
     error: string | null;
+    warnings?: string[];
   }> => {
     if (!user) {
       return { success: false, error: "User must be authenticated" };
+    }
+
+    if (!confirmEmail || confirmEmail !== user.email) {
+      return { success: false, error: "Email confirmation required" };
     }
 
     setLoading(true);
     setError(null);
 
     try {
-      // Note: Actual user deletion should be handled server-side for security
-      // This would typically call an edge function that handles:
-      // 1. Data cleanup/anonymization
-      // 2. User deletion from auth.users
-      // For now, we'll just sign out the user
+      // Call server-side deletion API with proper security
+      const response = await fetch("/api/account/delete", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...getCSRFHeaders(),
+        },
+        body: JSON.stringify({
+          confirmEmail: confirmEmail,
+        }),
+      });
 
-      const { error: signOutError } = await supabase.auth.signOut();
+      const result = await response.json();
 
-      if (signOutError) {
-        setError(signOutError.message);
-        return { success: false, error: signOutError.message };
+      if (!response.ok) {
+        setError(result.error || "Failed to delete account");
+        return {
+          success: false,
+          error: result.error || "Failed to delete account",
+        };
       }
 
-      return { success: true, error: null };
+      // Account deletion successful - user will be automatically signed out
+      // by the server-side deletion process
+      return {
+        success: true,
+        error: null,
+        warnings: result.warnings,
+      };
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Failed to delete account";

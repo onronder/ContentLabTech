@@ -6,11 +6,13 @@
  */
 
 import { useState } from "react";
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, Mail } from "lucide-react";
 
 import { useUserProfile } from "@/hooks/auth/use-user-profile";
 import { useSupabaseAuth } from "@/hooks/auth/use-supabase-auth";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -36,8 +38,10 @@ export const AccountSettings = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
   const [message, setMessage] = useState<{
-    type: "success" | "error";
+    type: "success" | "error" | "warning";
     text: string;
   } | null>(null);
 
@@ -61,24 +65,63 @@ export const AccountSettings = () => {
     setIsResettingPassword(false);
   };
 
+  const handleEmailConfirmation = () => {
+    if (confirmEmail === user?.email) {
+      setEmailConfirmed(true);
+      setMessage(null);
+    } else {
+      setMessage({
+        type: "error",
+        text: "Email confirmation doesn't match your account email",
+      });
+    }
+  };
+
   const handleDeleteAccount = async () => {
+    if (!emailConfirmed || confirmEmail !== user?.email) {
+      setMessage({
+        type: "error",
+        text: "Please confirm your email address first",
+      });
+      return;
+    }
+
     setIsDeleting(true);
     setMessage(null);
 
-    const { success, error } = await deleteAccount();
+    const { success, error, warnings } = await deleteAccount(confirmEmail);
 
     if (error) {
       setMessage({ type: "error", text: error });
     } else if (success) {
-      // User will be signed out automatically
-      setMessage({
-        type: "success",
-        text: "Account deletion initiated",
-      });
+      // Show warnings if any
+      if (warnings && warnings.length > 0) {
+        setMessage({
+          type: "warning",
+          text: `Account deleted with some warnings: ${warnings.join(", ")}`,
+        });
+      } else {
+        setMessage({
+          type: "success",
+          text: "Account successfully deleted. You will be signed out automatically.",
+        });
+      }
+
+      // Close dialog after a delay to show the message
+      setTimeout(() => {
+        setDeleteDialogOpen(false);
+        // User will be signed out automatically by the server
+        window.location.href = "/";
+      }, 3000);
     }
 
     setIsDeleting(false);
-    setDeleteDialogOpen(false);
+  };
+
+  const resetDeleteDialog = () => {
+    setConfirmEmail("");
+    setEmailConfirmed(false);
+    setMessage(null);
   };
 
   return (
@@ -189,7 +232,13 @@ export const AccountSettings = () => {
               </AlertDescription>
             </Alert>
 
-            <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <Dialog
+              open={deleteDialogOpen}
+              onOpenChange={open => {
+                setDeleteDialogOpen(open);
+                if (!open) resetDeleteDialog();
+              }}
+            >
               <DialogTrigger asChild>
                 <Button variant="destructive" disabled={loading}>
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -197,12 +246,12 @@ export const AccountSettings = () => {
                 </Button>
               </DialogTrigger>
 
-              <DialogContent>
+              <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Delete Account</DialogTitle>
                   <DialogDescription>
-                    Are you absolutely sure you want to delete your account?
-                    This action cannot be undone.
+                    This action will permanently delete your account and cannot
+                    be undone.
                   </DialogDescription>
                 </DialogHeader>
 
@@ -211,14 +260,74 @@ export const AccountSettings = () => {
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
                       This will permanently delete:
-                      <ul className="mt-2 list-inside list-disc space-y-1">
+                      <ul className="mt-2 list-inside list-disc space-y-1 text-sm">
                         <li>Your user profile and all personal data</li>
                         <li>All projects and content you&apos;ve created</li>
-                        <li>Your team memberships and collaborations</li>
+                        <li>
+                          Your team memberships (ownership will be transferred)
+                        </li>
                         <li>All analytics and performance data</li>
+                        <li>Uploaded files and avatars</li>
                       </ul>
                     </AlertDescription>
                   </Alert>
+
+                  {!emailConfirmed ? (
+                    <div className="space-y-3">
+                      <div>
+                        <Label
+                          htmlFor="confirmEmail"
+                          className="text-sm font-medium"
+                        >
+                          To confirm, type your email address:
+                        </Label>
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {user?.email}
+                        </p>
+                      </div>
+                      <div className="relative">
+                        <Mail className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
+                        <Input
+                          id="confirmEmail"
+                          type="email"
+                          value={confirmEmail}
+                          onChange={e => setConfirmEmail(e.target.value)}
+                          placeholder="Enter your email address"
+                          className="pl-10"
+                          disabled={isDeleting}
+                        />
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={handleEmailConfirmation}
+                        disabled={!confirmEmail || isDeleting}
+                        className="w-full"
+                      >
+                        Confirm Email
+                      </Button>
+                    </div>
+                  ) : (
+                    <Alert>
+                      <AlertDescription className="text-green-600">
+                        ✓ Email confirmed. You can now proceed with account
+                        deletion.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {message && (
+                    <Alert
+                      variant={
+                        message.type === "error"
+                          ? "destructive"
+                          : message.type === "warning"
+                            ? "default"
+                            : "default"
+                      }
+                    >
+                      <AlertDescription>{message.text}</AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 <DialogFooter>
@@ -232,15 +341,15 @@ export const AccountSettings = () => {
                   <Button
                     variant="destructive"
                     onClick={handleDeleteAccount}
-                    disabled={isDeleting}
+                    disabled={!emailConfirmed || isDeleting}
                   >
                     {isDeleting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Deleting...
+                        Deleting Account...
                       </>
                     ) : (
-                      "Delete Account"
+                      "Delete Account Forever"
                     )}
                   </Button>
                 </DialogFooter>
