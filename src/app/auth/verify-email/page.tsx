@@ -58,7 +58,7 @@ function EmailVerificationContent() {
   const [isResending, setIsResending] = useState(false);
 
   // Extract URL parameters
-  const token = searchParams.get("token");
+  const token = searchParams.get("token_hash") || searchParams.get("token");
   const type = searchParams.get("type") || "signup";
   const redirectTo = searchParams.get("redirect_to") || "/dashboard";
   const error = searchParams.get("error");
