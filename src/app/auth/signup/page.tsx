@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Sign Up Page
- * User registration page with social sign-up options
+ * Premium Sign Up Page
+ * Modern registration page with value proposition
  */
 
 import { useState } from "react";
@@ -10,43 +10,51 @@ import { useState } from "react";
 export const dynamic = "force-dynamic";
 
 import { AuthForm, OAuthButtons } from "@/components/auth";
+import AuthLayout from "@/components/auth/auth-layout";
 
 export default function SignUpPage() {
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
 
+  const testimonial = {
+    quote:
+      "The competitive intelligence features are game-changing. We discovered content gaps we never knew existed and capitalized on them immediately.",
+    author: "Marcus Rodriguez",
+    role: "Content Director",
+    company: "GrowthLabs",
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Join ContentLab Nexus
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Start optimizing your content marketing today
-          </p>
-        </div>
+    <AuthLayout
+      title="Start Your Journey"
+      subtitle="Join thousands of content creators and marketers who use ContentLab Nexus to dominate their market"
+      testimonial={testimonial}
+    >
+      <div className="space-y-6">
+        <AuthForm
+          mode={authMode}
+          onModeChange={setAuthMode}
+          redirectUrl="/onboarding"
+        />
 
-        <div className="space-y-6">
-          <AuthForm
-            mode={authMode}
-            onModeChange={setAuthMode}
-            redirectUrl="/onboarding"
-          />
+        <OAuthButtons />
 
-          <OAuthButtons />
-
-          <div className="text-center text-xs text-gray-500">
-            By signing up, you agree to our{" "}
-            <a href="/terms" className="text-blue-600 hover:text-blue-500">
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a href="/privacy" className="text-blue-600 hover:text-blue-500">
-              Privacy Policy
-            </a>
-          </div>
+        <div className="text-muted-foreground text-center text-xs">
+          By creating an account, you agree to our{" "}
+          <a
+            href="/terms"
+            className="text-brand-blue hover:text-brand-blue-600 font-medium transition-colors"
+          >
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a
+            href="/privacy"
+            className="text-brand-blue hover:text-brand-blue-600 font-medium transition-colors"
+          >
+            Privacy Policy
+          </a>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 }
