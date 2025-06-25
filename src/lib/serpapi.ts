@@ -7,7 +7,7 @@
 export interface SearchParams {
   query: string;
   location?: string;
-  device?: 'desktop' | 'mobile';
+  device?: "desktop" | "mobile";
   language?: string;
   num?: number; // Number of results (1-100)
   start?: number; // Starting position
@@ -50,7 +50,7 @@ export interface KeywordResearch {
   searchVolume: number;
   difficulty: number;
   cpc: number;
-  competition: 'low' | 'medium' | 'high';
+  competition: "low" | "medium" | "high";
   trend: number[];
   relatedKeywords: {
     keyword: string;
@@ -62,7 +62,7 @@ export interface KeywordResearch {
 }
 
 export interface FeaturedSnippet {
-  type: 'paragraph' | 'list' | 'table' | 'video';
+  type: "paragraph" | "list" | "table" | "video";
   content: string;
   source: {
     title: string;
@@ -154,14 +154,14 @@ async function makeSerpApiRequest(
   endpoint: string,
   params: Record<string, unknown>
 ): Promise<SerpApiResponse> {
-  const SERPAPI_API_KEY = process.env.SERPAPI_API_KEY;
+  const SERPAPI_API_KEY = process.env["SERPAPI_API_KEY"];
   if (!SERPAPI_API_KEY) {
-    throw new Error('SERPAPI API key not configured');
+    throw new Error("SERPAPI API key not configured");
   }
 
   const url = new URL(`https://serpapi.com/${endpoint}`);
-  url.searchParams.set('api_key', SERPAPI_API_KEY);
-  
+  url.searchParams.set("api_key", SERPAPI_API_KEY);
+
   // Add all parameters
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
@@ -170,7 +170,7 @@ async function makeSerpApiRequest(
   });
 
   const response = await fetch(url.toString());
-  
+
   if (!response.ok) {
     const error = await response.text();
     throw new Error(`SERPAPI error: ${response.status} - ${error}`);
@@ -182,81 +182,122 @@ async function makeSerpApiRequest(
 /**
  * Search Google and get organic results
  */
-export async function searchGoogle(params: SearchParams): Promise<SearchAnalytics> {
+export async function searchGoogle(
+  params: SearchParams
+): Promise<SearchAnalytics> {
   try {
     const serpParams = {
-      engine: 'google',
+      engine: "google",
       q: params.query,
-      location: params.location || 'United States',
-      hl: params.language || 'en',
-      gl: 'us',
-      device: params.device || 'desktop',
+      location: params.location || "United States",
+      hl: params.language || "en",
+      gl: "us",
+      device: params.device || "desktop",
       num: params.num || 10,
       start: params.start || 0,
     };
 
-    const data = await makeSerpApiRequest('search', serpParams);
+    const data = await makeSerpApiRequest("search", serpParams);
 
     // Parse organic results
-    const organicResults: SearchResult[] = (data.organic_results || []).map((result: SerpApiResult, index: number) => ({
-      position: (params.start || 0) + index + 1,
-      title: result.title || '',
-      link: result.link || '',
-      snippet: result.snippet || '',
-      domain: extractDomain(result.link || ''),
-      displayedLink: result.displayed_link,
-      cachedPage: result.cached_page_link,
-      sitelinks: result.sitelinks?.map((link: SerpApiSitelink) => ({
-        title: link.title,
-        link: link.link,
-      })) || [],
-    }));
+    const organicResults: SearchResult[] = (data.organic_results || []).map(
+      (result: SerpApiResult, index: number) => {
+        const searchResult: SearchResult = {
+          position: (params.start || 0) + index + 1,
+          title: result.title || "",
+          link: result.link || "",
+          snippet: result.snippet || "",
+          domain: extractDomain(result.link || ""),
+          sitelinks:
+            result.sitelinks?.map((link: SerpApiSitelink) => ({
+              title: link.title,
+              link: link.link,
+            })) || [],
+        };
+
+        // Conditionally add optional properties only if they exist
+        if (result.displayed_link) {
+          searchResult.displayedLink = result.displayed_link;
+        }
+        if (result.cached_page_link) {
+          searchResult.cachedPage = result.cached_page_link;
+        }
+
+        return searchResult;
+      }
+    );
 
     // Parse featured snippet if present
     let featuredSnippet: FeaturedSnippet | undefined;
     if (data.answer_box) {
+      const answerBoxType = data.answer_box.type;
+      const validTypes = ["paragraph", "list", "table", "video"] as const;
+      const type = validTypes.includes(
+        answerBoxType as (typeof validTypes)[number]
+      )
+        ? (answerBoxType as "paragraph" | "list" | "table" | "video")
+        : "paragraph";
+
       featuredSnippet = {
-        type: data.answer_box.type || 'paragraph',
-        content: data.answer_box.answer || data.answer_box.snippet || '',
+        type,
+        content: data.answer_box.answer || data.answer_box.snippet || "",
         source: {
-          title: data.answer_box.title || '',
-          url: data.answer_box.link || '',
-          domain: extractDomain(data.answer_box.link || ''),
+          title: data.answer_box.title || "",
+          url: data.answer_box.link || "",
+          domain: extractDomain(data.answer_box.link || ""),
         },
-        date: data.answer_box.date,
       };
+
+      if (data.answer_box.date) {
+        featuredSnippet.date = data.answer_box.date;
+      }
     }
 
     // Parse people also ask
-    const peopleAlsoAsk = (data.people_also_ask || []).map((item: SerpApiPeopleAlsoAsk) => ({
-      question: item.question || '',
-      answer: item.snippet || '',
-      source: item.link || '',
-    }));
+    const peopleAlsoAsk = (data.people_also_ask || []).map(
+      (item: SerpApiPeopleAlsoAsk) => ({
+        question: item.question || "",
+        answer: item.snippet || "",
+        source: item.link || "",
+      })
+    );
 
     // Parse related searches
-    const relatedSearches = (data.related_searches || []).map((item: SerpApiRelatedSearch) => item.query || '');
+    const relatedSearches = (data.related_searches || []).map(
+      (item: SerpApiRelatedSearch) => item.query || ""
+    );
 
-    return {
+    const result: SearchAnalytics = {
       query: params.query,
-      totalResults: parseInt(data.search_information?.total_results || '0'),
-      searchTime: parseFloat(data.search_information?.time_taken_displayed || '0'),
-      location: params.location || 'United States',
-      device: params.device || 'desktop',
+      totalResults: parseInt(data.search_information?.total_results || "0"),
+      searchTime: parseFloat(
+        data.search_information?.time_taken_displayed || "0"
+      ),
+      location: params.location || "United States",
+      device: params.device || "desktop",
       organicResults,
-      featuredSnippet,
       peopleAlsoAsk,
       relatedSearches,
-      knowledgeGraph: data.knowledge_graph ? {
-        title: data.knowledge_graph.title || '',
-        type: data.knowledge_graph.type || '',
-        description: data.knowledge_graph.description || '',
-        source: data.knowledge_graph.source || '',
-      } : undefined,
     };
+
+    // Conditionally add optional properties
+    if (featuredSnippet) {
+      result.featuredSnippet = featuredSnippet;
+    }
+
+    if (data.knowledge_graph) {
+      result.knowledgeGraph = {
+        title: data.knowledge_graph.title || "",
+        type: data.knowledge_graph.type || "",
+        description: data.knowledge_graph.description || "",
+        source: data.knowledge_graph.source || "",
+      };
+    }
+
+    return result;
   } catch (error) {
-    console.error('Error searching Google via SERPAPI:', error);
-    throw new Error('Failed to search Google');
+    console.error("Error searching Google via SERPAPI:", error);
+    throw new Error("Failed to search Google");
   }
 }
 
@@ -281,16 +322,23 @@ export async function analyzeCompetitorRankings(
 
     // Search for each keyword and track competitor positions
     for (const keyword of keywords) {
-      const searchResults = await searchGoogle({
+      const searchParams: SearchParams = {
         query: keyword,
-        location,
         num: 100, // Get more results to capture competitor positions
-      });
+      };
+
+      if (location) {
+        searchParams.location = location;
+      }
+
+      const searchResults = await searchGoogle(searchParams);
 
       // Find competitor positions in results
       competitorDomains.forEach((domain, domainIndex) => {
-        const result = searchResults.organicResults.find(r => r.domain === domain);
-        if (result) {
+        const result = searchResults.organicResults.find(
+          r => r.domain === domain
+        );
+        if (result && rankings[domainIndex]) {
           rankings[domainIndex].rankings.push({
             keyword,
             position: result.position,
@@ -310,22 +358,25 @@ export async function analyzeCompetitorRankings(
     rankings.forEach(ranking => {
       if (ranking.rankings.length > 0) {
         ranking.visibility.keywordCount = ranking.rankings.length;
-        ranking.visibility.averagePosition = ranking.rankings.reduce(
-          (sum, r) => sum + r.position, 0
-        ) / ranking.rankings.length;
-        
+        ranking.visibility.averagePosition =
+          ranking.rankings.reduce((sum, r) => sum + r.position, 0) /
+          ranking.rankings.length;
+
         // Estimate traffic based on positions (simplified formula)
-        ranking.visibility.estimatedTraffic = ranking.rankings.reduce((traffic, r) => {
-          const ctr = getEstimatedCTR(r.position);
-          return traffic + (1000 * ctr); // Assume 1000 searches per keyword
-        }, 0);
+        ranking.visibility.estimatedTraffic = ranking.rankings.reduce(
+          (traffic, r) => {
+            const ctr = getEstimatedCTR(r.position);
+            return traffic + 1000 * ctr; // Assume 1000 searches per keyword
+          },
+          0
+        );
       }
     });
 
     return rankings;
   } catch (error) {
-    console.error('Error analyzing competitor rankings:', error);
-    throw new Error('Failed to analyze competitor rankings');
+    console.error("Error analyzing competitor rankings:", error);
+    throw new Error("Failed to analyze competitor rankings");
   }
 }
 
@@ -338,24 +389,33 @@ export async function researchKeyword(
 ): Promise<KeywordResearch> {
   try {
     // Get search results
-    const searchResults = await searchGoogle({
+    const searchParams: SearchParams = {
       query: keyword,
-      location,
       num: 20,
-    });
+    };
+
+    if (location) {
+      searchParams.location = location;
+    }
+
+    const searchResults = await searchGoogle(searchParams);
 
     // Get keyword suggestions (simulated - SERPAPI doesn't provide volume directly)
-    const relatedKeywords = searchResults.relatedSearches.slice(0, 10).map((related, index) => ({
-      keyword: related,
-      searchVolume: Math.floor(Math.random() * 5000) + 100, // Placeholder
-      relevance: Math.max(0.3, 1 - (index * 0.1)),
-    }));
+    const relatedKeywords = searchResults.relatedSearches
+      .slice(0, 10)
+      .map((related, index) => ({
+        keyword: related,
+        searchVolume: Math.floor(Math.random() * 5000) + 100, // Placeholder
+        relevance: Math.max(0.3, 1 - index * 0.1),
+      }));
 
     // Extract questions from People Also Ask
     const questions = searchResults.peopleAlsoAsk.map(item => item.question);
 
     // Calculate difficulty based on competition analysis
-    const topDomains = searchResults.organicResults.slice(0, 10).map(r => r.domain);
+    const topDomains = searchResults.organicResults
+      .slice(0, 10)
+      .map(r => r.domain);
     const uniqueDomains = new Set(topDomains);
     const difficulty = Math.min(100, (uniqueDomains.size / 10) * 100);
 
@@ -364,15 +424,16 @@ export async function researchKeyword(
       searchVolume: Math.floor(Math.random() * 10000) + 500, // Placeholder - real implementation would use keyword tools
       difficulty,
       cpc: Math.random() * 5 + 0.5, // Placeholder
-      competition: difficulty < 30 ? 'low' : difficulty < 70 ? 'medium' : 'high',
+      competition:
+        difficulty < 30 ? "low" : difficulty < 70 ? "medium" : "high",
       trend: Array.from({ length: 12 }, () => Math.floor(Math.random() * 100)), // Placeholder trend data
       relatedKeywords,
       questions,
       topResults: searchResults.organicResults.slice(0, 10),
     };
   } catch (error) {
-    console.error('Error researching keyword:', error);
-    throw new Error('Failed to research keyword');
+    console.error("Error researching keyword:", error);
+    throw new Error("Failed to research keyword");
   }
 }
 
@@ -381,26 +442,32 @@ export async function researchKeyword(
  */
 export async function monitorCompetitorContent(
   competitorUrls: string[]
-): Promise<{
-  url: string;
-  changes: {
-    type: 'title' | 'content' | 'meta' | 'structure';
-    description: string;
-    timestamp: string;
-  }[];
-  currentRankings: {
-    keyword: string;
-    position: number;
-  }[];
-}[]> {
+): Promise<
+  {
+    url: string;
+    changes: {
+      type: "title" | "content" | "meta" | "structure";
+      description: string;
+      timestamp: string;
+    }[];
+    currentRankings: {
+      keyword: string;
+      position: number;
+    }[];
+  }[]
+> {
   try {
     const results = [];
 
     for (const url of competitorUrls) {
       const domain = extractDomain(url);
-      
+
       // Search for the domain across multiple keywords to find current rankings
-      const sampleKeywords = ['content marketing', 'seo tools', 'digital marketing']; // This should be dynamic
+      const sampleKeywords = [
+        "content marketing",
+        "seo tools",
+        "digital marketing",
+      ]; // This should be dynamic
       const currentRankings = [];
 
       for (const keyword of sampleKeywords) {
@@ -409,7 +476,9 @@ export async function monitorCompetitorContent(
           num: 50,
         });
 
-        const ranking = searchResults.organicResults.find(r => r.domain === domain);
+        const ranking = searchResults.organicResults.find(
+          r => r.domain === domain
+        );
         if (ranking) {
           currentRankings.push({
             keyword,
@@ -430,22 +499,22 @@ export async function monitorCompetitorContent(
 
     return results;
   } catch (error) {
-    console.error('Error monitoring competitor content:', error);
-    throw new Error('Failed to monitor competitor content');
+    console.error("Error monitoring competitor content:", error);
+    throw new Error("Failed to monitor competitor content");
   }
 }
 
 /**
  * Get trending keywords in industry
  */
-export async function getTrendingKeywords(
-  industry: string
-): Promise<{
-  keyword: string;
-  trendScore: number;
-  searchVolume: number;
-  growth: number;
-}[]> {
+export async function getTrendingKeywords(industry: string): Promise<
+  {
+    keyword: string;
+    trendScore: number;
+    searchVolume: number;
+    growth: number;
+  }[]
+> {
   try {
     // Search for industry-related trending topics
     const trendingQueries = [
@@ -465,10 +534,11 @@ export async function getTrendingKeywords(
 
       // Extract keywords from titles and snippets
       results.organicResults.forEach(result => {
-        const words = (result.title + ' ' + result.snippet)
-          .toLowerCase()
-          .match(/\b[\w-]+\b/g) || [];
-        
+        const words =
+          (result.title + " " + result.snippet)
+            .toLowerCase()
+            .match(/\b[\w-]+\b/g) || [];
+
         words.forEach(word => {
           if (word.length > 3 && !commonWords.includes(word)) {
             allKeywords.add(word);
@@ -484,15 +554,18 @@ export async function getTrendingKeywords(
     }
 
     // Convert to trending keywords with scores
-    return Array.from(allKeywords).slice(0, 50).map(keyword => ({
-      keyword,
-      trendScore: Math.floor(Math.random() * 100),
-      searchVolume: Math.floor(Math.random() * 5000) + 100,
-      growth: (Math.random() - 0.5) * 200, // -100% to +100%
-    })).sort((a, b) => b.trendScore - a.trendScore);
+    return Array.from(allKeywords)
+      .slice(0, 50)
+      .map(keyword => ({
+        keyword,
+        trendScore: Math.floor(Math.random() * 100),
+        searchVolume: Math.floor(Math.random() * 5000) + 100,
+        growth: (Math.random() - 0.5) * 200, // -100% to +100%
+      }))
+      .sort((a, b) => b.trendScore - a.trendScore);
   } catch (error) {
-    console.error('Error getting trending keywords:', error);
-    throw new Error('Failed to get trending keywords');
+    console.error("Error getting trending keywords:", error);
+    throw new Error("Failed to get trending keywords");
   }
 }
 
@@ -502,7 +575,7 @@ export async function getTrendingKeywords(
 function extractDomain(url: string): string {
   try {
     const urlObj = new URL(url);
-    return urlObj.hostname.replace('www.', '');
+    return urlObj.hostname.replace("www.", "");
   } catch {
     return url;
   }
@@ -511,19 +584,71 @@ function extractDomain(url: string): string {
 function getEstimatedCTR(position: number): number {
   // Estimated CTR based on position (simplified)
   const ctrMap: { [key: number]: number } = {
-    1: 0.28, 2: 0.15, 3: 0.11, 4: 0.08, 5: 0.06,
-    6: 0.05, 7: 0.04, 8: 0.03, 9: 0.025, 10: 0.02,
+    1: 0.28,
+    2: 0.15,
+    3: 0.11,
+    4: 0.08,
+    5: 0.06,
+    6: 0.05,
+    7: 0.04,
+    8: 0.03,
+    9: 0.025,
+    10: 0.02,
   };
-  
+
   return ctrMap[position] || (position <= 20 ? 0.01 : 0.005);
 }
 
 const commonWords = [
-  'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-  'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'above',
-  'below', 'between', 'among', 'this', 'that', 'these', 'those', 'is', 'are',
-  'was', 'were', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
-  'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'cannot',
+  "the",
+  "and",
+  "or",
+  "but",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "of",
+  "with",
+  "by",
+  "from",
+  "up",
+  "about",
+  "into",
+  "through",
+  "during",
+  "before",
+  "after",
+  "above",
+  "below",
+  "between",
+  "among",
+  "this",
+  "that",
+  "these",
+  "those",
+  "is",
+  "are",
+  "was",
+  "were",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "must",
+  "can",
+  "cannot",
 ];
 
 /**
@@ -532,13 +657,13 @@ const commonWords = [
 export async function healthCheck(): Promise<boolean> {
   try {
     const result = await searchGoogle({
-      query: 'test',
+      query: "test",
       num: 1,
     });
-    
+
     return result.organicResults.length > 0;
   } catch (error) {
-    console.error('SERPAPI health check failed:', error);
+    console.error("SERPAPI health check failed:", error);
     return false;
   }
 }

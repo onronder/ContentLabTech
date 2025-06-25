@@ -1,5 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, createClient, validateTeamAccess, createErrorResponse } from '@/lib/auth/session';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  getCurrentUser,
+  createClient,
+  validateTeamAccess,
+  createErrorResponse,
+} from "@/lib/auth/session";
 
 interface CreateProjectRequest {
   teamId: string;
@@ -17,8 +22,8 @@ interface ProjectFilters {
   teamId?: string;
   status?: string;
   search?: string;
-  limit?: number;
-  offset?: number;
+  limit: number;
+  offset: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -26,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
     // Parse request body
@@ -40,24 +45,27 @@ export async function POST(request: NextRequest) {
       target_audience,
       content_goals = [],
       competitors = [],
-      settings = {}
+      settings = {},
     } = body;
 
     if (!teamId || !name) {
-      return createErrorResponse('Team ID and project name are required', 400);
+      return createErrorResponse("Team ID and project name are required", 400);
     }
 
     // Validate team access (requires admin or owner role)
-    const hasAccess = await validateTeamAccess(teamId, 'admin');
+    const hasAccess = await validateTeamAccess(teamId, "admin");
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions to create projects', 403);
+      return createErrorResponse(
+        "Insufficient permissions to create projects",
+        403
+      );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Create project
     const { data: newProject, error: createError } = await supabase
-      .from('projects')
+      .from("projects")
       .insert({
         team_id: teamId,
         name,
@@ -68,36 +76,36 @@ export async function POST(request: NextRequest) {
         content_goals,
         competitors,
         settings,
-        status: 'active',
+        status: "active",
         created_by: user.id,
       })
-      .select(`
+      .select(
+        `
         *,
         team:teams (
           id,
           name,
           description
         )
-      `)
+      `
+      )
       .single();
 
     if (createError) {
-      console.error('Error creating project:', createError);
-      return createErrorResponse('Failed to create project', 500);
+      console.error("Error creating project:", createError);
+      return createErrorResponse("Failed to create project", 500);
     }
 
     // Log project creation
-    await supabase
-      .from('user_events')
-      .insert({
-        user_id: user.id,
-        event_type: 'project_created',
-        event_data: {
-          project_id: newProject.id,
-          team_id: teamId,
-          name,
-        },
-      });
+    await supabase.from("user_events").insert({
+      user_id: user.id,
+      event_type: "project_created",
+      event_data: {
+        project_id: newProject.id,
+        team_id: teamId,
+        name,
+      },
+    });
 
     // Initialize project with competitors if provided
     if (competitors.length > 0) {
@@ -109,19 +117,19 @@ export async function POST(request: NextRequest) {
         added_by: user.id,
       }));
 
-      await supabase
-        .from('competitors')
-        .insert(competitorData);
+      await supabase.from("competitors").insert(competitorData);
     }
 
-    return NextResponse.json({
-      success: true,
-      project: newProject,
-    }, { status: 201 });
-
+    return NextResponse.json(
+      {
+        success: true,
+        project: newProject,
+      },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
@@ -130,26 +138,31 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const filters: ProjectFilters = {
-      teamId: searchParams.get('teamId') || undefined,
-      status: searchParams.get('status') || undefined,
-      search: searchParams.get('search') || undefined,
-      limit: Math.min(parseInt(searchParams.get('limit') || '50'), 100),
-      offset: parseInt(searchParams.get('offset') || '0'),
+      limit: Math.min(parseInt(searchParams.get("limit") || "50"), 100),
+      offset: parseInt(searchParams.get("offset") || "0"),
     };
 
-    const supabase = createClient();
+    const teamId = searchParams.get("teamId");
+    const status = searchParams.get("status");
+    const search = searchParams.get("search");
+
+    if (teamId) filters.teamId = teamId;
+    if (status) filters.status = status;
+    if (search) filters.search = search;
+
+    const supabase = await createClient();
 
     // Get user's team memberships
     const { data: teamMemberships } = await supabase
-      .from('team_members')
-      .select('team_id, role')
-      .eq('user_id', user.id);
+      .from("team_members")
+      .select("team_id, role")
+      .eq("user_id", user.id);
 
     if (!teamMemberships?.length) {
       return NextResponse.json({
@@ -162,9 +175,7 @@ export async function GET(request: NextRequest) {
     const accessibleTeamIds = teamMemberships.map(tm => tm.team_id);
 
     // Build query
-    let query = supabase
-      .from('projects')
-      .select(`
+    let query = supabase.from("projects").select(`
         id,
         name,
         description,
@@ -190,20 +201,22 @@ export async function GET(request: NextRequest) {
     // Apply team filter
     if (filters.teamId) {
       if (!accessibleTeamIds.includes(filters.teamId)) {
-        return createErrorResponse('Insufficient permissions', 403);
+        return createErrorResponse("Insufficient permissions", 403);
       }
-      query = query.eq('team_id', filters.teamId);
+      query = query.eq("team_id", filters.teamId);
     } else {
-      query = query.in('team_id', accessibleTeamIds);
+      query = query.in("team_id", accessibleTeamIds);
     }
 
     // Apply other filters
     if (filters.status) {
-      query = query.eq('status', filters.status);
+      query = query.eq("status", filters.status);
     }
 
     if (filters.search) {
-      query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+      query = query.or(
+        `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
+      );
     }
 
     // Get total count
@@ -211,38 +224,38 @@ export async function GET(request: NextRequest) {
 
     // Apply pagination and ordering
     query = query
-      .order('updated_at', { ascending: false })
+      .order("updated_at", { ascending: false })
       .range(filters.offset, filters.offset + filters.limit - 1);
 
     const { data: projects, error } = await query;
 
     if (error) {
-      console.error('Error fetching projects:', error);
-      return createErrorResponse('Failed to fetch projects', 500);
+      console.error("Error fetching projects:", error);
+      return createErrorResponse("Failed to fetch projects", 500);
     }
 
     // Enhance projects with additional data
     const enhancedProjects = await Promise.all(
-      (projects || []).map(async (project) => {
+      (projects || []).map(async project => {
         // Get content count
         const { count: contentCount } = await supabase
-          .from('content_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('project_id', project.id);
+          .from("content_items")
+          .select("*", { count: "exact", head: true })
+          .eq("project_id", project.id);
 
         // Get competitor count
         const { count: competitorCount } = await supabase
-          .from('competitors')
-          .select('*', { count: 'exact', head: true })
-          .eq('project_id', project.id)
-          .eq('is_active', true);
+          .from("competitors")
+          .select("*", { count: "exact", head: true })
+          .eq("project_id", project.id)
+          .eq("is_active", true);
 
         // Get recent activity
         const { data: recentContent } = await supabase
-          .from('content_items')
-          .select('created_at')
-          .eq('project_id', project.id)
-          .order('created_at', { ascending: false })
+          .from("content_items")
+          .select("created_at")
+          .eq("project_id", project.id)
+          .order("created_at", { ascending: false })
           .limit(1);
 
         return {
@@ -261,10 +274,9 @@ export async function GET(request: NextRequest) {
       total: count || 0,
       filters,
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
@@ -272,14 +284,14 @@ export async function GET(request: NextRequest) {
 function extractDomainName(url: string): string {
   try {
     // Add protocol if missing
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
     }
-    
+
     const domain = new URL(url).hostname;
-    return domain.replace('www.', '');
+    return domain.replace("www.", "");
   } catch {
     // If URL parsing fails, return the original string cleaned up
-    return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+    return url.replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0] || url;
   }
 }

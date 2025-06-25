@@ -1,17 +1,29 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  TrendingUp, 
-  Brain, 
-  Clock, 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  TrendingUp,
+  Brain,
+  Clock,
   Target,
   Eye,
   Users,
@@ -23,9 +35,17 @@ import {
   Zap,
   ArrowUpRight,
   ArrowDownRight,
-  Minus
-} from 'lucide-react';
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+  Minus,
+} from "lucide-react";
+import {
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from "recharts";
 
 interface PerformancePredictionDashboardProps {
   projectId: string;
@@ -35,7 +55,7 @@ interface PerformancePredictionDashboardProps {
 interface PredictionMetric {
   predicted: number;
   range: [number, number];
-  trend: 'increasing' | 'decreasing' | 'stable';
+  trend: "increasing" | "decreasing" | "stable";
 }
 
 interface PerformancePrediction {
@@ -43,7 +63,7 @@ interface PerformancePrediction {
   contentId: string;
   modelVersion: string;
   timeframe: number;
-  confidence: 'low' | 'medium' | 'high' | 'very_high';
+  confidence: "low" | "medium" | "high" | "very_high";
   confidenceScore: number;
   predictions: {
     pageviews: PredictionMetric;
@@ -73,20 +93,25 @@ interface TrendData {
   confidence: number;
 }
 
-export function PerformancePredictionDashboard({ projectId, contentId }: PerformancePredictionDashboardProps) {
-  const [prediction, setPrediction] = useState<PerformancePrediction | null>(null);
+export function PerformancePredictionDashboard({
+  projectId,
+  contentId,
+}: PerformancePredictionDashboardProps) {
+  const [prediction, setPrediction] = useState<PerformancePrediction | null>(
+    null
+  );
   const [trendData, setTrendData] = useState<TrendData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState('30');
-  const [selectedContent] = useState(contentId || '');
+  const [selectedTimeframe, setSelectedTimeframe] = useState("30");
+  const [selectedContent] = useState(contentId || "");
 
   useEffect(() => {
     if (selectedContent) {
       generatePrediction();
       loadTrendData();
     }
-  }, [selectedContent, selectedTimeframe, generatePrediction, loadTrendData]);
+  }, [selectedContent, selectedTimeframe]);
 
   const generatePrediction = useCallback(async () => {
     if (!selectedContent) return;
@@ -95,18 +120,18 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
     setError(null);
 
     try {
-      const response = await fetch('/api/analytics/predict', {
-        method: 'POST',
+      const response = await fetch("/api/analytics/predict", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           projectId,
-          action: 'predict',
+          action: "predict",
           params: {
             contentId: selectedContent,
             timeframe: parseInt(selectedTimeframe),
-            analysisType: 'performance',
+            analysisType: "performance",
             includeConfidence: true,
             generateInsights: true,
           },
@@ -114,13 +139,13 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate prediction');
+        throw new Error("Failed to generate prediction");
       }
 
       const data = await response.json();
       setPrediction(data.result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -128,14 +153,14 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
 
   const loadTrendData = useCallback(async () => {
     try {
-      const response = await fetch('/api/analytics/trends', {
-        method: 'POST',
+      const response = await fetch("/api/analytics/trends", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           projectId,
-          action: 'trends',
+          action: "trends",
           params: {
             contentId: selectedContent,
             timeframe: parseInt(selectedTimeframe),
@@ -148,36 +173,50 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
         setTrendData(data.result.trends || []);
       }
     } catch (err) {
-      console.error('Failed to load trend data:', err);
+      console.error("Failed to load trend data:", err);
     }
   }, [selectedContent, selectedTimeframe, projectId]);
 
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {
-      case 'very_high': return 'text-green-600';
-      case 'high': return 'text-blue-600';
-      case 'medium': return 'text-yellow-600';
-      case 'low': return 'text-red-600';
-      default: return 'text-gray-600';
+      case "very_high":
+        return "text-green-600";
+      case "high":
+        return "text-blue-600";
+      case "medium":
+        return "text-yellow-600";
+      case "low":
+        return "text-red-600";
+      default:
+        return "text-gray-600";
     }
   };
 
   const getConfidenceBadgeVariant = (confidence: string) => {
     switch (confidence) {
-      case 'very_high': return 'default';
-      case 'high': return 'secondary';
-      case 'medium': return 'outline';
-      case 'low': return 'destructive';
-      default: return 'outline';
+      case "very_high":
+        return "default";
+      case "high":
+        return "secondary";
+      case "medium":
+        return "outline";
+      case "low":
+        return "destructive";
+      default:
+        return "outline";
     }
   };
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
-      case 'increasing': return <ArrowUpRight className="h-4 w-4 text-green-600" />;
-      case 'decreasing': return <ArrowDownRight className="h-4 w-4 text-red-600" />;
-      case 'stable': return <Minus className="h-4 w-4 text-gray-600" />;
-      default: return <Minus className="h-4 w-4 text-gray-600" />;
+      case "increasing":
+        return <ArrowUpRight className="h-4 w-4 text-green-600" />;
+      case "decreasing":
+        return <ArrowDownRight className="h-4 w-4 text-red-600" />;
+      case "stable":
+        return <Minus className="h-4 w-4 text-gray-600" />;
+      default:
+        return <Minus className="h-4 w-4 text-gray-600" />;
     }
   };
 
@@ -191,11 +230,11 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
 
   // Dynamic chart colors based on theme
   const chartColors = [
-    'hsl(var(--primary))',
-    'hsl(var(--secondary))', 
-    'hsl(var(--accent))',
-    'hsl(var(--muted))',
-    'hsl(var(--card))'
+    "hsl(var(--primary))",
+    "hsl(var(--secondary))",
+    "hsl(var(--accent))",
+    "hsl(var(--muted))",
+    "hsl(var(--card))",
   ];
 
   return (
@@ -203,7 +242,7 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-2xl font-bold">
             <Brain className="h-6 w-6 text-purple-600" />
             Performance Predictions
           </h2>
@@ -212,7 +251,10 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe}>
+          <Select
+            value={selectedTimeframe}
+            onValueChange={setSelectedTimeframe}
+          >
             <SelectTrigger className="w-32">
               <SelectValue />
             </SelectTrigger>
@@ -223,18 +265,18 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
               <SelectItem value="365">1 Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button 
-            onClick={generatePrediction} 
+          <Button
+            onClick={generatePrediction}
             disabled={isLoading || !selectedContent}
           >
             {isLoading ? (
               <>
-                <Activity className="h-4 w-4 mr-2 animate-spin" />
+                <Activity className="mr-2 h-4 w-4 animate-spin" />
                 Predicting...
               </>
             ) : (
               <>
-                <Zap className="h-4 w-4 mr-2" />
+                <Zap className="mr-2 h-4 w-4" />
                 Generate Prediction
               </>
             )}
@@ -255,15 +297,21 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Prediction Confidence</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Prediction Confidence
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <span className={`text-2xl font-bold ${getConfidenceColor(prediction.confidence)}`}>
+                  <span
+                    className={`text-2xl font-bold ${getConfidenceColor(prediction.confidence)}`}
+                  >
                     {prediction.confidenceScore.toFixed(0)}%
                   </span>
-                  <Badge variant={getConfidenceBadgeVariant(prediction.confidence)}>
-                    {prediction.confidence.replace('_', ' ')}
+                  <Badge
+                    variant={getConfidenceBadgeVariant(prediction.confidence)}
+                  >
+                    {prediction.confidence.replace("_", " ")}
                   </Badge>
                 </div>
                 <Progress value={prediction.confidenceScore} className="mt-2" />
@@ -272,7 +320,9 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Model Accuracy</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Model Accuracy
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
@@ -281,7 +331,7 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                   </span>
                   <CheckCircle className="h-5 w-5 text-green-600" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-muted-foreground mt-1 text-xs">
                   v{prediction.modelVersion}
                 </p>
               </CardContent>
@@ -289,7 +339,9 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Features Used</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Features Used
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
@@ -298,15 +350,18 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                   </span>
                   <BarChart3 className="h-5 w-5 text-orange-600" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Training data: {prediction.metadata.trainingDataSize.toLocaleString()}
+                <p className="text-muted-foreground mt-1 text-xs">
+                  Training data:{" "}
+                  {prediction.metadata.trainingDataSize.toLocaleString()}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Processing Time</CardTitle>
+                <CardTitle className="text-sm font-medium">
+                  Processing Time
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
@@ -315,7 +370,7 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                   </span>
                   <Clock className="h-5 w-5 text-purple-600" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-muted-foreground mt-1 text-xs">
                   {new Date(prediction.metadata.createdAt).toLocaleString()}
                 </p>
               </CardContent>
@@ -345,11 +400,15 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-3xl font-bold text-blue-600">
-                            {formatNumber(prediction.predictions.pageviews.predicted)}
+                            {formatNumber(
+                              prediction.predictions.pageviews.predicted
+                            )}
                           </span>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getTrendIcon(prediction.predictions.pageviews.trend)}
-                            <span className="text-sm text-muted-foreground">
+                          <div className="mt-1 flex items-center gap-2">
+                            {getTrendIcon(
+                              prediction.predictions.pageviews.trend
+                            )}
+                            <span className="text-muted-foreground text-sm">
                               {prediction.predictions.pageviews.trend}
                             </span>
                           </div>
@@ -359,13 +418,16 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                         <div className="flex justify-between text-sm">
                           <span>Range:</span>
                           <span>
-                            {formatNumber(prediction.predictions.pageviews.range[0])} - {formatNumber(prediction.predictions.pageviews.range[1])}
+                            {formatNumber(
+                              prediction.predictions.pageviews.range[0]
+                            )}{" "}
+                            -{" "}
+                            {formatNumber(
+                              prediction.predictions.pageviews.range[1]
+                            )}
                           </span>
                         </div>
-                        <Progress 
-                          value={75} 
-                          className="h-2"
-                        />
+                        <Progress value={75} className="h-2" />
                       </div>
                     </div>
                   </CardContent>
@@ -383,11 +445,15 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-3xl font-bold text-green-600">
-                            {formatNumber(prediction.predictions.organicTraffic.predicted)}
+                            {formatNumber(
+                              prediction.predictions.organicTraffic.predicted
+                            )}
                           </span>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getTrendIcon(prediction.predictions.organicTraffic.trend)}
-                            <span className="text-sm text-muted-foreground">
+                          <div className="mt-1 flex items-center gap-2">
+                            {getTrendIcon(
+                              prediction.predictions.organicTraffic.trend
+                            )}
+                            <span className="text-muted-foreground text-sm">
                               {prediction.predictions.organicTraffic.trend}
                             </span>
                           </div>
@@ -397,13 +463,16 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                         <div className="flex justify-between text-sm">
                           <span>Range:</span>
                           <span>
-                            {formatNumber(prediction.predictions.organicTraffic.range[0])} - {formatNumber(prediction.predictions.organicTraffic.range[1])}
+                            {formatNumber(
+                              prediction.predictions.organicTraffic.range[0]
+                            )}{" "}
+                            -{" "}
+                            {formatNumber(
+                              prediction.predictions.organicTraffic.range[1]
+                            )}
                           </span>
                         </div>
-                        <Progress 
-                          value={75} 
-                          className="h-2"
-                        />
+                        <Progress value={75} className="h-2" />
                       </div>
                     </div>
                   </CardContent>
@@ -421,11 +490,15 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="text-3xl font-bold text-yellow-600">
-                            {formatPercentage(prediction.predictions.conversionRate.predicted)}
+                            {formatPercentage(
+                              prediction.predictions.conversionRate.predicted
+                            )}
                           </span>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getTrendIcon(prediction.predictions.conversionRate.trend)}
-                            <span className="text-sm text-muted-foreground">
+                          <div className="mt-1 flex items-center gap-2">
+                            {getTrendIcon(
+                              prediction.predictions.conversionRate.trend
+                            )}
+                            <span className="text-muted-foreground text-sm">
                               {prediction.predictions.conversionRate.trend}
                             </span>
                           </div>
@@ -435,13 +508,16 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                         <div className="flex justify-between text-sm">
                           <span>Range:</span>
                           <span>
-                            {formatPercentage(prediction.predictions.conversionRate.range[0])} - {formatPercentage(prediction.predictions.conversionRate.range[1])}
+                            {formatPercentage(
+                              prediction.predictions.conversionRate.range[0]
+                            )}{" "}
+                            -{" "}
+                            {formatPercentage(
+                              prediction.predictions.conversionRate.range[1]
+                            )}
                           </span>
                         </div>
-                        <Progress 
-                          value={75} 
-                          className="h-2"
-                        />
+                        <Progress value={75} className="h-2" />
                       </div>
                     </div>
                   </CardContent>
@@ -461,9 +537,11 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                           <span className="text-3xl font-bold text-purple-600">
                             {prediction.predictions.engagementScore.predicted}
                           </span>
-                          <div className="flex items-center gap-2 mt-1">
-                            {getTrendIcon(prediction.predictions.engagementScore.trend)}
-                            <span className="text-sm text-muted-foreground">
+                          <div className="mt-1 flex items-center gap-2">
+                            {getTrendIcon(
+                              prediction.predictions.engagementScore.trend
+                            )}
+                            <span className="text-muted-foreground text-sm">
                               {prediction.predictions.engagementScore.trend}
                             </span>
                           </div>
@@ -473,11 +551,14 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                         <div className="flex justify-between text-sm">
                           <span>Range:</span>
                           <span>
-                            {prediction.predictions.engagementScore.range[0]} - {prediction.predictions.engagementScore.range[1]}
+                            {prediction.predictions.engagementScore.range[0]} -{" "}
+                            {prediction.predictions.engagementScore.range[1]}
                           </span>
                         </div>
-                        <Progress 
-                          value={prediction.predictions.engagementScore.predicted} 
+                        <Progress
+                          value={
+                            prediction.predictions.engagementScore.predicted
+                          }
                           className="h-2"
                         />
                       </div>
@@ -532,13 +613,15 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-green-600">Key Factors</CardTitle>
+                    <CardTitle className="text-green-600">
+                      Key Factors
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
                       {prediction.insights.keyFactors.map((factor, index) => (
                         <li key={index} className="flex items-start gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                          <CheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
                           <span className="text-sm">{factor}</span>
                         </li>
                       ))}
@@ -548,16 +631,20 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-blue-600">Recommendations</CardTitle>
+                    <CardTitle className="text-blue-600">
+                      Recommendations
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
-                      {prediction.insights.recommendations.map((recommendation, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <TrendingUp className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                          <span className="text-sm">{recommendation}</span>
-                        </li>
-                      ))}
+                      {prediction.insights.recommendations.map(
+                        (recommendation, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <TrendingUp className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
+                            <span className="text-sm">{recommendation}</span>
+                          </li>
+                        )
+                      )}
                     </ul>
                   </CardContent>
                 </Card>
@@ -570,7 +657,7 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                     <ul className="space-y-2">
                       {prediction.insights.riskFactors.map((risk, index) => (
                         <li key={index} className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
                           <span className="text-sm">{risk}</span>
                         </li>
                       ))}
@@ -580,16 +667,20 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-purple-600">Opportunities</CardTitle>
+                    <CardTitle className="text-purple-600">
+                      Opportunities
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-2">
-                      {prediction.insights.opportunities.map((opportunity, index) => (
-                        <li key={index} className="flex items-start gap-2">
-                          <Target className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
-                          <span className="text-sm">{opportunity}</span>
-                        </li>
-                      ))}
+                      {prediction.insights.opportunities.map(
+                        (opportunity, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <Target className="mt-0.5 h-4 w-4 flex-shrink-0 text-purple-600" />
+                            <span className="text-sm">{opportunity}</span>
+                          </li>
+                        )
+                      )}
                     </ul>
                   </CardContent>
                 </Card>
@@ -605,27 +696,40 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Prediction ID</p>
-                      <p className="text-sm text-muted-foreground font-mono">{prediction.predictionId}</p>
+                      <p className="text-muted-foreground font-mono text-sm">
+                        {prediction.predictionId}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Content ID</p>
-                      <p className="text-sm text-muted-foreground font-mono">{prediction.contentId}</p>
+                      <p className="text-muted-foreground font-mono text-sm">
+                        {prediction.contentId}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Model Version</p>
-                      <p className="text-sm text-muted-foreground">{prediction.modelVersion}</p>
+                      <p className="text-muted-foreground text-sm">
+                        {prediction.modelVersion}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Timeframe</p>
-                      <p className="text-sm text-muted-foreground">{prediction.timeframe} days</p>
+                      <p className="text-muted-foreground text-sm">
+                        {prediction.timeframe} days
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Training Data Size</p>
-                      <p className="text-sm text-muted-foreground">{prediction.metadata.trainingDataSize.toLocaleString()} samples</p>
+                      <p className="text-muted-foreground text-sm">
+                        {prediction.metadata.trainingDataSize.toLocaleString()}{" "}
+                        samples
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Features Used</p>
-                      <p className="text-sm text-muted-foreground">{prediction.metadata.featuresUsed} features</p>
+                      <p className="text-muted-foreground text-sm">
+                        {prediction.metadata.featuresUsed} features
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -639,13 +743,13 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
         <Card>
           <CardContent className="p-6">
             <div className="text-center">
-              <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Predictions Yet</h3>
+              <Brain className="text-muted-foreground mx-auto mb-4 h-12 w-12" />
+              <h3 className="mb-2 text-lg font-medium">No Predictions Yet</h3>
               <p className="text-muted-foreground mb-4">
                 Generate ML-powered performance predictions for this content
               </p>
               <Button onClick={generatePrediction}>
-                <Zap className="h-4 w-4 mr-2" />
+                <Zap className="mr-2 h-4 w-4" />
                 Generate Prediction
               </Button>
             </div>

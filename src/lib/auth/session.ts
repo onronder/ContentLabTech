@@ -3,19 +3,19 @@
  * Server-side authentication utilities for API routes
  */
 
-import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import type { Database } from '@/types/database';
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { cookies } from "next/headers";
+import type { Database } from "@/types/database";
 
 /**
  * Create server-side Supabase client with user session
  */
-export function createClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!,
     {
       cookies: {
         get(name: string) {
@@ -32,7 +32,7 @@ export function createClient() {
         },
         remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options });
+            cookieStore.set({ name, value: "", ...options });
           } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
@@ -49,21 +49,21 @@ export function createClient() {
  */
 export async function getCurrentUser() {
   try {
-    const supabase = createClient();
-    
+    const supabase = await createClient();
+
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser();
 
     if (error) {
-      console.error('Error getting current user:', error);
+      console.error("Error getting current user:", error);
       return null;
     }
 
     return user;
   } catch (error) {
-    console.error('Failed to get current user:', error);
+    console.error("Failed to get current user:", error);
     return null;
   }
 }
@@ -73,21 +73,21 @@ export async function getCurrentUser() {
  */
 export async function getCurrentSession() {
   try {
-    const supabase = createClient();
-    
+    const supabase = await createClient();
+
     const {
       data: { session },
       error,
     } = await supabase.auth.getSession();
 
     if (error) {
-      console.error('Error getting current session:', error);
+      console.error("Error getting current session:", error);
       return null;
     }
 
     return session;
   } catch (error) {
-    console.error('Failed to get current session:', error);
+    console.error("Failed to get current session:", error);
     return null;
   }
 }
@@ -97,11 +97,11 @@ export async function getCurrentSession() {
  */
 export async function requireAuth() {
   const user = await getCurrentUser();
-  
+
   if (!user) {
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
-  
+
   return user;
 }
 
@@ -110,16 +110,17 @@ export async function requireAuth() {
  */
 export async function getUserTeams(userId?: string) {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const user = userId ? { id: userId } : await getCurrentUser();
-    
+
     if (!user) {
       return [];
     }
 
     const { data: teams, error } = await supabase
-      .from('team_members')
-      .select(`
+      .from("team_members")
+      .select(
+        `
         role,
         team:teams (
           id,
@@ -129,11 +130,12 @@ export async function getUserTeams(userId?: string) {
           created_at,
           updated_at
         )
-      `)
-      .eq('user_id', user.id);
+      `
+      )
+      .eq("user_id", user.id);
 
     if (error) {
-      console.error('Error getting user teams:', error);
+      console.error("Error getting user teams:", error);
       return [];
     }
 
@@ -142,7 +144,7 @@ export async function getUserTeams(userId?: string) {
       user_role: t.role,
     }));
   } catch (error) {
-    console.error('Failed to get user teams:', error);
+    console.error("Failed to get user teams:", error);
     return [];
   }
 }
@@ -150,20 +152,23 @@ export async function getUserTeams(userId?: string) {
 /**
  * Check if user has access to a specific team
  */
-export async function validateTeamAccess(teamId: string, requiredRole?: string) {
+export async function validateTeamAccess(
+  teamId: string,
+  requiredRole?: string
+) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return false;
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: membership, error } = await supabase
-      .from('team_members')
-      .select('role')
-      .eq('team_id', teamId)
-      .eq('user_id', user.id)
+      .from("team_members")
+      .select("role")
+      .eq("team_id", teamId)
+      .eq("user_id", user.id)
       .single();
 
     if (error || !membership) {
@@ -177,18 +182,20 @@ export async function validateTeamAccess(teamId: string, requiredRole?: string) 
 
     // Role hierarchy: owner > admin > member > viewer
     const roleHierarchy = {
-      'owner': 4,
-      'admin': 3,
-      'member': 2,
-      'viewer': 1,
+      owner: 4,
+      admin: 3,
+      member: 2,
+      viewer: 1,
     };
 
-    const userLevel = roleHierarchy[membership.role as keyof typeof roleHierarchy] || 0;
-    const requiredLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
+    const userLevel =
+      roleHierarchy[membership.role as keyof typeof roleHierarchy] || 0;
+    const requiredLevel =
+      roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
 
     return userLevel >= requiredLevel;
   } catch (error) {
-    console.error('Failed to validate team access:', error);
+    console.error("Failed to validate team access:", error);
     return false;
   }
 }
@@ -196,21 +203,24 @@ export async function validateTeamAccess(teamId: string, requiredRole?: string) 
 /**
  * Check if user has access to a specific project
  */
-export async function validateProjectAccess(projectId: string, requiredRole?: string) {
+export async function validateProjectAccess(
+  projectId: string,
+  requiredRole?: string
+) {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return false;
     }
 
-    const supabase = createClient();
-    
+    const supabase = await createClient();
+
     // Get project's team
     const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('team_id')
-      .eq('id', projectId)
+      .from("projects")
+      .select("team_id")
+      .eq("id", projectId)
       .single();
 
     if (projectError || !project) {
@@ -220,7 +230,7 @@ export async function validateProjectAccess(projectId: string, requiredRole?: st
     // Validate team access
     return validateTeamAccess(project.team_id, requiredRole);
   } catch (error) {
-    console.error('Failed to validate project access:', error);
+    console.error("Failed to validate project access:", error);
     return false;
   }
 }
@@ -231,7 +241,7 @@ export async function validateProjectAccess(projectId: string, requiredRole?: st
 export async function getUserProfile() {
   try {
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return null;
     }
@@ -246,7 +256,7 @@ export async function getUserProfile() {
       teams,
     };
   } catch (error) {
-    console.error('Failed to get user profile:', error);
+    console.error("Failed to get user profile:", error);
     return null;
   }
 }
@@ -258,11 +268,11 @@ export async function validateApiAuth() {
   try {
     // Try to get user from session
     const user = await getCurrentUser();
-    
+
     if (!user) {
       return {
         success: false,
-        error: 'Authentication required',
+        error: "Authentication required",
         status: 401,
       };
     }
@@ -274,7 +284,7 @@ export async function validateApiAuth() {
   } catch {
     return {
       success: false,
-      error: 'Authentication failed',
+      error: "Authentication failed",
       status: 401,
     };
   }
@@ -283,14 +293,11 @@ export async function validateApiAuth() {
 /**
  * Helper to create standardized API responses
  */
-export function createApiResponse<T>(
-  data: T,
-  status: number = 200
-): Response {
+export function createApiResponse<T>(data: T, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 }
@@ -311,7 +318,7 @@ export function createErrorResponse(
     {
       status,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     }
   );

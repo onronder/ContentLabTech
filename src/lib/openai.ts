@@ -3,11 +3,11 @@
  * Provides intelligent content optimization and insights
  */
 
-import OpenAI from 'openai';
+import OpenAI from "openai";
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env["OPENAI_API_KEY"],
 });
 
 // Types for AI analysis
@@ -17,17 +17,17 @@ export interface ContentAnalysisInput {
   metaDescription?: string;
   focusKeywords?: string[];
   targetAudience?: string;
-  contentType?: 'article' | 'blog_post' | 'landing_page' | 'product_page';
+  contentType?: "article" | "blog_post" | "landing_page" | "product_page";
   competitorUrls?: string[];
 }
 
 export interface ContentOptimizationResult {
   overallScore: number;
   recommendations: {
-    type: 'title' | 'meta' | 'content' | 'keywords' | 'structure';
-    priority: 'high' | 'medium' | 'low';
-    impact: 'high' | 'medium' | 'low';
-    effort: 'high' | 'medium' | 'low';
+    type: "title" | "meta" | "content" | "keywords" | "structure";
+    priority: "high" | "medium" | "low";
+    impact: "high" | "medium" | "low";
+    effort: "high" | "medium" | "low";
     title: string;
     description: string;
     before?: string;
@@ -61,7 +61,7 @@ export interface ContentOptimizationResult {
 export interface KeywordStrategy {
   primaryKeywords: {
     keyword: string;
-    intent: 'informational' | 'navigational' | 'transactional' | 'commercial';
+    intent: "informational" | "navigational" | "transactional" | "commercial";
     difficulty: number;
     opportunity: number;
     suggestions: string[];
@@ -111,10 +111,10 @@ Analyze this content for SEO optimization and provide detailed recommendations:
 
 Title: ${input.title}
 Content: ${input.content}
-Meta Description: ${input.metaDescription || 'Not provided'}
-Focus Keywords: ${input.focusKeywords?.join(', ') || 'Not provided'}
-Target Audience: ${input.targetAudience || 'General audience'}
-Content Type: ${input.contentType || 'article'}
+Meta Description: ${input.metaDescription || "Not provided"}
+Focus Keywords: ${input.focusKeywords?.join(", ") || "Not provided"}
+Target Audience: ${input.targetAudience || "General audience"}
+Content Type: ${input.contentType || "article"}
 
 Please provide a comprehensive analysis with:
 1. Overall score (0-100)
@@ -126,14 +126,15 @@ Format your response as valid JSON matching the ContentOptimizationResult interf
 `;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: "gpt-4",
       messages: [
         {
-          role: 'system',
-          content: 'You are an expert SEO content analyst. Provide detailed, actionable recommendations for content optimization. Always respond with valid JSON.',
+          role: "system",
+          content:
+            "You are an expert SEO content analyst. Provide detailed, actionable recommendations for content optimization. Always respond with valid JSON.",
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
@@ -143,21 +144,25 @@ Format your response as valid JSON matching the ContentOptimizationResult interf
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
-      throw new Error('No response from OpenAI');
+      throw new Error("No response from OpenAI");
     }
 
     // Parse and validate the JSON response
     const result = JSON.parse(response) as ContentOptimizationResult;
-    
+
     // Validate required fields
-    if (!result.overallScore || !result.recommendations || !result.seoAnalysis) {
-      throw new Error('Invalid response format from OpenAI');
+    if (
+      !result.overallScore ||
+      !result.recommendations ||
+      !result.seoAnalysis
+    ) {
+      throw new Error("Invalid response format from OpenAI");
     }
 
     return result;
   } catch (error) {
-    console.error('Error analyzing content with OpenAI:', error);
-    throw new Error('Failed to analyze content with AI');
+    console.error("Error analyzing content with OpenAI:", error);
+    throw new Error("Failed to analyze content with AI");
   }
 }
 
@@ -173,9 +178,9 @@ export async function generateKeywordStrategy(
     const prompt = `
 Generate a comprehensive keyword strategy for these target keywords in the ${industry} industry:
 
-Target Keywords: ${targetKeywords.join(', ')}
+Target Keywords: ${targetKeywords.join(", ")}
 Industry: ${industry}
-Competitor Domains: ${competitorDomains?.join(', ') || 'Not provided'}
+Competitor Domains: ${competitorDomains?.join(", ") || "Not provided"}
 
 Please provide:
 1. Primary keywords with intent classification, difficulty, and opportunity scores
@@ -186,14 +191,15 @@ Format your response as valid JSON matching the KeywordStrategy interface.
 `;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: "gpt-4",
       messages: [
         {
-          role: 'system',
-          content: 'You are an expert SEO strategist. Generate comprehensive keyword strategies based on industry analysis and competitive intelligence.',
+          role: "system",
+          content:
+            "You are an expert SEO strategist. Generate comprehensive keyword strategies based on industry analysis and competitive intelligence.",
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
@@ -203,13 +209,13 @@ Format your response as valid JSON matching the KeywordStrategy interface.
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
-      throw new Error('No response from OpenAI');
+      throw new Error("No response from OpenAI");
     }
 
     return JSON.parse(response) as KeywordStrategy;
   } catch (error) {
-    console.error('Error generating keyword strategy:', error);
-    throw new Error('Failed to generate keyword strategy');
+    console.error("Error generating keyword strategy:", error);
+    throw new Error("Failed to generate keyword strategy");
   }
 }
 
@@ -230,14 +236,18 @@ export async function analyzeCompetitor(
 Analyze these competitor content samples for strategic insights:
 
 Competitor Content:
-${competitorContent.map(c => `
+${competitorContent
+  .map(
+    c => `
 Domain: ${c.domain}
 Title: ${c.title}
 Content: ${c.content.substring(0, 1000)}...
-Meta: ${c.metaDescription || 'Not provided'}
-`).join('\n---\n')}
+Meta: ${c.metaDescription || "Not provided"}
+`
+  )
+  .join("\n---\n")}
 
-Target Keywords: ${targetKeywords.join(', ')}
+Target Keywords: ${targetKeywords.join(", ")}
 
 Provide analysis of:
 1. Competitor strengths and weaknesses
@@ -248,14 +258,15 @@ Format as valid JSON matching the CompetitorAnalysis interface.
 `;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: "gpt-4",
       messages: [
         {
-          role: 'system',
-          content: 'You are an expert competitive intelligence analyst. Analyze competitor strategies and identify opportunities.',
+          role: "system",
+          content:
+            "You are an expert competitive intelligence analyst. Analyze competitor strategies and identify opportunities.",
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
@@ -265,13 +276,13 @@ Format as valid JSON matching the CompetitorAnalysis interface.
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
-      throw new Error('No response from OpenAI');
+      throw new Error("No response from OpenAI");
     }
 
     return JSON.parse(response) as CompetitorAnalysis;
   } catch (error) {
-    console.error('Error analyzing competitor:', error);
-    throw new Error('Failed to analyze competitor');
+    console.error("Error analyzing competitor:", error);
+    throw new Error("Failed to analyze competitor");
   }
 }
 
@@ -294,13 +305,17 @@ export async function generateContentImprovements(
 ): Promise<{
   improvements: {
     type: string;
-    priority: 'high' | 'medium' | 'low';
+    priority: "high" | "medium" | "low";
     description: string;
     expectedImpact: string;
     implementation: string;
   }[];
   predictedOutcomes: {
-    rankingImprovements: { keyword: string; currentPosition: number; predictedPosition: number }[];
+    rankingImprovements: {
+      keyword: string;
+      currentPosition: number;
+      predictedPosition: number;
+    }[];
     trafficIncrease: number;
     conversionImprovement: number;
   };
@@ -310,14 +325,14 @@ export async function generateContentImprovements(
 Analyze this content's performance and generate specific improvement recommendations:
 
 Content Title: ${content.title}
-Current Rankings: ${content.currentRankings.map(r => `${r.keyword}: #${r.position}`).join(', ')}
+Current Rankings: ${content.currentRankings.map(r => `${r.keyword}: #${r.position}`).join(", ")}
 Performance Metrics:
 - Pageviews: ${content.performanceMetrics.pageviews}
 - Bounce Rate: ${content.performanceMetrics.bounceRate}%
 - Avg Session Duration: ${content.performanceMetrics.avgSessionDuration}s
 - Conversion Rate: ${content.performanceMetrics.conversionRate}%
 
-Target Keywords: ${targetKeywords.join(', ')}
+Target Keywords: ${targetKeywords.join(", ")}
 
 Provide:
 1. Specific improvements with priority and expected impact
@@ -327,14 +342,15 @@ Format as valid JSON.
 `;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: "gpt-4",
       messages: [
         {
-          role: 'system',
-          content: 'You are an expert content optimization analyst. Provide data-driven improvement recommendations with predicted outcomes.',
+          role: "system",
+          content:
+            "You are an expert content optimization analyst. Provide data-driven improvement recommendations with predicted outcomes.",
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
@@ -344,35 +360,40 @@ Format as valid JSON.
 
     const response = completion.choices[0]?.message?.content;
     if (!response) {
-      throw new Error('No response from OpenAI');
+      throw new Error("No response from OpenAI");
     }
 
     return JSON.parse(response);
   } catch (error) {
-    console.error('Error generating content improvements:', error);
-    throw new Error('Failed to generate content improvements');
+    console.error("Error generating content improvements:", error);
+    throw new Error("Failed to generate content improvements");
   }
 }
 
 /**
  * Calculate token usage and cost estimation
  */
-export function estimateTokensAndCost(text: string, model: 'gpt-4' | 'gpt-3.5-turbo' = 'gpt-4'): {
+export function estimateTokensAndCost(
+  text: string,
+  model: "gpt-4" | "gpt-3.5-turbo" = "gpt-4"
+): {
   estimatedTokens: number;
   estimatedCost: number;
 } {
   // Rough estimation: ~4 characters per token
   const estimatedTokens = Math.ceil(text.length / 4);
-  
+
   // Pricing (as of 2024, subject to change)
   const pricing = {
-    'gpt-4': { input: 0.03 / 1000, output: 0.06 / 1000 },
-    'gpt-3.5-turbo': { input: 0.001 / 1000, output: 0.002 / 1000 },
+    "gpt-4": { input: 0.03 / 1000, output: 0.06 / 1000 },
+    "gpt-3.5-turbo": { input: 0.001 / 1000, output: 0.002 / 1000 },
   };
-  
+
   const modelPricing = pricing[model];
-  const estimatedCost = (estimatedTokens * modelPricing.input) + (estimatedTokens * 0.5 * modelPricing.output);
-  
+  const estimatedCost =
+    estimatedTokens * modelPricing.input +
+    estimatedTokens * 0.5 * modelPricing.output;
+
   return {
     estimatedTokens,
     estimatedCost,
@@ -385,14 +406,14 @@ export function estimateTokensAndCost(text: string, model: 'gpt-4' | 'gpt-3.5-tu
 export async function healthCheck(): Promise<boolean> {
   try {
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: 'Hello' }],
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: "Hello" }],
       max_tokens: 5,
     });
-    
+
     return !!completion.choices[0]?.message?.content;
   } catch (error) {
-    console.error('OpenAI health check failed:', error);
+    console.error("OpenAI health check failed:", error);
     return false;
   }
 }

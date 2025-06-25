@@ -3,28 +3,9 @@
  * Provides search performance data and insights
  */
 
-import { google } from 'googleapis';
+import { google } from "googleapis";
 
 // Types for Google Search Console integration
-interface RowData {
-  clicks?: number;
-  impressions?: number;
-  ctr?: number;
-  position?: number;
-  keys?: string[];
-}
-
-interface SitemapData {
-  path?: string;
-  lastSubmitted?: string;
-  isPending?: boolean;
-  isSitemapsIndex?: boolean;
-  type?: string;
-  lastDownloaded?: string;
-  warnings?: number;
-  errors?: number;
-  contents?: unknown[];
-}
 
 export interface SearchConsoleMetrics {
   clicks: number;
@@ -49,7 +30,7 @@ export interface PageData extends SearchConsoleMetrics {
 }
 
 export interface DeviceData extends SearchConsoleMetrics {
-  device: 'desktop' | 'mobile' | 'tablet';
+  device: "desktop" | "mobile" | "tablet";
 }
 
 export interface CountryData extends SearchConsoleMetrics {
@@ -60,11 +41,11 @@ export interface SearchAnalyticsRequest {
   siteUrl: string;
   startDate: string;
   endDate: string;
-  dimensions?: ('query' | 'page' | 'country' | 'device' | 'searchAppearance')[];
+  dimensions?: ("query" | "page" | "country" | "device" | "searchAppearance")[];
   filters?: {
     dimension: string;
     expression: string;
-    operator: 'equals' | 'notEquals' | 'contains' | 'notContains';
+    operator: "equals" | "notEquals" | "contains" | "notContains";
   }[];
   rowLimit?: number;
   startRow?: number;
@@ -84,10 +65,30 @@ export interface SearchAnalyticsResponse {
 
 export interface IndexingStatus {
   url: string;
-  status: 'SUBMITTED' | 'DUPLICATE_WITHOUT_USER_SUBMITTED_CANONICAL' | 'CRAWLED_AS_GOOGLE' | 'SUBMITTED_AND_INDEXED' | 'DUPLICATE_GOOGLE_CHOSE_CANONICAL' | 'DUPLICATE_USER_CHOSE_CANONICAL' | 'DUPLICATE_SUBMITTED_URL_NOT_SELECTED_AS_CANONICAL' | 'EXCLUDED_BY_ROBOTS_TXT' | 'EXCLUDED_BY_NOINDEX_TAG' | 'EXCLUDED_BY_HTTP_STATUS_CODE' | 'BLOCKED_BY_PAGE_REMOVAL_TOOL' | 'BLOCKED_BY_OTHER' | 'REDIRECT_ERROR' | 'ACCESS_DENIED' | 'SERVER_ERROR' | 'DISCOVERY_ERROR' | 'SOFT_404' | 'BLOCKED_BY_ROBOTS_TXT_4XX' | 'DUPLICATE_WITHOUT_USER_SUBMITTED_CANONICAL_BUT_CRAWLED' | 'UNKNOWN';
+  status:
+    | "SUBMITTED"
+    | "DUPLICATE_WITHOUT_USER_SUBMITTED_CANONICAL"
+    | "CRAWLED_AS_GOOGLE"
+    | "SUBMITTED_AND_INDEXED"
+    | "DUPLICATE_GOOGLE_CHOSE_CANONICAL"
+    | "DUPLICATE_USER_CHOSE_CANONICAL"
+    | "DUPLICATE_SUBMITTED_URL_NOT_SELECTED_AS_CANONICAL"
+    | "EXCLUDED_BY_ROBOTS_TXT"
+    | "EXCLUDED_BY_NOINDEX_TAG"
+    | "EXCLUDED_BY_HTTP_STATUS_CODE"
+    | "BLOCKED_BY_PAGE_REMOVAL_TOOL"
+    | "BLOCKED_BY_OTHER"
+    | "REDIRECT_ERROR"
+    | "ACCESS_DENIED"
+    | "SERVER_ERROR"
+    | "DISCOVERY_ERROR"
+    | "SOFT_404"
+    | "BLOCKED_BY_ROBOTS_TXT_4XX"
+    | "DUPLICATE_WITHOUT_USER_SUBMITTED_CANONICAL_BUT_CRAWLED"
+    | "UNKNOWN";
   lastCrawlTime?: string;
-  indexingState?: 'INDEXING_ALLOWED' | 'BLOCKED_BY_META_TAG' | 'BLOCKED_BY_HTTP_HEADER' | 'BLOCKED_BY_ROBOTS_TXT';
-  pageFetchState?: 'SUCCESSFUL' | 'SOFT_404' | 'BLOCKED_ROBOTS_TXT' | 'NOT_FOUND' | 'ACCESS_DENIED' | 'SERVER_ERROR' | 'REDIRECT_ERROR' | 'ACCESS_FORBIDDEN' | 'BLOCKED_4XX' | 'INTERNAL_CRAWL_ERROR' | 'INVALID_URL';
+  indexingState?: string;
+  pageFetchState?: string;
 }
 
 export interface SitemapInfo {
@@ -95,12 +96,12 @@ export interface SitemapInfo {
   lastSubmitted?: string;
   isPending: boolean;
   isSitemapsIndex: boolean;
-  type: 'WEB' | 'IMAGE' | 'VIDEO' | 'NEWS';
+  type: "WEB" | "IMAGE" | "VIDEO" | "NEWS";
   lastDownloaded?: string;
   warnings: number;
   errors: number;
   contents?: {
-    type: 'WEB' | 'IMAGE' | 'VIDEO' | 'NEWS';
+    type: "WEB" | "IMAGE" | "VIDEO" | "NEWS";
     submitted: number;
     indexed: number;
   }[];
@@ -114,60 +115,69 @@ class GoogleSearchConsoleClient {
     // Initialize Google APIs client
     this.auth = new google.auth.GoogleAuth({
       credentials: this.getCredentials(),
-      scopes: ['https://www.googleapis.com/auth/webmasters.readonly'],
+      scopes: ["https://www.googleapis.com/auth/webmasters.readonly"],
     });
 
     this.searchConsole = google.searchconsole({
-      version: 'v1',
+      version: "v1",
       auth: this.auth,
     });
   }
 
   private getCredentials() {
-    const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+    const credentials = process.env["GOOGLE_SERVICE_ACCOUNT_KEY"];
     if (!credentials) {
-      throw new Error('Google Service Account credentials not configured');
+      throw new Error("Google Service Account credentials not configured");
     }
 
     try {
       return JSON.parse(credentials);
     } catch {
-      throw new Error('Invalid Google Service Account credentials format');
+      throw new Error("Invalid Google Service Account credentials format");
     }
   }
 
   /**
    * Get search analytics data
    */
-  async getSearchAnalytics(request: SearchAnalyticsRequest): Promise<SearchAnalyticsResponse> {
+  async getSearchAnalytics(
+    request: SearchAnalyticsRequest
+  ): Promise<SearchAnalyticsResponse> {
     try {
-      const response = await this.searchConsole.searchanalytics.query({
-        siteUrl: request.siteUrl,
-        requestBody: {
-          startDate: request.startDate,
-          endDate: request.endDate,
-          dimensions: request.dimensions || ['query'],
-          dimensionFilterGroups: request.filters ? [{
+      const requestBody: Record<string, unknown> = {
+        startDate: request.startDate,
+        endDate: request.endDate,
+        dimensions: request.dimensions || ["query"],
+        rowLimit: request.rowLimit || 1000,
+        startRow: request.startRow || 0,
+      };
+
+      if (request.filters) {
+        requestBody["dimensionFilterGroups"] = [
+          {
             filters: request.filters.map(filter => ({
               dimension: filter.dimension,
               expression: filter.expression,
               operator: filter.operator,
             })),
-          }] : undefined,
-          rowLimit: request.rowLimit || 1000,
-          startRow: request.startRow || 0,
-        },
+          },
+        ];
+      }
+
+      const response = await this.searchConsole.searchanalytics.query({
+        siteUrl: request.siteUrl,
+        requestBody,
       });
 
       const rows = response.data.rows || [];
-      
+
       // Parse data based on dimensions
       const queries: QueryData[] = [];
       const pages: PageData[] = [];
       const devices: DeviceData[] = [];
       const countries: CountryData[] = [];
 
-      rows.forEach((row: RowData) => {
+      rows.forEach(row => {
         const metrics: SearchConsoleMetrics = {
           clicks: row.clicks || 0,
           impressions: row.impressions || 0,
@@ -175,34 +185,34 @@ class GoogleSearchConsoleClient {
           position: row.position || 0,
         };
 
-        if (request.dimensions?.includes('query')) {
+        if (request.dimensions?.includes("query") && row.keys) {
           queries.push({
-            query: row.keys[0] || '',
+            query: row.keys[0] || "",
             ...metrics,
           });
         }
 
-        if (request.dimensions?.includes('page')) {
-          const pageIndex = request.dimensions.indexOf('page');
+        if (request.dimensions?.includes("page") && row.keys) {
+          const pageIndex = request.dimensions.indexOf("page");
           pages.push({
-            page: row.keys[pageIndex] || '',
+            page: row.keys[pageIndex] || "",
             topQueries: [], // Would need separate query to get top queries
             ...metrics,
           });
         }
 
-        if (request.dimensions?.includes('device')) {
-          const deviceIndex = request.dimensions.indexOf('device');
+        if (request.dimensions?.includes("device") && row.keys) {
+          const deviceIndex = request.dimensions.indexOf("device");
           devices.push({
-            device: row.keys[deviceIndex] as 'desktop' | 'mobile' | 'tablet',
+            device: row.keys[deviceIndex] as "desktop" | "mobile" | "tablet",
             ...metrics,
           });
         }
 
-        if (request.dimensions?.includes('country')) {
-          const countryIndex = request.dimensions.indexOf('country');
+        if (request.dimensions?.includes("country") && row.keys) {
+          const countryIndex = request.dimensions.indexOf("country");
           countries.push({
-            country: row.keys[countryIndex] || '',
+            country: row.keys[countryIndex] || "",
             ...metrics,
           });
         }
@@ -210,7 +220,7 @@ class GoogleSearchConsoleClient {
 
       // Calculate total metrics
       const totalMetrics: SearchConsoleMetrics = rows.reduce(
-        (total: SearchConsoleMetrics, row: RowData) => ({
+        (total: SearchConsoleMetrics, row) => ({
           clicks: total.clicks + (row.clicks || 0),
           impressions: total.impressions + (row.impressions || 0),
           ctr: 0, // Will be calculated after reduction
@@ -219,11 +229,16 @@ class GoogleSearchConsoleClient {
         { clicks: 0, impressions: 0, ctr: 0, position: 0 }
       );
 
-      totalMetrics.ctr = totalMetrics.impressions > 0 ? 
-        (totalMetrics.clicks / totalMetrics.impressions) * 100 : 0;
-      
-      totalMetrics.position = rows.length > 0 ? 
-        rows.reduce((sum: number, row: RowData) => sum + (row.position || 0), 0) / rows.length : 0;
+      totalMetrics.ctr =
+        totalMetrics.impressions > 0
+          ? (totalMetrics.clicks / totalMetrics.impressions) * 100
+          : 0;
+
+      totalMetrics.position =
+        rows.length > 0
+          ? rows.reduce((sum: number, row) => sum + (row.position || 0), 0) /
+            rows.length
+          : 0;
 
       return {
         queries,
@@ -237,8 +252,8 @@ class GoogleSearchConsoleClient {
         },
       };
     } catch (error) {
-      console.error('Error fetching search analytics:', error);
-      throw new Error('Failed to fetch search analytics data');
+      console.error("Error fetching search analytics:", error);
+      throw new Error("Failed to fetch search analytics data");
     }
   }
 
@@ -255,7 +270,7 @@ class GoogleSearchConsoleClient {
       siteUrl,
       startDate,
       endDate,
-      dimensions: ['query'],
+      dimensions: ["query"],
       rowLimit: limit,
     });
 
@@ -275,7 +290,7 @@ class GoogleSearchConsoleClient {
       siteUrl,
       startDate,
       endDate,
-      dimensions: ['page'],
+      dimensions: ["page"],
       rowLimit: limit,
     });
 
@@ -294,7 +309,7 @@ class GoogleSearchConsoleClient {
       siteUrl,
       startDate,
       endDate,
-      dimensions: ['device'],
+      dimensions: ["device"],
     });
 
     return response.devices;
@@ -313,7 +328,7 @@ class GoogleSearchConsoleClient {
       siteUrl,
       startDate,
       endDate,
-      dimensions: ['country'],
+      dimensions: ["country"],
       rowLimit: limit,
     });
 
@@ -334,12 +349,14 @@ class GoogleSearchConsoleClient {
       siteUrl,
       startDate,
       endDate,
-      dimensions: ['query'],
-      filters: [{
-        dimension: 'page',
-        expression: pageUrl,
-        operator: 'equals',
-      }],
+      dimensions: ["query"],
+      filters: [
+        {
+          dimension: "page",
+          expression: pageUrl,
+          operator: "equals",
+        },
+      ],
       rowLimit: limit,
     });
 
@@ -349,33 +366,52 @@ class GoogleSearchConsoleClient {
   /**
    * Get indexing status for URLs
    */
-  async getIndexingStatus(siteUrl: string, urls: string[]): Promise<IndexingStatus[]> {
+  async getIndexingStatus(
+    siteUrl: string,
+    urls: string[]
+  ): Promise<IndexingStatus[]> {
     try {
       const results: IndexingStatus[] = [];
 
       for (const url of urls) {
         try {
-          const response = await this.searchConsole.urlInspection.index.inspect({
-            requestBody: {
-              inspectionUrl: url,
-              siteUrl: siteUrl,
-            },
-          });
+          const response = await this.searchConsole.urlInspection.index.inspect(
+            {
+              requestBody: {
+                inspectionUrl: url,
+                siteUrl: siteUrl,
+              },
+            }
+          );
 
           const inspectionResult = response.data.inspectionResult;
-          
-          results.push({
+
+          const indexingStatus: IndexingStatus = {
             url,
-            status: inspectionResult?.indexStatusResult?.verdict || 'UNKNOWN',
-            lastCrawlTime: inspectionResult?.indexStatusResult?.lastCrawlTime,
-            indexingState: inspectionResult?.indexStatusResult?.indexingState,
-            pageFetchState: inspectionResult?.indexStatusResult?.pageFetchState,
-          });
+            status:
+              (inspectionResult?.indexStatusResult
+                ?.verdict as IndexingStatus["status"]) || "UNKNOWN",
+          };
+
+          if (inspectionResult?.indexStatusResult?.lastCrawlTime) {
+            indexingStatus.lastCrawlTime =
+              inspectionResult.indexStatusResult.lastCrawlTime;
+          }
+          if (inspectionResult?.indexStatusResult?.indexingState) {
+            indexingStatus.indexingState =
+              inspectionResult.indexStatusResult.indexingState;
+          }
+          if (inspectionResult?.indexStatusResult?.pageFetchState) {
+            indexingStatus.pageFetchState =
+              inspectionResult.indexStatusResult.pageFetchState;
+          }
+
+          results.push(indexingStatus);
         } catch (error) {
           console.error(`Error inspecting URL ${url}:`, error);
           results.push({
             url,
-            status: 'UNKNOWN',
+            status: "UNKNOWN",
           });
         }
 
@@ -385,8 +421,8 @@ class GoogleSearchConsoleClient {
 
       return results;
     } catch (error) {
-      console.error('Error getting indexing status:', error);
-      throw new Error('Failed to get indexing status');
+      console.error("Error getting indexing status:", error);
+      throw new Error("Failed to get indexing status");
     }
   }
 
@@ -400,21 +436,30 @@ class GoogleSearchConsoleClient {
       });
 
       const sitemaps = response.data.sitemap || [];
-      
-      return sitemaps.map((sitemap: SitemapData) => ({
-        path: sitemap.path || '',
-        lastSubmitted: sitemap.lastSubmitted,
-        isPending: sitemap.isPending || false,
-        isSitemapsIndex: sitemap.isSitemapsIndex || false,
-        type: sitemap.type || 'WEB',
-        lastDownloaded: sitemap.lastDownloaded,
-        warnings: sitemap.warnings || 0,
-        errors: sitemap.errors || 0,
-        contents: sitemap.contents || [],
-      }));
+
+      return sitemaps.map(sitemap => {
+        const result: SitemapInfo = {
+          path: sitemap.path || "",
+          isPending: sitemap.isPending || false,
+          isSitemapsIndex: sitemap.isSitemapsIndex || false,
+          type: (sitemap.type as SitemapInfo["type"]) || "WEB",
+          warnings: Number(sitemap.warnings) || 0,
+          errors: Number(sitemap.errors) || 0,
+          contents: (sitemap.contents as SitemapInfo["contents"]) || [],
+        };
+
+        if (sitemap.lastSubmitted) {
+          result.lastSubmitted = sitemap.lastSubmitted;
+        }
+        if (sitemap.lastDownloaded) {
+          result.lastDownloaded = sitemap.lastDownloaded;
+        }
+
+        return result;
+      });
     } catch (error) {
-      console.error('Error fetching sitemaps:', error);
-      throw new Error('Failed to fetch sitemap information');
+      console.error("Error fetching sitemaps:", error);
+      throw new Error("Failed to fetch sitemap information");
     }
   }
 
@@ -430,7 +475,7 @@ class GoogleSearchConsoleClient {
 
       return true;
     } catch (error) {
-      console.error('Error submitting sitemap:', error);
+      console.error("Error submitting sitemap:", error);
       return false;
     }
   }
@@ -442,18 +487,20 @@ class GoogleSearchConsoleClient {
     siteUrl: string,
     startDate: string,
     endDate: string
-  ): Promise<{
-    type: string;
-    clicks: number;
-    impressions: number;
-    ctr: number;
-    position: number;
-  }[]> {
+  ): Promise<
+    {
+      type: string;
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      position: number;
+    }[]
+  > {
     const response = await this.getSearchAnalytics({
       siteUrl,
       startDate,
       endDate,
-      dimensions: ['searchAppearance'],
+      dimensions: ["searchAppearance"],
     });
 
     return response.queries.map(q => ({
@@ -517,9 +564,13 @@ class GoogleSearchConsoleClient {
 
     const changePercent = {
       clicks: previous.clicks > 0 ? (change.clicks / previous.clicks) * 100 : 0,
-      impressions: previous.impressions > 0 ? (change.impressions / previous.impressions) * 100 : 0,
+      impressions:
+        previous.impressions > 0
+          ? (change.impressions / previous.impressions) * 100
+          : 0,
       ctr: previous.ctr > 0 ? (change.ctr / previous.ctr) * 100 : 0,
-      position: previous.position > 0 ? (change.position / previous.position) * 100 : 0,
+      position:
+        previous.position > 0 ? (change.position / previous.position) * 100 : 0,
     };
 
     return {
@@ -538,10 +589,13 @@ export const googleSearchConsole = new GoogleSearchConsoleClient();
  * Utility functions
  */
 export function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return date.toISOString().split("T")[0] || date.toISOString();
 }
 
-export function getDateRange(days: number): { startDate: string; endDate: string } {
+export function getDateRange(days: number): {
+  startDate: string;
+  endDate: string;
+} {
   const endDate = new Date();
   const startDate = new Date();
   startDate.setDate(endDate.getDate() - days);
@@ -552,7 +606,10 @@ export function getDateRange(days: number): { startDate: string; endDate: string
   };
 }
 
-export function getPreviousDateRange(days: number): { startDate: string; endDate: string } {
+export function getPreviousDateRange(days: number): {
+  startDate: string;
+  endDate: string;
+} {
   const endDate = new Date();
   endDate.setDate(endDate.getDate() - days);
   const startDate = new Date();
@@ -570,20 +627,20 @@ export function getPreviousDateRange(days: number): { startDate: string; endDate
 export async function healthCheck(): Promise<boolean> {
   try {
     // Try to make a simple API call
-    const testSiteUrl = process.env.TEST_SITE_URL || 'https://example.com';
+    const testSiteUrl = process.env["TEST_SITE_URL"] || "https://example.com";
     const { startDate, endDate } = getDateRange(7);
-    
+
     await googleSearchConsole.getSearchAnalytics({
       siteUrl: testSiteUrl,
       startDate,
       endDate,
-      dimensions: ['query'],
+      dimensions: ["query"],
       rowLimit: 1,
     });
-    
+
     return true;
   } catch (error) {
-    console.error('Google Search Console health check failed:', error);
+    console.error("Google Search Console health check failed:", error);
     return false;
   }
 }

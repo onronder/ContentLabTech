@@ -1,10 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, createClient, validateProjectAccess, createErrorResponse } from '@/lib/auth/session';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  getCurrentUser,
+  createClient,
+  validateProjectAccess,
+  createErrorResponse,
+} from "@/lib/auth/session";
 
 interface UpdateAlertRequest {
   is_active?: boolean;
   threshold?: number;
-  frequency?: 'immediate' | 'daily' | 'weekly';
+  frequency?: "immediate" | "daily" | "weekly";
   alert_config?: Record<string, unknown>;
 }
 
@@ -33,20 +38,21 @@ export async function GET(
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
     const { id: alertId } = await params;
     if (!alertId) {
-      return createErrorResponse('Alert ID is required', 400);
+      return createErrorResponse("Alert ID is required", 400);
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get alert with related data
     const { data: alert, error } = await supabase
-      .from('competitor_alerts')
-      .select(`
+      .from("competitor_alerts")
+      .select(
+        `
         *,
         competitor:competitors (
           id,
@@ -58,40 +64,49 @@ export async function GET(
           name,
           team_id
         )
-      `)
-      .eq('id', alertId)
+      `
+      )
+      .eq("id", alertId)
       .single();
 
     if (error || !alert) {
-      return createErrorResponse('Alert not found', 404);
+      return createErrorResponse("Alert not found", 404);
     }
 
     // Validate project access
-    const hasAccess = await validateProjectAccess(alert.project_id, 'viewer');
+    const hasAccess = await validateProjectAccess(alert.project_id, "viewer");
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions', 403);
+      return createErrorResponse("Insufficient permissions", 403);
     }
 
     // Get alert history (last 30 days)
     const { data: history } = await supabase
-      .from('user_events')
-      .select('*')
-      .eq('event_type', 'alert_triggered')
-      .contains('event_data', { alert_id: alertId })
-      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-      .order('created_at', { ascending: false })
+      .from("user_events")
+      .select("*")
+      .eq("event_type", "alert_triggered")
+      .contains("event_data", { alert_id: alertId })
+      .gte(
+        "created_at",
+        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      )
+      .order("created_at", { ascending: false })
       .limit(50);
 
     // Get recent monitoring data related to this alert
     let monitoringData = {};
     if (alert.competitor_id) {
       const { data: recentAnalytics } = await supabase
-        .from('competitor_analytics')
-        .select('*')
-        .eq('project_id', alert.project_id)
-        .eq('competitor_url', alert.competitor?.competitor_url)
-        .gte('analysis_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-        .order('analysis_date', { ascending: false })
+        .from("competitor_analytics")
+        .select("*")
+        .eq("project_id", alert.project_id)
+        .eq("competitor_url", alert.competitor?.competitor_url)
+        .gte(
+          "analysis_date",
+          new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split("T")[0]
+        )
+        .order("analysis_date", { ascending: false })
         .limit(10);
 
       monitoringData = {
@@ -111,10 +126,9 @@ export async function GET(
         createdAt: alert.created_at,
       },
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
@@ -126,34 +140,37 @@ export async function PATCH(
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
     const { id: alertId } = await params;
     if (!alertId) {
-      return createErrorResponse('Alert ID is required', 400);
+      return createErrorResponse("Alert ID is required", 400);
     }
 
     // Parse request body
     const body: UpdateAlertRequest = await request.json();
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get existing alert to validate access
     const { data: existingAlert, error: fetchError } = await supabase
-      .from('competitor_alerts')
-      .select('project_id, alert_type')
-      .eq('id', alertId)
+      .from("competitor_alerts")
+      .select("project_id, alert_type")
+      .eq("id", alertId)
       .single();
 
     if (fetchError || !existingAlert) {
-      return createErrorResponse('Alert not found', 404);
+      return createErrorResponse("Alert not found", 404);
     }
 
     // Validate project access
-    const hasAccess = await validateProjectAccess(existingAlert.project_id, 'member');
+    const hasAccess = await validateProjectAccess(
+      existingAlert.project_id,
+      "member"
+    );
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions', 403);
+      return createErrorResponse("Insufficient permissions", 403);
     }
 
     // Prepare update data
@@ -164,61 +181,60 @@ export async function PATCH(
 
     // Update alert
     const { data: updatedAlert, error: updateError } = await supabase
-      .from('competitor_alerts')
+      .from("competitor_alerts")
       .update(updateData)
-      .eq('id', alertId)
-      .select(`
+      .eq("id", alertId)
+      .select(
+        `
         *,
         competitor:competitors (
           id,
           competitor_name,
           competitor_url
         )
-      `)
+      `
+      )
       .single();
 
     if (updateError) {
-      console.error('Error updating alert:', updateError);
-      return createErrorResponse('Failed to update alert', 500);
+      console.error("Error updating alert:", updateError);
+      return createErrorResponse("Failed to update alert", 500);
     }
 
     // If alert was activated/deactivated, update monitoring
     if (body.is_active !== undefined) {
       try {
-        await supabase.functions.invoke('competitor-monitoring', {
+        await supabase.functions.invoke("competitor-monitoring", {
           body: {
-            action: body.is_active ? 'activate_alert' : 'deactivate_alert',
+            action: body.is_active ? "activate_alert" : "deactivate_alert",
             alertId,
             projectId: existingAlert.project_id,
           },
         });
       } catch (error) {
-        console.error('Error updating alert monitoring:', error);
+        console.error("Error updating alert monitoring:", error);
       }
     }
 
     // Log alert update
-    await supabase
-      .from('user_events')
-      .insert({
-        user_id: user.id,
-        event_type: 'alert_updated',
-        event_data: {
-          alert_id: alertId,
-          project_id: existingAlert.project_id,
-          changes: Object.keys(body),
-          is_active: updatedAlert.is_active,
-        },
-      });
+    await supabase.from("user_events").insert({
+      user_id: user.id,
+      event_type: "alert_updated",
+      event_data: {
+        alert_id: alertId,
+        project_id: existingAlert.project_id,
+        changes: Object.keys(body),
+        is_active: updatedAlert.is_active,
+      },
+    });
 
     return NextResponse.json({
       success: true,
       alert: updatedAlert,
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
@@ -230,78 +246,78 @@ export async function DELETE(
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
     const { id: alertId } = await params;
     if (!alertId) {
-      return createErrorResponse('Alert ID is required', 400);
+      return createErrorResponse("Alert ID is required", 400);
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get alert to validate access and get project info
     const { data: alert, error: fetchError } = await supabase
-      .from('competitor_alerts')
-      .select('project_id, alert_type, competitor_id')
-      .eq('id', alertId)
+      .from("competitor_alerts")
+      .select("project_id, alert_type, competitor_id")
+      .eq("id", alertId)
       .single();
 
     if (fetchError || !alert) {
-      return createErrorResponse('Alert not found', 404);
+      return createErrorResponse("Alert not found", 404);
     }
 
     // Validate project access (requires admin role)
-    const hasAccess = await validateProjectAccess(alert.project_id, 'admin');
+    const hasAccess = await validateProjectAccess(alert.project_id, "admin");
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions - admin role required', 403);
+      return createErrorResponse(
+        "Insufficient permissions - admin role required",
+        403
+      );
     }
 
     // Remove monitoring for this alert
     try {
-      await supabase.functions.invoke('competitor-monitoring', {
+      await supabase.functions.invoke("competitor-monitoring", {
         body: {
-          action: 'remove_alert',
+          action: "remove_alert",
           alertId,
           projectId: alert.project_id,
         },
       });
     } catch (error) {
-      console.error('Error removing alert monitoring:', error);
+      console.error("Error removing alert monitoring:", error);
     }
 
     // Delete the alert
     const { error: deleteError } = await supabase
-      .from('competitor_alerts')
+      .from("competitor_alerts")
       .delete()
-      .eq('id', alertId);
+      .eq("id", alertId);
 
     if (deleteError) {
-      console.error('Error deleting alert:', deleteError);
-      return createErrorResponse('Failed to delete alert', 500);
+      console.error("Error deleting alert:", deleteError);
+      return createErrorResponse("Failed to delete alert", 500);
     }
 
     // Log alert deletion
-    await supabase
-      .from('user_events')
-      .insert({
-        user_id: user.id,
-        event_type: 'alert_deleted',
-        event_data: {
-          alert_id: alertId,
-          project_id: alert.project_id,
-          alert_type: alert.alert_type,
-        },
-      });
+    await supabase.from("user_events").insert({
+      user_id: user.id,
+      event_type: "alert_deleted",
+      event_data: {
+        alert_id: alertId,
+        project_id: alert.project_id,
+        alert_type: alert.alert_type,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Alert deleted successfully',
+      message: "Alert deleted successfully",
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
@@ -313,113 +329,120 @@ export async function POST(
     // This endpoint handles alert actions like test, trigger, etc.
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
     const { id: alertId } = await params;
     const { action } = await request.json();
 
     if (!alertId || !action) {
-      return createErrorResponse('Alert ID and action are required', 400);
+      return createErrorResponse("Alert ID and action are required", 400);
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get alert to validate access
     const { data: alert, error: fetchError } = await supabase
-      .from('competitor_alerts')
-      .select('*')
-      .eq('id', alertId)
+      .from("competitor_alerts")
+      .select("*")
+      .eq("id", alertId)
       .single();
 
     if (fetchError || !alert) {
-      return createErrorResponse('Alert not found', 404);
+      return createErrorResponse("Alert not found", 404);
     }
 
     // Validate project access
-    const hasAccess = await validateProjectAccess(alert.project_id, 'member');
+    const hasAccess = await validateProjectAccess(alert.project_id, "member");
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions', 403);
+      return createErrorResponse("Insufficient permissions", 403);
     }
 
     let result;
 
     switch (action) {
-      case 'test': {
+      case "test": {
         // Test the alert configuration
         const testResult = await testAlert(supabase, alert);
-        
+
         // Log test event
-        await supabase
-          .from('user_events')
-          .insert({
-            user_id: user.id,
-            event_type: 'alert_tested',
-            event_data: {
-              alert_id: alertId,
-              project_id: alert.project_id,
-              test_result: testResult,
-            },
-          });
+        await supabase.from("user_events").insert({
+          user_id: user.id,
+          event_type: "alert_tested",
+          event_data: {
+            alert_id: alertId,
+            project_id: alert.project_id,
+            test_result: testResult,
+          },
+        });
 
         result = {
           test: testResult,
-          message: testResult.success 
-            ? 'Alert test completed successfully' 
-            : 'Alert test failed - check configuration',
+          message: testResult.success
+            ? "Alert test completed successfully"
+            : "Alert test failed - check configuration",
         };
         break;
       }
 
-      case 'force_check': {
+      case "force_check": {
         // Force an immediate check of the alert condition
         try {
-          const checkResult = await supabase.functions.invoke('competitor-monitoring', {
-            body: {
-              action: 'check_alert',
-              alertId,
-              projectId: alert.project_id,
-              forceCheck: true,
-            },
-          });
+          const checkResult = await supabase.functions.invoke(
+            "competitor-monitoring",
+            {
+              body: {
+                action: "check_alert",
+                alertId,
+                projectId: alert.project_id,
+                forceCheck: true,
+              },
+            }
+          );
 
           result = {
             check: checkResult.data?.result || {},
-            message: 'Alert check completed',
+            message: "Alert check completed",
           };
         } catch (error) {
-          console.error('Error forcing alert check:', error);
+          console.error("Error forcing alert check:", error);
           result = {
-            check: { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' },
-            message: 'Alert check failed',
+            check: {
+              success: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Unknown error occurred",
+            },
+            message: "Alert check failed",
           };
         }
         break;
       }
 
-      case 'reset': {
+      case "reset": {
         // Reset alert trigger history and status
         const { error: resetError } = await supabase
-          .from('competitor_alerts')
+          .from("competitor_alerts")
           .update({
             last_triggered: null,
             trigger_count: 0,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', alertId);
+          .eq("id", alertId);
 
         if (resetError) {
-          return createErrorResponse('Failed to reset alert', 500);
+          return createErrorResponse("Failed to reset alert", 500);
         }
 
         result = {
-          message: 'Alert reset successfully',
+          message: "Alert reset successfully",
         };
         break;
       }
 
       default:
-        return createErrorResponse('Invalid action specified', 400);
+        return createErrorResponse("Invalid action specified", 400);
     }
 
     return NextResponse.json({
@@ -429,52 +452,57 @@ export async function POST(
       result,
       timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
 // Helper function
-async function testAlert(supabase: ReturnType<typeof createClient>, alert: AlertData): Promise<TestAlertResult> {
+async function testAlert(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  alert: AlertData
+): Promise<TestAlertResult> {
   try {
     // Generate test data based on alert type
     let testData: Record<string, unknown>;
     let shouldTrigger = false;
 
     switch (alert.alert_type) {
-      case 'ranking_change':
+      case "ranking_change":
         testData = {
-          keyword: alert.keyword || 'test keyword',
+          keyword: alert.keyword || "test keyword",
           oldPosition: 15,
           newPosition: 8,
           change: -7,
         };
-        shouldTrigger = Math.abs(testData.change) >= (alert.threshold || 5);
+        shouldTrigger =
+          Math.abs(testData["change"] as number) >= (alert.threshold || 5);
         break;
 
-      case 'traffic_change':
+      case "traffic_change":
         testData = {
           oldTraffic: 1000,
           newTraffic: 1300,
           change: 30,
-          timeWindow: '7d',
+          timeWindow: "7d",
         };
-        shouldTrigger = Math.abs(testData.change) >= (alert.threshold || 20);
+        shouldTrigger =
+          Math.abs(testData["change"] as number) >= (alert.threshold || 20);
         break;
 
-      case 'new_content':
+      case "new_content":
         testData = {
           contentCount: 3,
-          contentTypes: ['blog'],
+          contentTypes: ["blog"],
           detectedAt: new Date().toISOString(),
         };
-        shouldTrigger = testData.contentCount >= (alert.threshold || 1);
+        shouldTrigger =
+          (testData["contentCount"] as number) >= (alert.threshold || 1);
         break;
 
       default:
-        testData = { message: 'No test data available for this alert type' };
+        testData = { message: "No test data available for this alert type" };
         shouldTrigger = false;
     }
 
@@ -482,15 +510,14 @@ async function testAlert(supabase: ReturnType<typeof createClient>, alert: Alert
       success: true,
       wouldTrigger: shouldTrigger,
       testData,
-      threshold: alert.threshold,
+      threshold: alert.threshold || 0,
       alertType: alert.alert_type,
     };
-
   } catch (error) {
-    console.error('Error testing alert:', error);
+    console.error("Error testing alert:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: error instanceof Error ? error.message : "Unknown error occurred",
     };
   }
 }

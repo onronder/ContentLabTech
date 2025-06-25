@@ -1,5 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser, createClient, validateProjectAccess, createErrorResponse } from '@/lib/auth/session';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  getCurrentUser,
+  createClient,
+  validateProjectAccess,
+  createErrorResponse,
+} from "@/lib/auth/session";
 
 interface UpdateProjectRequest {
   name?: string;
@@ -9,38 +14,39 @@ interface UpdateProjectRequest {
   target_audience?: string;
   content_goals?: string[];
   competitors?: string[];
-  status?: 'active' | 'inactive' | 'archived';
+  status?: "active" | "inactive" | "archived";
   settings?: Record<string, unknown>;
 }
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
-    const projectId = params.id;
+    const { id: projectId } = await params;
     if (!projectId) {
-      return createErrorResponse('Project ID is required', 400);
+      return createErrorResponse("Project ID is required", 400);
     }
 
     // Validate project access
-    const hasAccess = await validateProjectAccess(projectId, 'viewer');
+    const hasAccess = await validateProjectAccess(projectId, "viewer");
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions', 403);
+      return createErrorResponse("Insufficient permissions", 403);
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get project details
     const { data: project, error } = await supabase
-      .from('projects')
-      .select(`
+      .from("projects")
+      .select(
+        `
         *,
         team:teams (
           id,
@@ -48,12 +54,13 @@ export async function GET(
           description,
           owner_id
         )
-      `)
-      .eq('id', projectId)
+      `
+      )
+      .eq("id", projectId)
       .single();
 
     if (error || !project) {
-      return createErrorResponse('Project not found', 404);
+      return createErrorResponse("Project not found", 404);
     }
 
     // Get project statistics
@@ -62,71 +69,80 @@ export async function GET(
       { count: competitorCount },
       { data: recentContent },
       { data: competitors },
-      { data: recentAnalytics }
+      { data: recentAnalytics },
     ] = await Promise.all([
       // Content count
       supabase
-        .from('content_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId),
+        .from("content_items")
+        .select("*", { count: "exact", head: true })
+        .eq("project_id", projectId),
 
       // Competitor count
       supabase
-        .from('competitors')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', projectId)
-        .eq('is_active', true),
+        .from("competitors")
+        .select("*", { count: "exact", head: true })
+        .eq("project_id", projectId)
+        .eq("is_active", true),
 
       // Recent content
       supabase
-        .from('content_items')
-        .select('id, title, status, created_at, seo_score')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
+        .from("content_items")
+        .select("id, title, status, created_at, seo_score")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: false })
         .limit(5),
 
       // Active competitors
       supabase
-        .from('competitors')
-        .select('*')
-        .eq('project_id', projectId)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false }),
+        .from("competitors")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false }),
 
       // Recent analytics
       supabase
-        .from('content_analytics')
-        .select(`
+        .from("content_analytics")
+        .select(
+          `
           *,
           content:content_items (title, url)
-        `)
-        .in('content_id', (await supabase
-          .from('content_items')
-          .select('id')
-          .eq('project_id', projectId)
-        ).data?.map(c => c.id) || [])
-        .order('date', { ascending: false })
-        .limit(10)
+        `
+        )
+        .in(
+          "content_id",
+          (
+            await supabase
+              .from("content_items")
+              .select("id")
+              .eq("project_id", projectId)
+          ).data?.map(c => c.id) || []
+        )
+        .order("date", { ascending: false })
+        .limit(10),
     ]);
 
     // Calculate project performance metrics
-    const totalPageviews = recentAnalytics?.reduce((sum, a) => sum + (a.pageviews || 0), 0) || 0;
-    const avgSeoScore = recentContent?.length > 0 
-      ? recentContent.reduce((sum, c) => sum + (c.seo_score || 0), 0) / recentContent.length 
-      : 0;
+    const totalPageviews =
+      recentAnalytics?.reduce((sum, a) => sum + (a.pageviews || 0), 0) || 0;
+    const avgSeoScore =
+      recentContent && recentContent.length > 0
+        ? recentContent.reduce((sum, c) => sum + (c.seo_score || 0), 0) /
+          recentContent.length
+        : 0;
 
     // Get team member role for current user
     const { data: membership } = await supabase
-      .from('team_members')
-      .select('role')
-      .eq('team_id', project.team_id)
-      .eq('user_id', user.id)
+      .from("team_members")
+      .select("role")
+      .eq("team_id", project.team_id)
+      .eq("user_id", user.id)
       .single();
 
     return NextResponse.json({
       project: {
         ...project,
-        userRole: membership?.role || 'viewer',
+        userRole: membership?.role || "viewer",
       },
       stats: {
         contentCount: contentCount || 0,
@@ -139,39 +155,38 @@ export async function GET(
       competitors: competitors || [],
       recentAnalytics: recentAnalytics || [],
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
-    const projectId = params.id;
+    const { id: projectId } = await params;
     if (!projectId) {
-      return createErrorResponse('Project ID is required', 400);
+      return createErrorResponse("Project ID is required", 400);
     }
 
     // Validate project access (requires admin role)
-    const hasAccess = await validateProjectAccess(projectId, 'admin');
+    const hasAccess = await validateProjectAccess(projectId, "admin");
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions', 403);
+      return createErrorResponse("Insufficient permissions", 403);
     }
 
     // Parse request body
     const body: UpdateProjectRequest = await request.json();
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Prepare update data
     const updateData: Record<string, unknown> = {
@@ -181,31 +196,33 @@ export async function PUT(
 
     // Update project
     const { data: updatedProject, error: updateError } = await supabase
-      .from('projects')
+      .from("projects")
       .update(updateData)
-      .eq('id', projectId)
-      .select(`
+      .eq("id", projectId)
+      .select(
+        `
         *,
         team:teams (
           id,
           name,
           description
         )
-      `)
+      `
+      )
       .single();
 
     if (updateError) {
-      console.error('Error updating project:', updateError);
-      return createErrorResponse('Failed to update project', 500);
+      console.error("Error updating project:", updateError);
+      return createErrorResponse("Failed to update project", 500);
     }
 
     // Update competitors if provided
     if (body.competitors) {
       // First, deactivate existing competitors
       await supabase
-        .from('competitors')
+        .from("competitors")
         .update({ is_active: false })
-        .eq('project_id', projectId);
+        .eq("project_id", projectId);
 
       // Add new competitors
       if (body.competitors.length > 0) {
@@ -217,134 +234,127 @@ export async function PUT(
           added_by: user.id,
         }));
 
-        await supabase
-          .from('competitors')
-          .upsert(competitorData, {
-            onConflict: 'project_id,competitor_url',
-            ignoreDuplicates: false,
-          });
+        await supabase.from("competitors").upsert(competitorData, {
+          onConflict: "project_id,competitor_url",
+          ignoreDuplicates: false,
+        });
       }
     }
 
     // Log project update
-    await supabase
-      .from('user_events')
-      .insert({
-        user_id: user.id,
-        event_type: 'project_updated',
-        event_data: {
-          project_id: projectId,
-          changes: Object.keys(body),
-        },
-      });
+    await supabase.from("user_events").insert({
+      user_id: user.id,
+      event_type: "project_updated",
+      event_data: {
+        project_id: projectId,
+        changes: Object.keys(body),
+      },
+    });
 
     return NextResponse.json({
       success: true,
       project: updatedProject,
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
     const user = await getCurrentUser();
     if (!user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse("Authentication required", 401);
     }
 
-    const projectId = params.id;
+    const { id: projectId } = await params;
     if (!projectId) {
-      return createErrorResponse('Project ID is required', 400);
+      return createErrorResponse("Project ID is required", 400);
     }
 
     // Validate project access (requires owner role)
-    const hasAccess = await validateProjectAccess(projectId, 'owner');
+    const hasAccess = await validateProjectAccess(projectId, "owner");
     if (!hasAccess) {
-      return createErrorResponse('Insufficient permissions - only team owners can delete projects', 403);
+      return createErrorResponse(
+        "Insufficient permissions - only team owners can delete projects",
+        403
+      );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
 
     // Get project details for logging
     const { data: project } = await supabase
-      .from('projects')
-      .select('name, team_id')
-      .eq('id', projectId)
+      .from("projects")
+      .select("name, team_id")
+      .eq("id", projectId)
       .single();
 
     // Delete related data (in proper order due to foreign key constraints)
     await Promise.all([
       // Delete content analytics
-      supabase.rpc('delete_project_analytics', { project_id: projectId }),
-      
+      supabase.rpc("delete_project_analytics", { project_id: projectId }),
+
       // Delete content recommendations
-      supabase.rpc('delete_project_recommendations', { project_id: projectId }),
-      
+      supabase.rpc("delete_project_recommendations", { project_id: projectId }),
+
       // Delete analysis results
-      supabase.rpc('delete_project_analysis_results', { project_id: projectId }),
-      
+      supabase.rpc("delete_project_analysis_results", {
+        project_id: projectId,
+      }),
+
       // Delete optimization sessions
-      supabase.rpc('delete_project_optimization_sessions', { project_id: projectId }),
+      supabase.rpc("delete_project_optimization_sessions", {
+        project_id: projectId,
+      }),
     ]);
 
     // Delete content items
-    await supabase
-      .from('content_items')
-      .delete()
-      .eq('project_id', projectId);
+    await supabase.from("content_items").delete().eq("project_id", projectId);
 
     // Delete competitors
-    await supabase
-      .from('competitors')
-      .delete()
-      .eq('project_id', projectId);
+    await supabase.from("competitors").delete().eq("project_id", projectId);
 
     // Delete keyword opportunities
     await supabase
-      .from('keyword_opportunities')
+      .from("keyword_opportunities")
       .delete()
-      .eq('project_id', projectId);
+      .eq("project_id", projectId);
 
     // Finally, delete the project
     const { error: deleteError } = await supabase
-      .from('projects')
+      .from("projects")
       .delete()
-      .eq('id', projectId);
+      .eq("id", projectId);
 
     if (deleteError) {
-      console.error('Error deleting project:', deleteError);
-      return createErrorResponse('Failed to delete project', 500);
+      console.error("Error deleting project:", deleteError);
+      return createErrorResponse("Failed to delete project", 500);
     }
 
     // Log project deletion
-    await supabase
-      .from('user_events')
-      .insert({
-        user_id: user.id,
-        event_type: 'project_deleted',
-        event_data: {
-          project_id: projectId,
-          project_name: project?.name,
-          team_id: project?.team_id,
-        },
-      });
+    await supabase.from("user_events").insert({
+      user_id: user.id,
+      event_type: "project_deleted",
+      event_data: {
+        project_id: projectId,
+        project_name: project?.name,
+        team_id: project?.team_id,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      message: 'Project deleted successfully',
+      message: "Project deleted successfully",
     });
-
   } catch (error) {
-    console.error('API error:', error);
-    return createErrorResponse('Internal server error', 500);
+    console.error("API error:", error);
+    return createErrorResponse("Internal server error", 500);
   }
 }
 
@@ -352,14 +362,14 @@ export async function DELETE(
 function extractDomainName(url: string): string {
   try {
     // Add protocol if missing
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url;
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url;
     }
-    
+
     const domain = new URL(url).hostname;
-    return domain.replace('www.', '');
+    return domain.replace("www.", "");
   } catch {
     // If URL parsing fails, return the original string cleaned up
-    return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
+    return url.replace(/^(https?:\/\/)?(www\.)?/, "").split("/")[0] || url;
   }
 }
