@@ -24,7 +24,7 @@ export function createClient() {
         set(name: string, value: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value, ...options });
-          } catch (error) {
+          } catch {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -33,7 +33,7 @@ export function createClient() {
         remove(name: string, options: CookieOptions) {
           try {
             cookieStore.set({ name, value: '', ...options });
-          } catch (error) {
+          } catch {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -254,7 +254,7 @@ export async function getUserProfile() {
 /**
  * Validate API request authentication
  */
-export async function validateApiAuth(request: Request) {
+export async function validateApiAuth() {
   try {
     // Try to get user from session
     const user = await getCurrentUser();
@@ -271,7 +271,7 @@ export async function validateApiAuth(request: Request) {
       success: true,
       user,
     };
-  } catch (error) {
+  } catch {
     return {
       success: false,
       error: 'Authentication failed',
@@ -301,7 +301,7 @@ export function createApiResponse<T>(
 export function createErrorResponse(
   message: string,
   status: number = 400,
-  details?: any
+  details?: Record<string, unknown>
 ): Response {
   return new Response(
     JSON.stringify({

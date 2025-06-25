@@ -373,7 +373,7 @@ export async function POST(
         } catch (error) {
           console.error('Error forcing alert check:', error);
           result = {
-            check: { success: false, error: error.message },
+            check: { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' },
             message: 'Alert check failed',
           };
         }
@@ -473,7 +473,7 @@ async function testAlert(supabase: any, alert: any): Promise<any> {
     console.error('Error testing alert:', error);
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
     };
   }
 }

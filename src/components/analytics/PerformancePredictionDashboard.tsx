@@ -10,7 +10,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   TrendingUp, 
-  TrendingDown, 
   Brain, 
   Clock, 
   Target,
@@ -18,7 +17,6 @@ import {
   Users,
   DollarSign,
   BarChart3,
-  LineChart,
   Activity,
   AlertTriangle,
   CheckCircle,
@@ -27,7 +25,7 @@ import {
   ArrowDownRight,
   Minus
 } from 'lucide-react';
-import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 interface PerformancePredictionDashboardProps {
   projectId: string;
@@ -81,14 +79,14 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState('30');
-  const [selectedContent, setSelectedContent] = useState(contentId || '');
+  const [selectedContent] = useState(contentId || '');
 
   useEffect(() => {
     if (selectedContent) {
       generatePrediction();
       loadTrendData();
     }
-  }, [selectedContent, selectedTimeframe]);
+  }, [selectedContent, selectedTimeframe, generatePrediction, loadTrendData]);
 
   const generatePrediction = async () => {
     if (!selectedContent) return;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -16,23 +16,16 @@ import {
   Plus, 
   Settings, 
   Save, 
-  Share, 
   Copy, 
   Trash2,
-  Move,
   BarChart3,
   LineChart,
   PieChart,
   TrendingUp,
   Users,
-  Eye,
   Target,
   Activity,
-  Grid,
-  Maximize2,
-  Minimize2,
-  RotateCcw,
-  Download
+  Grid
 } from 'lucide-react';
 
 interface DashboardWidget {
@@ -45,7 +38,7 @@ interface DashboardWidget {
     chartType?: 'line' | 'bar' | 'pie' | 'area' | 'gauge';
     metrics?: string[];
     timeRange?: string;
-    filters?: Record<string, any>;
+    filters?: Record<string, unknown>;
     refreshInterval?: number;
     showLegend?: boolean;
     showGrid?: boolean;
@@ -197,15 +190,14 @@ export function CustomDashboardBuilder({
 
   const [selectedWidget, setSelectedWidget] = useState<DashboardWidget | null>(null);
   const [isEditingWidget, setIsEditingWidget] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [_isDragging] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   useEffect(() => {
     if (dashboardId) {
       loadDashboard();
     }
-  }, [dashboardId]);
+  }, [dashboardId, loadDashboard]);
 
   const loadDashboard = async () => {
     try {
@@ -283,7 +275,7 @@ export function CustomDashboardBuilder({
       ...prev,
       widgets: [...prev.widgets, newWidget],
     }));
-  }, [dashboard.widgets]);
+  }, [dashboard.widgets, findEmptyPosition]);
 
   const updateWidget = useCallback((widgetId: string, updates: Partial<DashboardWidget>) => {
     setDashboard(prev => ({
@@ -319,7 +311,7 @@ export function CustomDashboardBuilder({
       ...prev,
       widgets: [...prev.widgets, newWidget],
     }));
-  }, [dashboard.widgets]);
+  }, [dashboard.widgets, findEmptyPosition]);
 
   const findEmptyPosition = (width: number, height: number) => {
     const { columns } = dashboard.layout;
@@ -722,7 +714,7 @@ export function CustomDashboardBuilder({
                     value={selectedWidget.config.chartType}
                     onValueChange={(value) => 
                       updateWidget(selectedWidget.id, {
-                        config: { ...selectedWidget.config, chartType: value as any }
+                        config: { ...selectedWidget.config, chartType: value as 'line' | 'bar' | 'pie' | 'area' | 'gauge' }
                       })
                     }
                   >

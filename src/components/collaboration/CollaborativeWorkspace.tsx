@@ -8,37 +8,26 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { 
   Users, 
   MessageSquare, 
   Send, 
   Reply, 
-  MoreHorizontal,
   Check,
-  Clock,
   AlertCircle,
   Lightbulb,
   HelpCircle,
   ThumbsUp,
-  Eye,
-  Settings,
   Plus,
-  Video,
-  Phone,
   Share,
   Download,
   FileText,
   Activity,
   Zap,
   CheckCircle,
-  XCircle,
-  User,
-  Calendar,
-  Hash
+  XCircle
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -82,7 +71,7 @@ interface SessionComment {
   commentType: 'general' | 'suggestion' | 'question' | 'approval' | 'concern' | 'insight';
   parentCommentId?: string;
   mentionedUsers: string[];
-  attachments: any[];
+  attachments: Array<{ name: string; url: string; type: string; }>;
   isResolved: boolean;
   resolvedBy?: string;
   resolvedAt?: string;
@@ -97,7 +86,7 @@ interface SessionActivity {
   sessionId: string;
   userId: string;
   activityType: string;
-  activityData: any;
+  activityData: Record<string, unknown>;
   timestamp: string;
   user?: TeamMember;
 }
@@ -121,8 +110,7 @@ export function CollaborativeWorkspace({ projectId, sessionId, analysisId }: Col
   const [newCommentType, setNewCommentType] = useState<SessionComment['commentType']>('general');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
+  const [_error, setError] = useState<string | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [newSessionData, setNewSessionData] = useState({
     sessionName: '',
@@ -146,7 +134,7 @@ export function CollaborativeWorkspace({ projectId, sessionId, analysisId }: Col
       }, 3000);
       return () => clearInterval(interval);
     }
-  }, [sessionId]);
+  }, [sessionId, loadTeamMembers, loadSession, loadComments, loadActivities]);
 
   useEffect(() => {
     scrollToBottom();

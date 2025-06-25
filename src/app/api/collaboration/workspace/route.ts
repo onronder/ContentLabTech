@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser, createClient, validateProjectAccess, createErrorResponse } from '@/lib/auth/session';
 
+interface AttachmentFile {
+  name: string;
+  url: string;
+  type: string;
+  size?: number;
+}
+
 interface CollaborationRequest {
   action: 'get_sessions' | 'create_session' | 'join_session' | 'leave_session' | 
           'add_comment' | 'update_session' | 'get_activities' | 'resolve_comment';
@@ -17,7 +24,7 @@ interface CollaborationRequest {
     commentType?: 'general' | 'suggestion' | 'question' | 'approval' | 'concern' | 'insight';
     parentCommentId?: string;
     mentionedUsers?: string[];
-    attachments?: any[];
+    attachments?: AttachmentFile[];
     commentId?: string;
     status?: 'active' | 'completed' | 'cancelled' | 'archived';
   };
@@ -54,17 +61,7 @@ export async function POST(request: NextRequest) {
         // Get collaborative sessions for the project
         const { data: sessions, error: sessionsError } = await supabase
           .from('collaborative_sessions')
-          .select(`
-            *,
-            created_by_user:auth.users!created_by (
-              email,
-              raw_user_meta_data
-            ),
-            moderator_user:auth.users!moderator_id (
-              email,
-              raw_user_meta_data
-            )
-          `)
+          .select('*')
           .eq('project_id', projectId)
           .order('created_at', { ascending: false });
 
@@ -78,15 +75,17 @@ export async function POST(request: NextRequest) {
           (sessions || []).map(async (session) => {
             let participants: string[] = [];
             try {
-              participants = JSON.parse(session.participants || '[]');
+              participants = Array.isArray(session.participants) 
+                ? session.participants 
+                : JSON.parse(session.participants || '[]');
             } catch (error) {
               console.error('Error parsing participants:', error);
             }
 
-            // Get participant details
+            // Get participant details from profiles table instead of auth.users
             const { data: participantUsers } = await supabase
-              .from('auth.users')
-              .select('id, email, raw_user_meta_data')
+              .from('profiles')
+              .select('id, email, display_name')
               .in('id', participants);
 
             return {
@@ -187,7 +186,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Call the Edge Function to leave session
-        const { data: leaveData, error: leaveError } = await supabase.functions.invoke(
+        const { error: leaveError } = await supabase.functions.invoke(
           'collaborative-workspace',
           {
             body: {
@@ -286,7 +285,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Update session
-        const updateData: any = {
+        const updateData: Record<string, string> = {
           updated_at: new Date().toISOString(),
         };
 
@@ -386,17 +385,7 @@ export async function GET(request: NextRequest) {
       // Get specific session details
       const { data: session, error: sessionError } = await supabase
         .from('collaborative_sessions')
-        .select(`
-          *,
-          created_by_user:auth.users!created_by (
-            email,
-            raw_user_meta_data
-          ),
-          moderator_user:auth.users!moderator_id (
-            email,
-            raw_user_meta_data
-          )
-        `)
+        .select('*')
         .eq('id', sessionId)
         .eq('project_id', projectId)
         .single();
@@ -412,25 +401,13 @@ export async function GET(request: NextRequest) {
       ] = await Promise.all([
         supabase
           .from('session_comments')
-          .select(`
-            *,
-            user:auth.users!user_id (
-              email,
-              raw_user_meta_data
-            )
-          `)
+          .select('*')
           .eq('session_id', sessionId)
           .order('created_at', { ascending: true }),
 
         supabase
           .from('session_activities')
-          .select(`
-            *,
-            user:auth.users!user_id (
-              email,
-              raw_user_meta_data
-            )
-          `)
+          .select('*')
           .eq('session_id', sessionId)
           .order('timestamp', { ascending: false })
           .limit(50)
@@ -444,15 +421,17 @@ export async function GET(request: NextRequest) {
       // Parse participants
       let participants: string[] = [];
       try {
-        participants = JSON.parse(session.participants || '[]');
+        participants = Array.isArray(session.participants) 
+          ? session.participants 
+          : JSON.parse(session.participants || '[]');
       } catch (error) {
         console.error('Error parsing participants:', error);
       }
 
-      // Get participant details
+      // Get participant details from profiles table
       const { data: participantUsers } = await supabase
-        .from('auth.users')
-        .select('id, email, raw_user_meta_data')
+        .from('profiles')
+        .select('id, email, display_name')
         .in('id', participants);
 
       return NextResponse.json({
@@ -466,7 +445,7 @@ export async function GET(request: NextRequest) {
         stats: {
           commentCount: comments?.length || 0,
           participantCount: participants.length,
-          lastActivity: activities?.[0]?.timestamp || session.updated_at,
+          lastActivity: (activities && activities[0] && activities[0].timestamp) || session.updated_at,
         },
       });
 
@@ -488,11 +467,7 @@ export async function GET(request: NextRequest) {
           scheduled_start_time,
           scheduled_end_time,
           actual_start_time,
-          actual_end_time,
-          created_by_user:auth.users!created_by (
-            email,
-            raw_user_meta_data
-          )
+          actual_end_time
         `)
         .eq('project_id', projectId)
         .order('created_at', { ascending: false })
@@ -514,7 +489,9 @@ export async function GET(request: NextRequest) {
         (sessions || []).map(async (session) => {
           let participants: string[] = [];
           try {
-            participants = JSON.parse(session.participants || '[]');
+            participants = Array.isArray(session.participants) 
+              ? session.participants 
+              : JSON.parse(session.participants || '[]');
           } catch (error) {
             console.error('Error parsing participants:', error);
           }

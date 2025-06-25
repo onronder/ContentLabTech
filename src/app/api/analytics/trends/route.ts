@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
             .order('date', { ascending: true });
 
           // Get predictions for comparison
-          let predictions = [];
+          let predictions: TrendPrediction[] = [];
           if (params.includePredictions) {
             const { data: predictionData } = await supabase
               .from('model_predictions')
@@ -324,8 +324,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Process the data
-    const processedTrends = processAnalyticsData(analytics || [], metric as any, 'daily');
-    const summary = calculateProjectSummary(analytics || [], metric as any);
+    const processedTrends = processAnalyticsData(analytics || [], metric, 'daily');
+    const summary = calculateProjectSummary(analytics || [], metric);
 
     return NextResponse.json({
       trends: processedTrends,
@@ -343,15 +343,38 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper functions
+interface AnalyticsItem {
+  date: string;
+  pageviews?: number;
+  unique_visitors?: number;
+  organic_traffic?: number;
+  conversion_rate?: number;
+  bounce_rate?: number;
+  avg_session_duration?: number;
+  conversions?: number;
+  sessions?: number;
+}
+
+interface ProcessedAnalytics {
+  date: string;
+  pageviews: number;
+  unique_visitors: number;
+  organic_traffic: number;
+  conversion_rate: number;
+  bounce_rate: number;
+  avg_session_duration: number;
+  count: number;
+}
+
 function processAnalyticsData(
-  analytics: any[],
+  analytics: AnalyticsItem[],
   metric?: string,
   granularity: string = 'daily'
-): any[] {
+): ProcessedAnalytics[] {
   if (!analytics.length) return [];
 
   // Group by date based on granularity
-  const grouped = analytics.reduce((acc, item) => {
+  const grouped = analytics.reduce((acc: Record<string, ProcessedAnalytics>, item) => {
     let dateKey = item.date;
     
     if (granularity === 'weekly') {
@@ -359,7 +382,7 @@ function processAnalyticsData(
       const weekStart = new Date(date.setDate(date.getDate() - date.getDay()));
       dateKey = weekStart.toISOString().split('T')[0];
     } else if (granularity === 'monthly') {
-      dateKey = item.date.substring(0, 7); // YYYY-MM format
+      dateKey = item.date?.substring(0, 7) || item.date; // YYYY-MM format
     }
 
     if (!acc[dateKey]) {
@@ -375,19 +398,20 @@ function processAnalyticsData(
       };
     }
 
-    acc[dateKey].pageviews += item.pageviews || 0;
-    acc[dateKey].unique_visitors += item.unique_visitors || 0;
-    acc[dateKey].organic_traffic += item.organic_traffic || 0;
-    acc[dateKey].conversion_rate += item.conversion_rate || 0;
-    acc[dateKey].bounce_rate += item.bounce_rate || 0;
-    acc[dateKey].avg_session_duration += item.avg_session_duration || 0;
-    acc[dateKey].count += 1;
+    const existingEntry = acc[dateKey];
+    existingEntry.pageviews += item.pageviews || 0;
+    existingEntry.unique_visitors += item.unique_visitors || 0;
+    existingEntry.organic_traffic += item.organic_traffic || 0;
+    existingEntry.conversion_rate += item.conversion_rate || 0;
+    existingEntry.bounce_rate += item.bounce_rate || 0;
+    existingEntry.avg_session_duration += item.avg_session_duration || 0;
+    existingEntry.count += 1;
 
     return acc;
-  }, {} as Record<string, any>);
+  }, {});
 
   // Calculate averages for rate-based metrics
-  return Object.values(grouped).map((item: any) => ({
+  return Object.values(grouped).map((item) => ({
     ...item,
     conversion_rate: item.count > 0 ? item.conversion_rate / item.count : 0,
     bounce_rate: item.count > 0 ? item.bounce_rate / item.count : 0,
@@ -395,8 +419,30 @@ function processAnalyticsData(
   }));
 }
 
-function aggregateAnalyticsByDate(analytics: any[], metric?: string): any[] {
-  const dailyTotals = analytics.reduce((acc, item) => {
+interface AggregatedData {
+  date: string;
+  pageviews: number;
+  unique_visitors: number;
+  organic_traffic: number;
+  conversions: number;
+  sessions: number;
+  bounce_rate_sum: number;
+  duration_sum: number;
+  count: number;
+}
+
+interface FinalAnalytics {
+  date: string;
+  pageviews: number;
+  unique_visitors: number;
+  organic_traffic: number;
+  conversion_rate: number;
+  bounce_rate: number;
+  avg_session_duration: number;
+}
+
+function aggregateAnalyticsByDate(analytics: AnalyticsItem[], _metric?: string): FinalAnalytics[] {
+  const dailyTotals = analytics.reduce((acc: Record<string, AggregatedData>, item) => {
     const date = item.date;
     
     if (!acc[date]) {
@@ -423,9 +469,9 @@ function aggregateAnalyticsByDate(analytics: any[], metric?: string): any[] {
     acc[date].count += 1;
 
     return acc;
-  }, {} as Record<string, any>);
+  }, {});
 
-  return Object.values(dailyTotals).map((item: any) => ({
+  return Object.values(dailyTotals).map((item) => ({
     date: item.date,
     pageviews: item.pageviews,
     unique_visitors: item.unique_visitors,
@@ -436,15 +482,22 @@ function aggregateAnalyticsByDate(analytics: any[], metric?: string): any[] {
   }));
 }
 
-function calculateSummaryStats(analytics: any[], metric?: string): any {
+interface SummaryStats {
+  total: number;
+  average: number;
+  growth: number;
+  trend: 'increasing' | 'decreasing' | 'stable';
+}
+
+function calculateSummaryStats(analytics: AnalyticsItem[]): SummaryStats {
   if (!analytics.length) {
     return { total: 0, average: 0, growth: 0, trend: 'stable' };
   }
 
   const sortedData = analytics.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const metricKey = metric === 'all' ? 'pageviews' : metric || 'pageviews';
+  const metricKey = 'pageviews';
   
-  const values = sortedData.map(item => item[metricKey] || 0);
+  const values = sortedData.map(item => Number(item[metricKey as keyof AnalyticsItem]) || 0);
   const total = values.reduce((sum, val) => sum + val, 0);
   const average = total / values.length;
 
@@ -462,17 +515,40 @@ function calculateSummaryStats(analytics: any[], metric?: string): any {
   return { total, average, growth, trend };
 }
 
-function calculateProjectSummary(analytics: any[], metric: string): any {
-  const totalMetrics = analytics.reduce((sum, item) => sum + (item[metric] || 0), 0);
+interface ProjectSummary {
+  totalMetrics: number;
+  avgGrowth: number;
+}
+
+function calculateProjectSummary(analytics: AnalyticsItem[], metric: string): ProjectSummary {
+  const metricKey = metric as keyof AnalyticsItem;
+  const totalMetrics = analytics.reduce((sum, item) => sum + (Number(item[metricKey as keyof AnalyticsItem]) || 0), 0);
+  
   const avgGrowth = analytics.length > 1 ? 
-    ((analytics[analytics.length - 1]?.[metric] || 0) - (analytics[0]?.[metric] || 0)) / Math.max(analytics[0]?.[metric] || 1, 1) * 100 : 0;
+    ((Number(analytics[analytics.length - 1]?.[metricKey as keyof AnalyticsItem]) || 0) - (Number(analytics[0]?.[metricKey as keyof AnalyticsItem]) || 0)) 
+    / Math.max(Number(analytics[0]?.[metricKey as keyof AnalyticsItem]) || 1, 1) * 100 : 0;
 
   return { totalMetrics, avgGrowth };
 }
 
-function generateTrendPredictions(predictionData: any, timeframeDays: number): any[] {
+interface PredictionData {
+  predictions?: {
+    pageviews?: { predicted?: number };
+    organicTraffic?: { predicted?: number };
+  };
+  confidenceScore?: number;
+}
+
+interface TrendPrediction {
+  date: string;
+  predicted_pageviews: number;
+  predicted_organic_traffic: number;
+  confidence: number;
+}
+
+function generateTrendPredictions(predictionData: PredictionData, timeframeDays: number): TrendPrediction[] {
   // Generate simple trend predictions based on the ML prediction data
-  const predictions = [];
+  const predictions: TrendPrediction[] = [];
   const startDate = new Date();
   
   for (let i = 1; i <= Math.min(timeframeDays, 30); i++) {

@@ -11,9 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   TrendingUp, 
-  TrendingDown, 
   Eye, 
-  Search, 
   AlertTriangle,
   Clock,
   Globe,
@@ -91,7 +89,7 @@ export function CompetitiveMonitoringDashboard({ projectId }: CompetitiveMonitor
   useEffect(() => {
     loadCompetitiveData();
     loadAlerts();
-  }, [projectId, selectedTimeframe]);
+  }, [projectId, selectedTimeframe, loadCompetitiveData, loadAlerts]);
 
   const loadCompetitiveData = async () => {
     try {

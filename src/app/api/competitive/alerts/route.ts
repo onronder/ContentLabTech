@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
           frequency,
           is_active: true,
           created_by: user.id,
-          alert_config: buildAlertConfig(alertType, params),
+          alert_config: buildAlertConfig(alertType, params as AlertParams),
         };
 
         const { data: newAlert, error: createError } = await supabase
@@ -368,37 +368,61 @@ function getDefaultThreshold(alertType: string): number {
   }
 }
 
-function buildAlertConfig(alertType: string, params: any): any {
-  const config: any = {
+interface AlertParams {
+  direction?: 'up' | 'down' | 'both';
+  minimumPositions?: number;
+  timeWindow?: string;
+  contentTypes?: string[];
+  includeUpdates?: boolean;
+  minSearchVolume?: number;
+  maxDifficulty?: number;
+  issueTypes?: string[];
+}
+
+function buildAlertConfig(alertType: string, params: AlertParams): Record<string, unknown> {
+  const config: Record<string, unknown> = {
     type: alertType,
   };
 
   switch (alertType) {
     case 'ranking_change':
-      config.direction = params.direction || 'both'; // 'up', 'down', 'both'
-      config.minimumPositions = params.minimumPositions || 5;
+      config['direction'] = params.direction || 'both'; // 'up', 'down', 'both'
+      config['minimumPositions'] = params.minimumPositions || 5;
       break;
     case 'traffic_change':
-      config.direction = params.direction || 'both';
-      config.timeWindow = params.timeWindow || '7d';
+      config['direction'] = params.direction || 'both';
+      config['timeWindow'] = params.timeWindow || '7d';
       break;
     case 'new_content':
-      config.contentTypes = params.contentTypes || ['blog', 'page'];
-      config.includeUpdates = params.includeUpdates || false;
+      config['contentTypes'] = params.contentTypes || ['blog', 'page'];
+      config['includeUpdates'] = params.includeUpdates || false;
       break;
     case 'keyword_opportunity':
-      config.minSearchVolume = params.minSearchVolume || 100;
-      config.maxDifficulty = params.maxDifficulty || 70;
+      config['minSearchVolume'] = params.minSearchVolume || 100;
+      config['maxDifficulty'] = params.maxDifficulty || 70;
       break;
     case 'technical_issue':
-      config.issueTypes = params.issueTypes || ['broken_links', 'slow_loading', '404_errors'];
+      config['issueTypes'] = params.issueTypes || ['broken_links', 'slow_loading', '404_errors'];
       break;
   }
 
   return config;
 }
 
-async function testAlert(supabase: any, alert: any, userId: string): Promise<any> {
+interface Alert {
+  id: string;
+  alert_type: string;
+  alert_config?: Record<string, unknown>;
+  threshold?: number;
+}
+
+async function testAlert(supabase: any, alert: Alert, userId: string): Promise<{
+  success: boolean;
+  wouldTrigger?: boolean;
+  testData?: unknown;
+  condition?: Record<string, unknown>;
+  error?: string;
+}> {
   try {
     // Simulate alert trigger based on type
     const testData = generateTestData(alert.alert_type);
@@ -432,12 +456,12 @@ async function testAlert(supabase: any, alert: any, userId: string): Promise<any
     console.error('Error testing alert:', error);
     return {
       success: false,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
     };
   }
 }
 
-function generateTestData(alertType: string): any {
+function generateTestData(alertType: string): Record<string, unknown> {
   switch (alertType) {
     case 'ranking_change':
       return {
@@ -464,14 +488,16 @@ function generateTestData(alertType: string): any {
   }
 }
 
-function evaluateAlertCondition(alert: any, testData: any): boolean {
+function evaluateAlertCondition(alert: Alert, testData: Record<string, unknown>): boolean {
+  const threshold = alert.threshold || 0;
+  
   switch (alert.alert_type) {
     case 'ranking_change':
-      return Math.abs(testData.change) >= alert.threshold;
+      return Math.abs(Number(testData.change) || 0) >= threshold;
     case 'traffic_change':
-      return Math.abs(testData.change) >= alert.threshold;
+      return Math.abs(Number(testData.change) || 0) >= threshold;
     case 'new_content':
-      return testData.contentCount >= alert.threshold;
+      return Number(testData.contentCount) >= threshold;
     default:
       return false;
   }

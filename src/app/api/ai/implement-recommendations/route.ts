@@ -12,6 +12,18 @@ interface ImplementRecommendationsRequest {
   };
 }
 
+interface RecommendationData {
+  suggested_title?: string;
+  suggested_meta_description?: string;
+  suggested_keywords?: string[];
+  improved_content?: string;
+  improved_structure?: string;
+  suggested_links?: Array<{
+    anchor_text?: string;
+    url?: string;
+  }>;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
@@ -65,7 +77,7 @@ export async function POST(request: NextRequest) {
     // Process each recommendation
     for (const recommendation of recommendations) {
       try {
-        const recommendationData = recommendation.recommendation_data || {};
+        const recommendationData = recommendation.recommendation_data as RecommendationData || {};
         let updatedContent = { ...content };
         let applied = false;
 
@@ -110,11 +122,11 @@ export async function POST(request: NextRequest) {
             break;
 
           case 'internal_linking':
-            if (recommendationData.suggested_links) {
+            if (recommendationData.suggested_links && Array.isArray(recommendationData.suggested_links)) {
               // Add internal links to content
               let contentWithLinks = updatedContent.content;
-              recommendationData.suggested_links.forEach((link: any) => {
-                if (link.anchor_text && link.url) {
+              recommendationData.suggested_links.forEach((link) => {
+                if (link.anchor_text && link.url && typeof link.anchor_text === 'string' && typeof link.url === 'string') {
                   contentWithLinks = contentWithLinks.replace(
                     new RegExp(`\\b${link.anchor_text}\\b`, 'gi'),
                     `<a href="${link.url}">${link.anchor_text}</a>`
@@ -128,11 +140,16 @@ export async function POST(request: NextRequest) {
 
           default:
             // Custom recommendation type - store in content metadata
-            if (!updatedContent.metadata) {
+            if (!updatedContent.metadata || typeof updatedContent.metadata !== 'object') {
               updatedContent.metadata = {};
             }
-            updatedContent.metadata.applied_recommendations = updatedContent.metadata.applied_recommendations || [];
-            updatedContent.metadata.applied_recommendations.push({
+            
+            const metadata = updatedContent.metadata as Record<string, unknown>;
+            if (!Array.isArray(metadata['applied_recommendations'])) {
+              metadata['applied_recommendations'] = [];
+            }
+            
+            (metadata['applied_recommendations'] as Array<Record<string, unknown>>).push({
               id: recommendation.id,
               type: recommendation.recommendation_type,
               data: recommendationData,

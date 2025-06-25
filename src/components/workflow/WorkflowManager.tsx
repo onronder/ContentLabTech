@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -20,9 +20,7 @@ import {
   User,
   Calendar,
   Flag,
-  FileText,
-  MessageSquare,
-  ArrowRight
+  FileText
 } from 'lucide-react';
 
 interface WorkflowTask {
@@ -38,7 +36,7 @@ interface WorkflowTask {
   completedAt?: string;
   approvedAt?: string;
   rejectionReason?: string;
-  data: any;
+  data: Record<string, unknown>;
   createdBy: string;
   createdAt: string;
   assignee?: {
@@ -83,7 +81,7 @@ export function WorkflowManager({ projectId }: WorkflowManagerProps) {
 
   useEffect(() => {
     loadTasks();
-  }, [projectId, filter]);
+  }, [projectId, filter, loadTasks]);
 
   const loadTasks = async () => {
     try {
@@ -299,7 +297,7 @@ export function WorkflowManager({ projectId }: WorkflowManagerProps) {
       </div>
 
       {/* Filters */}
-      <Tabs value={filter} onValueChange={(value) => setFilter(value as any)}>
+      <Tabs value={filter} onValueChange={(value) => setFilter(value as 'all' | 'pending' | 'in_review' | 'approved' | 'rejected' | 'implemented')}>
         <TabsList>
           <TabsTrigger value="all">All ({taskCounts.all})</TabsTrigger>
           <TabsTrigger value="pending">Pending ({taskCounts.pending})</TabsTrigger>

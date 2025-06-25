@@ -15,6 +15,16 @@ interface PredictRequest {
   };
 }
 
+interface PredictionResult {
+  contentId: string;
+  prediction: {
+    pageviews?: number;
+    organic_traffic?: number;
+    conversion_rate?: number;
+    confidence_score?: number;
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
@@ -179,7 +189,7 @@ export async function POST(request: NextRequest) {
 
         const successful = batchPredictions
           .filter(p => p.status === 'fulfilled')
-          .map(p => (p as PromiseFulfilledResult<any>).value);
+          .map(p => (p as PromiseFulfilledResult<PredictionResult>).value);
 
         const failed = batchPredictions
           .filter(p => p.status === 'rejected')
@@ -328,7 +338,7 @@ export async function GET(request: NextRequest) {
       .eq('model_type', modelType)
       .gte('prediction_date', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
 
-    const avgConfidence = stats?.length > 0
+    const avgConfidence = stats && stats.length > 0
       ? stats.reduce((sum, s) => sum + (s.confidence_score || 0), 0) / stats.length
       : 0;
 
@@ -337,7 +347,7 @@ export async function GET(request: NextRequest) {
       summary: {
         total: predictions?.length || 0,
         avgConfidence: Math.round(avgConfidence),
-        recentCount: stats?.length || 0,
+        recentCount: stats ? stats.length : 0,
       },
       projectId,
       contentId,

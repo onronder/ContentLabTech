@@ -6,6 +6,26 @@
 import { google } from 'googleapis';
 
 // Types for Google Search Console integration
+interface RowData {
+  clicks?: number;
+  impressions?: number;
+  ctr?: number;
+  position?: number;
+  keys?: string[];
+}
+
+interface SitemapData {
+  path?: string;
+  lastSubmitted?: string;
+  isPending?: boolean;
+  isSitemapsIndex?: boolean;
+  type?: string;
+  lastDownloaded?: string;
+  warnings?: number;
+  errors?: number;
+  contents?: unknown[];
+}
+
 export interface SearchConsoleMetrics {
   clicks: number;
   impressions: number;
@@ -87,8 +107,8 @@ export interface SitemapInfo {
 }
 
 class GoogleSearchConsoleClient {
-  private searchConsole: any;
-  private auth: any;
+  private searchConsole: ReturnType<typeof google.searchconsole>;
+  private auth: InstanceType<typeof google.auth.GoogleAuth>;
 
   constructor() {
     // Initialize Google APIs client
@@ -111,7 +131,7 @@ class GoogleSearchConsoleClient {
 
     try {
       return JSON.parse(credentials);
-    } catch (error) {
+    } catch {
       throw new Error('Invalid Google Service Account credentials format');
     }
   }
@@ -147,7 +167,7 @@ class GoogleSearchConsoleClient {
       const devices: DeviceData[] = [];
       const countries: CountryData[] = [];
 
-      rows.forEach((row: any) => {
+      rows.forEach((row: RowData) => {
         const metrics: SearchConsoleMetrics = {
           clicks: row.clicks || 0,
           impressions: row.impressions || 0,
@@ -190,7 +210,7 @@ class GoogleSearchConsoleClient {
 
       // Calculate total metrics
       const totalMetrics: SearchConsoleMetrics = rows.reduce(
-        (total: SearchConsoleMetrics, row: any) => ({
+        (total: SearchConsoleMetrics, row: RowData) => ({
           clicks: total.clicks + (row.clicks || 0),
           impressions: total.impressions + (row.impressions || 0),
           ctr: 0, // Will be calculated after reduction
@@ -203,7 +223,7 @@ class GoogleSearchConsoleClient {
         (totalMetrics.clicks / totalMetrics.impressions) * 100 : 0;
       
       totalMetrics.position = rows.length > 0 ? 
-        rows.reduce((sum: number, row: any) => sum + (row.position || 0), 0) / rows.length : 0;
+        rows.reduce((sum: number, row: RowData) => sum + (row.position || 0), 0) / rows.length : 0;
 
       return {
         queries,
@@ -381,7 +401,7 @@ class GoogleSearchConsoleClient {
 
       const sitemaps = response.data.sitemap || [];
       
-      return sitemaps.map((sitemap: any) => ({
+      return sitemaps.map((sitemap: SitemapData) => ({
         path: sitemap.path || '',
         lastSubmitted: sitemap.lastSubmitted,
         isPending: sitemap.isPending || false,
