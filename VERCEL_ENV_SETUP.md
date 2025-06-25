@@ -44,13 +44,32 @@ GOOGLE_OAUTH_CLIENT_ID=your_google_oauth_client_id
 GOOGLE_OAUTH_CLIENT_SECRET=your_google_oauth_client_secret
 ```
 
-### Optional: External Services
+### Google Search Console Integration (REQUIRED for Analytics)
+
+```
+GOOGLE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"...","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"..."}
+TEST_SITE_URL=https://your-domain.vercel.app
+```
+
+### Supabase Edge Functions (REQUIRED for server operations)
+
+```
+SUPABASE_URL=https://your-project-id.supabase.co
+```
+
+### Optional: External AI Services
 
 ```
 SERPAPI_API_KEY=your_serpapi_key
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_AI_API_KEY=your_google_ai_api_key
+```
+
+### Optional: API Configuration
+
+```
+NEXT_PUBLIC_API_URL=/api
 ```
 
 ### Optional: Analytics & Monitoring
@@ -75,6 +94,8 @@ API_RATE_LIMIT_WINDOW=3600
 2. **Security**: Never expose secret keys in client-side code
 3. **Domains**: Update `NEXT_PUBLIC_APP_URL` and `NEXTAUTH_URL` to your actual domain
 4. **Webhooks**: Set up webhook endpoints after deployment for email automation
+5. **Google Service Account**: Create a service account in Google Cloud Console with Search Console API access. Download the JSON key and paste it as a single-line string in `GOOGLE_SERVICE_ACCOUNT_KEY`
+6. **Supabase Edge Functions**: The `SUPABASE_URL` variable is required for server-side operations and is different from the public URL
 
 ## Webhook Configuration
 
