@@ -1,7 +1,5 @@
-"use client";
-
 /**
- * Professional Split-Screen Authentication Layout - COMPLETELY REPLACED
+ * Professional Split-Screen Authentication Layout
  * Modern design with marketing content and brand storytelling
  */
 
@@ -10,17 +8,9 @@ import { Logo } from "@/components/common/Logo";
 
 interface AuthLayoutProps {
   children: ReactNode;
-  title?: string;
-  subtitle?: string;
-  testimonial?: {
-    quote: string;
-    author: string;
-    role: string;
-    company: string;
-  };
 }
 
-const AuthLayout = ({ children }: AuthLayoutProps) => {
+export const AuthLayout = ({ children }: AuthLayoutProps) => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Left Column - Auth Form */}
@@ -45,13 +35,6 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
             <p className="text-sm text-gray-500">
               Trusted by 10,000+ content marketers worldwide
             </p>
-            <div className="mt-4 flex items-center justify-center space-x-4 text-xs text-gray-400">
-              <span>256-bit SSL</span>
-              <span>•</span>
-              <span>SOC 2 Compliant</span>
-              <span>•</span>
-              <span>GDPR Ready</span>
-            </div>
           </div>
         </div>
       </div>
@@ -112,7 +95,7 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
             </div>
 
             {/* Stats */}
-            <div className="mb-8 grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-6">
               <div className="group cursor-default">
                 <div className="text-2xl font-bold transition-transform group-hover:scale-105 xl:text-3xl">
                   10,000+
@@ -132,7 +115,7 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
             </div>
 
             {/* Customer testimonial */}
-            <div className="rounded-lg border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
+            <div className="mt-8 rounded-lg border border-white/20 bg-white/10 p-4 backdrop-blur-sm">
               <p className="mb-2 text-sm text-blue-100 italic">
                 &ldquo;ContentLab Nexus helped us increase our organic traffic
                 by 300% in just 3 months. The AI insights are
@@ -153,5 +136,3 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
     </div>
   );
 };
-
-export default AuthLayout;

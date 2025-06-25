@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * Premium Dashboard Page
- * Executive-grade dashboard with sophisticated analytics and insights
+ * Adaptive Dashboard Page
+ * Role-based adaptive dashboard with intelligent interface switching
  */
 
 import { AppLayout } from "@/components/layout";
-import { PremiumDashboard } from "@/components/dashboard/premium-dashboard";
+import { AdaptiveDashboard } from "@/components/dashboard/AdaptiveDashboard";
 
 export const dynamic = "force-dynamic";
 
 export default function DashboardPage() {
   return (
     <AppLayout>
-      <PremiumDashboard />
+      <AdaptiveDashboard />
     </AppLayout>
   );
 }

@@ -2,13 +2,13 @@
 
 /**
  * AppLayout Component
- * Main layout wrapper for authenticated pages
+ * Professional layout wrapper for authenticated pages - COMPLETELY REPLACED
  */
 
 import { ReactNode } from "react";
 
 import { ProtectedRoute } from "@/components/auth";
-import { Navbar } from "./navbar";
+import { MainLayout } from "./MainLayout";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,14 +16,7 @@ interface AppLayoutProps {
 }
 
 export const AppLayout = ({ children, requireAuth = true }: AppLayoutProps) => {
-  const content = (
-    <div className="bg-background min-h-screen">
-      <Navbar />
-      <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="animate-fade-in-up">{children}</div>
-      </main>
-    </div>
-  );
+  const content = <MainLayout>{children}</MainLayout>;
 
   if (requireAuth) {
     return <ProtectedRoute>{content}</ProtectedRoute>;

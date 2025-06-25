@@ -1,254 +1,56 @@
 @import "tailwindcss";
+@import "../styles/design-system.css";
 
 @layer base {
+  /* Tailwind CSS custom properties for component compatibility */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 218 90% 56%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 159 78% 44%;
-    --secondary-foreground: 0 0% 100%;
-    --accent: 30 90% 55%;
-    --accent-foreground: 0 0% 100%;
-    --muted: 215 27% 96%;
-    --muted-foreground: 215 16% 47%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 215 27% 91%;
-    --input: 215 27% 96%;
-    --ring: 218 90% 56%;
+    --background: 248 250 252; /* bg-slate-50 */
+    --foreground: 15 23 42; /* slate-900 */
+    --card: 255 255 255; /* white */
+    --card-foreground: 15 23 42; /* slate-900 */
+    --popover: 255 255 255; /* white */
+    --popover-foreground: 15 23 42; /* slate-900 */
+    --primary: 79 70 229; /* indigo-600 */
+    --primary-foreground: 255 255 255; /* white */
+    --secondary: 241 245 249; /* slate-100 */
+    --secondary-foreground: 15 23 42; /* slate-900 */
+    --muted: 241 245 249; /* slate-100 */
+    --muted-foreground: 100 116 139; /* slate-500 */
+    --accent: 241 245 249; /* slate-100 */
+    --accent-foreground: 15 23 42; /* slate-900 */
+    --destructive: 239 68 68; /* red-500 */
+    --destructive-foreground: 255 255 255; /* white */
+    --border: 226 232 240; /* slate-200 */
+    --input: 226 232 240; /* slate-200 */
+    --ring: 79 70 229; /* indigo-600 */
     --radius: 0.75rem;
-    --font-geist-sans: "Inter", system-ui, sans-serif;
-    --font-geist-mono: "JetBrains Mono", Consolas, monospace;
-
-    /* Brand specific colors */
-    --brand-blue: 218 90% 56%;
-    --brand-emerald: 159 78% 44%;
-    --brand-amber: 30 90% 55%;
-    --brand-slate: 215 16% 47%;
-
-    /* Gradient variables */
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(var(--brand-blue)) 0%,
-      hsl(var(--brand-emerald)) 100%
-    );
-    --gradient-secondary: linear-gradient(
-      135deg,
-      hsl(var(--brand-emerald)) 0%,
-      hsl(var(--brand-amber)) 100%
-    );
-    --gradient-accent: linear-gradient(
-      135deg,
-      hsl(var(--brand-amber)) 0%,
-      hsl(var(--brand-blue)) 100%
-    );
   }
 
   .dark {
-    --background: 215 33% 9%;
-    --foreground: 215 20% 95%;
-    --card: 215 33% 12%;
-    --card-foreground: 215 20% 95%;
-    --popover: 215 33% 12%;
-    --popover-foreground: 215 20% 95%;
-    --primary: 218 90% 64%;
-    --primary-foreground: 215 33% 9%;
-    --secondary: 159 78% 52%;
-    --secondary-foreground: 215 33% 9%;
-    --accent: 30 90% 62%;
-    --accent-foreground: 215 33% 9%;
-    --muted: 215 33% 15%;
-    --muted-foreground: 215 20% 65%;
-    --destructive: 0 84% 65%;
-    --destructive-foreground: 215 33% 9%;
-    --border: 215 33% 18%;
-    --input: 215 33% 15%;
-    --ring: 218 90% 64%;
-
-    /* Brand specific colors for dark mode */
-    --brand-blue: 218 90% 64%;
-    --brand-emerald: 159 78% 52%;
-    --brand-amber: 30 90% 62%;
-    --brand-slate: 215 20% 65%;
-
-    /* Dark mode gradients */
-    --gradient-primary: linear-gradient(
-      135deg,
-      hsl(var(--brand-blue)) 0%,
-      hsl(var(--brand-emerald)) 100%
-    );
-    --gradient-secondary: linear-gradient(
-      135deg,
-      hsl(var(--brand-emerald)) 0%,
-      hsl(var(--brand-amber)) 100%
-    );
-    --gradient-accent: linear-gradient(
-      135deg,
-      hsl(var(--brand-amber)) 0%,
-      hsl(var(--brand-blue)) 100%
-    );
-  }
-}
-
-@layer base {
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
-  body {
-    background: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: var(--font-geist-sans), system-ui, sans-serif;
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1;
-  }
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font-weight: 600;
-    line-height: 1.25;
-    letter-spacing: -0.025em;
-  }
-
-  h1 {
-    font-size: 2.25rem;
-  }
-
-  h2 {
-    font-size: 1.875rem;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-  }
-
-  h4 {
-    font-size: 1.25rem;
-  }
-
-  h5 {
-    font-size: 1.125rem;
-  }
-
-  h6 {
-    font-size: 1rem;
-  }
-
-  p {
-    line-height: 1.75;
-  }
-
-  a {
-    color: hsl(var(--primary));
-    text-decoration-line: underline;
-    text-underline-offset: 4px;
-  }
-
-  a:hover {
-    text-decoration: underline;
+    --background: 15 23 42; /* slate-900 */
+    --foreground: 248 250 252; /* slate-50 */
+    --card: 30 41 59; /* slate-800 */
+    --card-foreground: 248 250 252; /* slate-50 */
+    --popover: 30 41 59; /* slate-800 */
+    --popover-foreground: 248 250 252; /* slate-50 */
+    --primary: 129 140 248; /* indigo-400 */
+    --primary-foreground: 15 23 42; /* slate-900 */
+    --secondary: 51 65 85; /* slate-700 */
+    --secondary-foreground: 248 250 252; /* slate-50 */
+    --muted: 51 65 85; /* slate-700 */
+    --muted-foreground: 148 163 184; /* slate-400 */
+    --accent: 51 65 85; /* slate-700 */
+    --accent-foreground: 248 250 252; /* slate-50 */
+    --destructive: 220 38 38; /* red-600 */
+    --destructive-foreground: 248 250 252; /* slate-50 */
+    --border: 51 65 85; /* slate-700 */
+    --input: 51 65 85; /* slate-700 */
+    --ring: 129 140 248; /* indigo-400 */
   }
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
-  }
-
-  /* Brand gradient utilities */
-  .bg-gradient-primary {
-    background: var(--gradient-primary);
-  }
-
-  .bg-gradient-secondary {
-    background: var(--gradient-secondary);
-  }
-
-  .bg-gradient-accent {
-    background: var(--gradient-accent);
-  }
-
-  .text-gradient-primary {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .text-gradient-secondary {
-    background: var(--gradient-secondary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  /* Glass morphism effect */
-  .glass {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-  }
-
-  .glass-dark {
-    background: rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  /* Advanced animations */
-  .animate-fade-in-up {
-    animation: fade-in-up 0.6s ease-out;
-  }
-
-  .animate-scale-in {
-    animation: scale-in 0.4s ease-out;
-  }
-
-  @keyframes fade-in-up {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes scale-in {
-    from {
-      opacity: 0;
-      transform: scale(0.9);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-
-  /* Floating animation for background elements */
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-20px);
-    }
   }
 }
