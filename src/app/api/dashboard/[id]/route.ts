@@ -8,7 +8,7 @@ interface UpdateDashboardRequest {
     id: string;
     type: string;
     title: string;
-    config: Record<string, any>;
+    config: Record<string, unknown>;
     position: {
       x: number;
       y: number;
@@ -29,6 +29,16 @@ interface UpdateDashboardRequest {
     refreshInterval: number;
     theme: 'light' | 'dark' | 'auto';
   };
+}
+
+interface WidgetData {
+  id: string;
+  widget_id: string;
+  widget_type: string;
+  widget_title: string;
+  widget_config: Record<string, unknown>;
+  position_config: Record<string, unknown>;
+  is_visible: boolean;
 }
 
 export async function GET(
@@ -96,7 +106,7 @@ export async function GET(
       id: dashboard.id,
       name: dashboard.name,
       description: dashboard.description,
-      widgets: (dashboard.widgets || []).map((widget: any) => ({
+      widgets: (dashboard.widgets || []).map((widget: WidgetData) => ({
         id: widget.widget_id,
         type: widget.widget_type,
         title: widget.widget_title,
@@ -196,7 +206,7 @@ export async function PUT(
     }
 
     // Prepare dashboard update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     };
 
@@ -210,7 +220,7 @@ export async function PUT(
     }
 
     // Update dashboard
-    const { data: updatedDashboard, error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from('custom_dashboards')
       .update(updateData)
       .eq('id', dashboardId)
@@ -295,7 +305,7 @@ export async function PUT(
       id: completeDashboard.id,
       name: completeDashboard.name,
       description: completeDashboard.description,
-      widgets: (completeDashboard.widgets || []).map((widget: any) => ({
+      widgets: (completeDashboard.widgets || []).map((widget: WidgetData) => ({
         id: widget.widget_id,
         type: widget.widget_type,
         title: widget.widget_title,
@@ -486,7 +496,7 @@ export async function POST(
 
         // Duplicate widgets
         if (originalDashboard.widgets?.length > 0) {
-          const duplicateWidgets = originalDashboard.widgets.map((widget: any) => ({
+          const duplicateWidgets = originalDashboard.widgets.map((widget: WidgetData) => ({
             dashboard_id: newDashboard.id,
             widget_id: widget.widget_id,
             widget_type: widget.widget_type,
@@ -549,7 +559,7 @@ export async function POST(
           description: dashboard.description,
           layout: dashboard.layout_config,
           settings: dashboard.settings,
-          widgets: (dashboard.widgets || []).map((widget: any) => ({
+          widgets: (dashboard.widgets || []).map((widget: WidgetData) => ({
             id: widget.widget_id,
             type: widget.widget_type,
             title: widget.widget_title,

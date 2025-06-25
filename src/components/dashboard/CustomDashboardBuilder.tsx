@@ -190,7 +190,7 @@ export function CustomDashboardBuilder({
 
   const [selectedWidget, setSelectedWidget] = useState<DashboardWidget | null>(null);
   const [isEditingWidget, setIsEditingWidget] = useState(false);
-  const [_isDragging] = useState(false);
+  const [] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   useEffect(() => {

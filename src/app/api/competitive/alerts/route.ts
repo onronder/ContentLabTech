@@ -416,7 +416,7 @@ interface Alert {
   threshold?: number;
 }
 
-async function testAlert(supabase: any, alert: Alert, userId: string): Promise<{
+async function testAlert(supabase: ReturnType<typeof createClient>, alert: Alert, userId: string): Promise<{
   success: boolean;
   wouldTrigger?: boolean;
   testData?: unknown;

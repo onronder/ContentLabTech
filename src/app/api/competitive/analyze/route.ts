@@ -15,6 +15,19 @@ interface CompetitiveAnalysisRequest {
   };
 }
 
+interface CompetitorAnalysisResult {
+  url: string;
+  rankings?: unknown;
+  contentGaps?: unknown;
+  technicalSeo?: unknown;
+}
+
+interface AnalysisResult {
+  result: {
+    competitors?: CompetitorAnalysisResult[];
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
@@ -116,8 +129,8 @@ export async function POST(request: NextRequest) {
                 });
 
               // Store analysis result
-              const competitorAnalysis = analysis.result.competitors?.find(
-                (c: any) => c.url === url
+              const competitorAnalysis = (analysis as AnalysisResult).result.competitors?.find(
+                (c: CompetitorAnalysisResult) => c.url === url
               );
 
               if (competitorAnalysis) {
@@ -253,7 +266,7 @@ export async function POST(request: NextRequest) {
 
         // Store keyword opportunities
         if (keywordGaps?.result?.opportunities) {
-          const opportunities = keywordGaps.result.opportunities.map((opp: any) => ({
+          const opportunities = keywordGaps.result.opportunities.map((opp: Record<string, unknown>) => ({
             project_id: projectId,
             keyword: opp.keyword,
             search_volume: opp.searchVolume || 0,
@@ -307,7 +320,7 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     const competitorUrl = searchParams.get('competitorUrl');
     const timeframe = parseInt(searchParams.get('timeframe') || '30');
-    const analysisType = searchParams.get('analysisType');
+    // const analysisType = searchParams.get('analysisType'); // Unused for now
 
     if (!projectId) {
       return createErrorResponse('Project ID is required', 400);
@@ -409,13 +422,13 @@ function extractDomainName(url: string): string {
     
     const domain = new URL(url).hostname;
     return domain.replace('www.', '');
-  } catch (error) {
+  } catch {
     // If URL parsing fails, return the original string cleaned up
     return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
   }
 }
 
-function calculateCompetitorSummary(analytics: any[]): any {
+function calculateCompetitorSummary(analytics: Record<string, unknown>[]): Record<string, unknown> {
   if (!analytics.length) {
     return {
       avgRanking: 0,

@@ -5,12 +5,29 @@ interface UpdateAlertRequest {
   is_active?: boolean;
   threshold?: number;
   frequency?: 'immediate' | 'daily' | 'weekly';
-  alert_config?: Record<string, any>;
+  alert_config?: Record<string, unknown>;
+}
+
+interface AlertData {
+  id: string;
+  alert_type: string;
+  threshold?: number;
+  keyword?: string;
+  project_id: string;
+}
+
+interface TestAlertResult {
+  success: boolean;
+  wouldTrigger?: boolean;
+  testData?: Record<string, unknown>;
+  threshold?: number;
+  alertType?: string;
+  error?: string;
 }
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
@@ -19,7 +36,7 @@ export async function GET(
       return createErrorResponse('Authentication required', 401);
     }
 
-    const alertId = params.id;
+    const { id: alertId } = await params;
     if (!alertId) {
       return createErrorResponse('Alert ID is required', 400);
     }
@@ -103,7 +120,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
@@ -112,7 +129,7 @@ export async function PATCH(
       return createErrorResponse('Authentication required', 401);
     }
 
-    const alertId = params.id;
+    const { id: alertId } = await params;
     if (!alertId) {
       return createErrorResponse('Alert ID is required', 400);
     }
@@ -140,7 +157,7 @@ export async function PATCH(
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: UpdateAlertRequest & { updated_at: string } = {
       ...body,
       updated_at: new Date().toISOString(),
     };
@@ -207,7 +224,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Authenticate user
@@ -216,7 +233,7 @@ export async function DELETE(
       return createErrorResponse('Authentication required', 401);
     }
 
-    const alertId = params.id;
+    const { id: alertId } = await params;
     if (!alertId) {
       return createErrorResponse('Alert ID is required', 400);
     }
@@ -290,7 +307,7 @@ export async function DELETE(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // This endpoint handles alert actions like test, trigger, etc.
@@ -299,7 +316,7 @@ export async function POST(
       return createErrorResponse('Authentication required', 401);
     }
 
-    const alertId = params.id;
+    const { id: alertId } = await params;
     const { action } = await request.json();
 
     if (!alertId || !action) {
@@ -420,10 +437,10 @@ export async function POST(
 }
 
 // Helper function
-async function testAlert(supabase: any, alert: any): Promise<any> {
+async function testAlert(supabase: ReturnType<typeof createClient>, alert: AlertData): Promise<TestAlertResult> {
   try {
     // Generate test data based on alert type
-    let testData;
+    let testData: Record<string, unknown>;
     let shouldTrigger = false;
 
     switch (alert.alert_type) {

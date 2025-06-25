@@ -122,6 +122,44 @@ export interface TrainingDataPoint {
   timeframe: number;
 }
 
+// Input data interfaces for feature extraction
+export interface ContentInput {
+  content?: string;
+  title?: string;
+  metaDescription?: string;
+  url?: string;
+  canonicalUrl?: string;
+  structuredData?: unknown;
+  focusKeywords?: string[];
+}
+
+export interface AnalyticsInput {
+  recent?: {
+    avgPageviews?: number;
+    avgBounceRate?: number;
+    avgSessionDuration?: number;
+    avgClickThroughRate?: number;
+  };
+}
+
+export interface CompetitorDataInput {
+  rankings?: Array<{
+    position: number;
+    keyword?: string;
+  }>;
+  competitionLevel?: number;
+  seasonalTrend?: number;
+}
+
+export interface MarketDataInput {
+  hasActiveCampaign?: boolean;
+}
+
+export interface HistoricalDataInput {
+  content?: ContentInput;
+  analytics?: AnalyticsInput;
+}
+
 class PerformancePredictionModel {
   private modelVersion: string;
   private isLoaded: boolean = false;
@@ -138,9 +176,9 @@ class PerformancePredictionModel {
    */
   async extractFeatures(
     contentId: string,
-    historicalData: any,
-    competitorData: any,
-    marketData: any
+    historicalData: HistoricalDataInput,
+    competitorData: CompetitorDataInput,
+    marketData: MarketDataInput
   ): Promise<MLFeatures> {
     try {
       const content = historicalData.content;
@@ -176,7 +214,7 @@ class PerformancePredictionModel {
     }
   }
 
-  private extractContentFeatures(content: any): Partial<MLFeatures> {
+  private extractContentFeatures(content: ContentInput): Partial<MLFeatures> {
     const text = content?.content || '';
     const words = text.split(/\s+/).filter((word: string) => word.length > 0);
     
@@ -190,7 +228,7 @@ class PerformancePredictionModel {
     };
   }
 
-  private extractSEOFeatures(content: any): Partial<MLFeatures> {
+  private extractSEOFeatures(content: ContentInput): Partial<MLFeatures> {
     return {
       titleLength: (content?.title || '').length,
       metaDescriptionLength: (content?.metaDescription || '').length,
@@ -200,7 +238,7 @@ class PerformancePredictionModel {
     };
   }
 
-  private extractPerformanceFeatures(analytics: any): Partial<MLFeatures> {
+  private extractPerformanceFeatures(analytics: AnalyticsInput): Partial<MLFeatures> {
     const recent = analytics.recent || {};
     
     return {
@@ -211,10 +249,10 @@ class PerformancePredictionModel {
     };
   }
 
-  private extractCompetitiveFeatures(competitors: any): Partial<MLFeatures> {
+  private extractCompetitiveFeatures(competitors: CompetitorDataInput): Partial<MLFeatures> {
     const rankings = competitors.rankings || [];
     const avgRanking = rankings.length > 0 
-      ? rankings.reduce((sum: number, r: any) => sum + r.position, 0) / rankings.length
+      ? rankings.reduce((sum: number, r: { position: number }) => sum + r.position, 0) / rankings.length
       : 50;
 
     return {
@@ -224,7 +262,7 @@ class PerformancePredictionModel {
     };
   }
 
-  private extractTemporalFeatures(market: any): Partial<MLFeatures> {
+  private extractTemporalFeatures(market: MarketDataInput): Partial<MLFeatures> {
     const now = new Date();
     
     return {
@@ -240,7 +278,7 @@ class PerformancePredictionModel {
    */
   async trainModel(trainingData: TrainingDataPoint[]): Promise<ModelPerformanceMetrics> {
     try {
-      console.log(`Training model ${this.modelVersion} with ${trainingData.length} data points`);
+      console.warn(`Training model ${this.modelVersion} with ${trainingData.length} data points`);
       
       // Validate training data
       const validData = this.validateTrainingData(trainingData);
@@ -264,7 +302,7 @@ class PerformancePredictionModel {
       
       this.isLoaded = true;
       
-      console.log(`Model training completed. Accuracy: ${metrics.accuracy.toFixed(3)}`);
+      console.warn(`Model training completed. Accuracy: ${metrics.accuracy.toFixed(3)}`);
       
       return metrics;
     } catch (error) {
@@ -296,7 +334,7 @@ class PerformancePredictionModel {
       const confidence = this.calculateConfidence(scaledFeatures, predictions);
 
       // Generate insights
-      const insights = this.generateInsights(features, predictions);
+      const insights = this.generateInsights(features);
 
       // Create prediction object
       const prediction: PerformancePrediction = {
@@ -365,7 +403,7 @@ class PerformancePredictionModel {
       if (scaler && typeof features[key as keyof MLFeatures] === 'number') {
         const value = features[key as keyof MLFeatures] as number;
         // Z-score normalization
-        (scaled as any)[key] = (value - scaler.mean) / (scaler.std || 1);
+        (scaled as Record<string, unknown>)[key] = (value - scaler.mean) / (scaler.std || 1);
       }
     });
 
@@ -521,7 +559,7 @@ class PerformancePredictionModel {
     };
   }
 
-  private calculateConfidence(features: MLFeatures, predictions: any): { score: number; modelAccuracy: number } {
+  private calculateConfidence(features: MLFeatures, predictions: PerformancePrediction['predictions']): { score: number; modelAccuracy: number } {
     // Calculate confidence based on feature quality and model certainty
     const featureCompleteness = this.calculateFeatureCompleteness(features);
     const predictionVariance = this.calculatePredictionVariance(predictions);
@@ -535,7 +573,7 @@ class PerformancePredictionModel {
     };
   }
 
-  private generateInsights(features: MLFeatures, predictions: any): PerformancePrediction['insights'] {
+  private generateInsights(features: MLFeatures): PerformancePrediction['insights'] {
     const insights = {
       keyFactors: [] as string[],
       recommendations: [] as string[],
@@ -713,9 +751,9 @@ class PerformancePredictionModel {
     return validFeatures / totalFeatures;
   }
 
-  private calculatePredictionVariance(predictions: any): number {
+  private calculatePredictionVariance(predictions: PerformancePrediction['predictions']): number {
     // Calculate variance based on prediction ranges
-    const ranges = Object.values(predictions).map((pred: any) => {
+    const ranges = Object.values(predictions).map((pred) => {
       const range = pred.range[1] - pred.range[0];
       return range / pred.predicted;
     });
@@ -744,7 +782,7 @@ export class MLPerformanceService {
       if (trainingData.length > 0) {
         // Train the model
         const metrics = await this.model.trainModel(trainingData);
-        console.log('ML model initialized with accuracy:', metrics.accuracy);
+        console.warn('ML model initialized with accuracy:', metrics.accuracy);
       }
 
       this.isInitialized = true;
@@ -795,7 +833,7 @@ export class MLPerformanceService {
     return [];
   }
 
-  private async getHistoricalData(contentId: string): Promise<any> {
+  private async getHistoricalData(contentId: string): Promise<HistoricalDataInput> {
     // Load historical performance data from database
     try {
       const supabase = createDatabaseClient();
@@ -861,7 +899,7 @@ export class MLPerformanceService {
     }
   }
 
-  private async getCompetitorData(projectId: string): Promise<any> {
+  private async getCompetitorData(projectId: string): Promise<CompetitorDataInput> {
     // Load competitor analysis data from database
     try {
       const supabase = createDatabaseClient();
@@ -896,7 +934,7 @@ export class MLPerformanceService {
     }
   }
 
-  private async getMarketData(projectId: string): Promise<any> {
+  private async getMarketData(projectId: string): Promise<MarketDataInput> {
     // Load market data from project settings and campaigns
     try {
       const supabase = createDatabaseClient();

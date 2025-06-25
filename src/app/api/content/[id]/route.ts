@@ -132,7 +132,7 @@ export async function PUT(
     }
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: UpdateContentRequest & Record<string, unknown> = {
       ...body,
       updated_at: new Date().toISOString(),
     };

@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
       // User doesn't exist, send invitation
       try {
         // Generate invitation link using admin functions
-        const { data: inviteData, error: inviteError } = await supabase.functions.invoke(
+        const { error: inviteError } = await supabase.functions.invoke(
           'admin-operations',
           {
             body: {

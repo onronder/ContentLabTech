@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     for (const recommendation of recommendations) {
       try {
         const recommendationData = recommendation.recommendation_data as RecommendationData || {};
-        let updatedContent = { ...content };
+        const updatedContent = { ...content };
         let applied = false;
 
         // Apply recommendation based on type

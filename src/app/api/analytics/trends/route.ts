@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
             .order('date', { ascending: true });
 
           // Aggregate data by date
-          const aggregatedData = aggregateAnalyticsByDate(analytics || [], params.metric);
+          const aggregatedData = aggregateAnalyticsByDate(analytics || []);
 
           result = {
             projectId,
@@ -441,7 +441,7 @@ interface FinalAnalytics {
   avg_session_duration: number;
 }
 
-function aggregateAnalyticsByDate(analytics: AnalyticsItem[], _metric?: string): FinalAnalytics[] {
+function aggregateAnalyticsByDate(analytics: AnalyticsItem[]): FinalAnalytics[] {
   const dailyTotals = analytics.reduce((acc: Record<string, AggregatedData>, item) => {
     const date = item.date;
     

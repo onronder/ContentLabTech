@@ -94,13 +94,66 @@ export interface SearchAnalytics {
   };
 }
 
+// SERPAPI response interfaces
+interface SerpApiResponse {
+  organic_results?: SerpApiResult[];
+  people_also_ask?: SerpApiPeopleAlsoAsk[];
+  related_searches?: SerpApiRelatedSearch[];
+  answer_box?: SerpApiAnswerBox;
+  knowledge_graph?: SerpApiKnowledgeGraph;
+  search_information?: {
+    total_results?: string;
+    time_taken_displayed?: string;
+  };
+}
+
+interface SerpApiResult {
+  title?: string;
+  link?: string;
+  snippet?: string;
+  displayed_link?: string;
+  cached_page_link?: string;
+  sitelinks?: SerpApiSitelink[];
+}
+
+interface SerpApiSitelink {
+  title: string;
+  link: string;
+}
+
+interface SerpApiPeopleAlsoAsk {
+  question?: string;
+  snippet?: string;
+  link?: string;
+}
+
+interface SerpApiRelatedSearch {
+  query?: string;
+}
+
+interface SerpApiAnswerBox {
+  type?: string;
+  answer?: string;
+  snippet?: string;
+  title?: string;
+  link?: string;
+  date?: string;
+}
+
+interface SerpApiKnowledgeGraph {
+  title?: string;
+  type?: string;
+  description?: string;
+  source?: string;
+}
+
 /**
  * Make SERPAPI request
  */
 async function makeSerpApiRequest(
   endpoint: string,
-  params: Record<string, any>
-): Promise<any> {
+  params: Record<string, unknown>
+): Promise<SerpApiResponse> {
   const SERPAPI_API_KEY = process.env.SERPAPI_API_KEY;
   if (!SERPAPI_API_KEY) {
     throw new Error('SERPAPI API key not configured');
@@ -145,7 +198,7 @@ export async function searchGoogle(params: SearchParams): Promise<SearchAnalytic
     const data = await makeSerpApiRequest('search', serpParams);
 
     // Parse organic results
-    const organicResults: SearchResult[] = (data.organic_results || []).map((result: any, index: number) => ({
+    const organicResults: SearchResult[] = (data.organic_results || []).map((result: SerpApiResult, index: number) => ({
       position: (params.start || 0) + index + 1,
       title: result.title || '',
       link: result.link || '',
@@ -153,7 +206,7 @@ export async function searchGoogle(params: SearchParams): Promise<SearchAnalytic
       domain: extractDomain(result.link || ''),
       displayedLink: result.displayed_link,
       cachedPage: result.cached_page_link,
-      sitelinks: result.sitelinks?.map((link: any) => ({
+      sitelinks: result.sitelinks?.map((link: SerpApiSitelink) => ({
         title: link.title,
         link: link.link,
       })) || [],
@@ -175,14 +228,14 @@ export async function searchGoogle(params: SearchParams): Promise<SearchAnalytic
     }
 
     // Parse people also ask
-    const peopleAlsoAsk = (data.people_also_ask || []).map((item: any) => ({
+    const peopleAlsoAsk = (data.people_also_ask || []).map((item: SerpApiPeopleAlsoAsk) => ({
       question: item.question || '',
       answer: item.snippet || '',
       source: item.link || '',
     }));
 
     // Parse related searches
-    const relatedSearches = (data.related_searches || []).map((item: any) => item.query || '');
+    const relatedSearches = (data.related_searches || []).map((item: SerpApiRelatedSearch) => item.query || '');
 
     return {
       query: params.query,
@@ -386,8 +439,7 @@ export async function monitorCompetitorContent(
  * Get trending keywords in industry
  */
 export async function getTrendingKeywords(
-  industry: string,
-  timeframe: '24h' | '7d' | '30d' = '7d'
+  industry: string
 ): Promise<{
   keyword: string;
   trendScore: number;

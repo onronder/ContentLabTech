@@ -10,7 +10,7 @@ interface UpdateProjectRequest {
   content_goals?: string[];
   competitors?: string[];
   status?: 'active' | 'inactive' | 'archived';
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 export async function GET(
@@ -174,7 +174,7 @@ export async function PUT(
     const supabase = createClient();
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       ...body,
       updated_at: new Date().toISOString(),
     };
@@ -358,7 +358,7 @@ function extractDomainName(url: string): string {
     
     const domain = new URL(url).hostname;
     return domain.replace('www.', '');
-  } catch (error) {
+  } catch {
     // If URL parsing fails, return the original string cleaned up
     return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
   }

@@ -10,7 +10,7 @@ interface CreateProjectRequest {
   target_audience?: string;
   content_goals?: string[];
   competitors?: string[];
-  settings?: Record<string, any>;
+  settings?: Record<string, unknown>;
 }
 
 interface ProjectFilters {
@@ -278,7 +278,7 @@ function extractDomainName(url: string): string {
     
     const domain = new URL(url).hostname;
     return domain.replace('www.', '');
-  } catch (error) {
+  } catch {
     // If URL parsing fails, return the original string cleaned up
     return url.replace(/^(https?:\/\/)?(www\.)?/, '').split('/')[0];
   }

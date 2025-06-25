@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -88,7 +88,7 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
     }
   }, [selectedContent, selectedTimeframe, generatePrediction, loadTrendData]);
 
-  const generatePrediction = async () => {
+  const generatePrediction = useCallback(async () => {
     if (!selectedContent) return;
 
     setIsLoading(true);
@@ -124,9 +124,9 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedContent, selectedTimeframe, projectId]);
 
-  const loadTrendData = async () => {
+  const loadTrendData = useCallback(async () => {
     try {
       const response = await fetch('/api/analytics/trends', {
         method: 'POST',
@@ -150,7 +150,7 @@ export function PerformancePredictionDashboard({ projectId, contentId }: Perform
     } catch (err) {
       console.error('Failed to load trend data:', err);
     }
-  };
+  }, [selectedContent, selectedTimeframe, projectId]);
 
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {

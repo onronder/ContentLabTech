@@ -105,12 +105,12 @@ export function CollaborativeWorkspace({ projectId, sessionId, analysisId }: Col
   const [comments, setComments] = useState<SessionComment[]>([]);
   const [activities, setActivities] = useState<SessionActivity[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
+  const [, setCurrentUser] = useState<TeamMember | null>(null);
   const [newComment, setNewComment] = useState('');
   const [newCommentType, setNewCommentType] = useState<SessionComment['commentType']>('general');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [_error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [newSessionData, setNewSessionData] = useState({
     sessionName: '',
@@ -260,28 +260,6 @@ export function CollaborativeWorkspace({ projectId, sessionId, analysisId }: Col
     }
   };
 
-  const joinSession = async () => {
-    if (!sessionId) return;
-
-    try {
-      const response = await fetch('/api/collaboration/workspace', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'join_session',
-          sessionId,
-          projectId,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSession(data.result);
-      }
-    } catch (error) {
-      console.error('Failed to join session:', error);
-    }
-  };
 
   const addComment = async () => {
     if (!newComment.trim() || !sessionId) return;
@@ -350,7 +328,6 @@ export function CollaborativeWorkspace({ projectId, sessionId, analysisId }: Col
 
   const renderComment = (comment: SessionComment, isReply = false) => {
     const user = teamMembers.find(m => m.id === comment.userId);
-    const isCurrentUser = currentUser?.id === comment.userId;
 
     return (
       <div key={comment.id} className={`${isReply ? 'ml-8 border-l-2 border-gray-100 pl-4' : ''}`}>
@@ -443,7 +420,7 @@ export function CollaborativeWorkspace({ projectId, sessionId, analysisId }: Col
     );
   };
 
-  const getActivityDescription = (type: string, data: any) => {
+  const getActivityDescription = (type: string) => {
     switch (type) {
       case 'session_created': return 'created the session';
       case 'user_joined': return 'joined the session';

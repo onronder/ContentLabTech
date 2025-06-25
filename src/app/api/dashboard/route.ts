@@ -11,7 +11,7 @@ interface DashboardWidget {
     chartType?: 'line' | 'bar' | 'pie' | 'area' | 'gauge';
     metrics?: string[];
     timeRange?: string;
-    filters?: Record<string, any>;
+    filters?: Record<string, unknown>;
     refreshInterval?: number;
     showLegend?: boolean;
     showGrid?: boolean;
@@ -52,6 +52,15 @@ interface DashboardFilters {
   search?: string;
   limit?: number;
   offset?: number;
+}
+
+interface DashboardWidgetData {
+  widget_id: string;
+  widget_type: string;
+  widget_title: string;
+  widget_config: Record<string, unknown>;
+  position_config: Record<string, unknown>;
+  is_visible: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -317,7 +326,7 @@ export async function GET(request: NextRequest) {
       id: dashboard.id,
       name: dashboard.name,
       description: dashboard.description,
-      widgets: (dashboard.widgets || []).map((widget: any) => ({
+      widgets: (dashboard.widgets || []).map((widget: DashboardWidgetData) => ({
         id: widget.widget_id,
         type: widget.widget_type,
         title: widget.widget_title,
