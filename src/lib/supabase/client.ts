@@ -13,8 +13,10 @@ import {
 
 // Validate configuration on module load
 const config = validateEnvironmentConfig();
-if (!config.isValid) {
+if (!config.isValid && process.env.NODE_ENV === "production") {
   throw new Error(`Supabase configuration error: ${config.errors.join(", ")}`);
+} else if (!config.isValid) {
+  console.warn("⚠️ Supabase configuration issues detected:", config.errors);
 }
 
 // Browser security check
@@ -22,8 +24,9 @@ validateBrowserSecurity();
 
 // Supabase client with new publishable key system
 export const supabase = createClient<Database>(
-  process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-  process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
+  process.env["NEXT_PUBLIC_SUPABASE_URL"] || "https://placeholder.supabase.co",
+  process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ||
+    "sb_publishable_placeholder_key",
   {
     auth: {
       persistSession: true,

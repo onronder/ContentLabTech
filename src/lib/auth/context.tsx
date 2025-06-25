@@ -91,19 +91,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     let mounted = true;
 
     async function getInitialSession() {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession();
+      try {
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
-      if (mounted) {
-        if (error) {
-          console.error("Error getting session:", error);
-        } else {
-          setSession(session);
-          setUser(session?.user ?? null);
+        if (mounted) {
+          if (error) {
+            console.error("Error getting session:", error);
+          } else {
+            setSession(session);
+            setUser(session?.user ?? null);
+          }
+          setLoading(false);
         }
-        setLoading(false);
+      } catch (error) {
+        console.error("Failed to initialize auth:", error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
@@ -187,24 +194,48 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     password: string,
     options?: { data?: Record<string, unknown> }
   ) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: options?.data || {},
-      },
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: options?.data || {},
+        },
+      });
 
-    return { user: data.user, error };
+      return { user: data.user, error };
+    } catch (error) {
+      console.error("SignUp error:", error);
+      return {
+        user: null,
+        error: {
+          message:
+            "Authentication service unavailable. Please check your configuration.",
+          name: "ConfigurationError",
+        } as AuthError,
+      };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    return { user: data.user, error };
+      return { user: data.user, error };
+    } catch (error) {
+      console.error("SignIn error:", error);
+      return {
+        user: null,
+        error: {
+          message:
+            "Authentication service unavailable. Please check your configuration.",
+          name: "ConfigurationError",
+        } as AuthError,
+      };
+    }
   };
 
   const signInWithOAuth = async (provider: "google") => {

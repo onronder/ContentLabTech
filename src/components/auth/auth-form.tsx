@@ -32,6 +32,7 @@ export const AuthForm = ({
   redirectUrl = "/dashboard",
 }: AuthFormProps) => {
   const { signIn, signUp, loading } = useSupabaseAuth();
+  const [formLoading, setFormLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -163,41 +164,50 @@ export const AuthForm = ({
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setFormLoading(true);
 
     if (!isFormValid) {
       setError("Please fix all validation errors before submitting");
+      setFormLoading(false);
       return;
     }
 
-    if (mode === "signup") {
-      const { user, error: signUpError } = await signUp(
-        formData.email,
-        formData.password,
-        {
-          data: {
-            full_name: formData.fullName,
-          },
-        }
-      );
-
-      if (signUpError) {
-        setError(signUpError.message);
-      } else if (user) {
-        setSuccess(
-          "Account created successfully! Please check your email to verify your account."
+    try {
+      if (mode === "signup") {
+        const { user, error: signUpError } = await signUp(
+          formData.email,
+          formData.password,
+          {
+            data: {
+              full_name: formData.fullName,
+            },
+          }
         );
-      }
-    } else {
-      const { user, error: signInError } = await signIn(
-        formData.email,
-        formData.password
-      );
 
-      if (signInError) {
-        setError(signInError.message);
-      } else if (user) {
-        window.location.href = redirectUrl;
+        if (signUpError) {
+          setError(signUpError.message);
+        } else if (user) {
+          setSuccess(
+            "Account created successfully! Please check your email to verify your account."
+          );
+        }
+      } else {
+        const { user, error: signInError } = await signIn(
+          formData.email,
+          formData.password
+        );
+
+        if (signInError) {
+          setError(signInError.message);
+        } else if (user) {
+          window.location.href = redirectUrl;
+        }
       }
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.");
+      console.error("Auth error:", err);
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -239,6 +249,7 @@ export const AuthForm = ({
               <Input
                 id="fullName"
                 type="text"
+                autoComplete="name"
                 value={formData.fullName}
                 onChange={e => handleInputChange("fullName", e.target.value)}
                 placeholder="Enter your full name"
@@ -249,7 +260,7 @@ export const AuthForm = ({
                       ? "border-success-500 focus:border-success-500"
                       : "border-border focus:border-brand-blue"
                 }`}
-                disabled={loading}
+                disabled={loading || formLoading}
               />
               {formData.fullName && fieldValidation["fullName"]?.isValid && (
                 <Check className="text-success-500 absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 transform" />
@@ -276,6 +287,7 @@ export const AuthForm = ({
             <Input
               id="email"
               type="email"
+              autoComplete="email"
               value={formData.email}
               onChange={e => handleInputChange("email", e.target.value)}
               placeholder="Enter your email address"
@@ -309,6 +321,9 @@ export const AuthForm = ({
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
+              autoComplete={
+                mode === "signin" ? "current-password" : "new-password"
+              }
               value={formData.password}
               onChange={e => handleInputChange("password", e.target.value)}
               placeholder="Enter your password"
@@ -378,6 +393,7 @@ export const AuthForm = ({
               <Input
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
+                autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={e =>
                   handleInputChange("confirmPassword", e.target.value)
@@ -391,13 +407,13 @@ export const AuthForm = ({
                       ? "border-success-500 focus:border-success-500"
                       : "border-border focus:border-brand-blue"
                 }`}
-                disabled={loading}
+                disabled={loading || formLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 transform transition-colors"
-                disabled={loading}
+                disabled={loading || formLoading}
               >
                 {showConfirmPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -446,13 +462,13 @@ export const AuthForm = ({
         <Button
           type="submit"
           className={`h-12 w-full text-base font-semibold transition-all duration-200 ${
-            isFormValid && !loading
+            isFormValid && !loading && !formLoading
               ? "bg-gradient-primary transform hover:scale-[1.02] hover:opacity-90"
               : ""
           }`}
-          disabled={loading || !isFormValid}
+          disabled={loading || formLoading || !isFormValid}
         >
-          {loading ? (
+          {loading || formLoading ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               {mode === "signin" ? "Signing In..." : "Creating Account..."}
@@ -470,7 +486,7 @@ export const AuthForm = ({
           type="button"
           onClick={toggleMode}
           className="text-muted-foreground hover:text-brand-blue font-medium transition-colors"
-          disabled={loading}
+          disabled={loading || formLoading}
         >
           {mode === "signin"
             ? "Don't have an account? Create one"
