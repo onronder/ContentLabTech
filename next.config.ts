@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Ensure proper asset serving
-  assetPrefix: process.env.NODE_ENV === "production" ? "" : "",
+  // Remove any custom asset prefix to use Next.js defaults
+  // assetPrefix: undefined,
 
   // Image optimization
   images: {
@@ -18,15 +18,6 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/_next/static/(.*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
-      {
-        source: "/assets/(.*)",
         headers: [
           {
             key: "Cache-Control",
