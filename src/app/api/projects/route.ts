@@ -5,6 +5,7 @@ import {
   validateTeamAccess,
   createErrorResponse,
 } from "@/lib/auth/session";
+import { jobQueue } from "@/lib/jobs/queue";
 
 interface CreateProjectRequest {
   teamId: string;
@@ -120,10 +121,28 @@ export async function POST(request: NextRequest) {
       await supabase.from("competitors").insert(competitorData);
     }
 
+    // Trigger comprehensive analysis for new project
+    if (website_url) {
+      try {
+        await triggerProjectAnalysis({
+          projectId: newProject.id,
+          userId: user.id,
+          teamId,
+          websiteUrl: website_url,
+          targetKeywords: target_keywords,
+          competitorUrls: competitors,
+        });
+      } catch (analysisError) {
+        console.warn('Failed to trigger project analysis:', analysisError);
+        // Don't fail project creation if analysis fails
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
         project: newProject,
+        analysisTriggered: !!website_url,
       },
       { status: 201 }
     );
@@ -278,6 +297,89 @@ export async function GET(request: NextRequest) {
     console.error("API error:", error);
     return createErrorResponse("Internal server error", 500);
   }
+}
+
+/**
+ * Trigger comprehensive analysis for a new project
+ */
+async function triggerProjectAnalysis(data: {
+  projectId: string;
+  userId: string;
+  teamId: string;
+  websiteUrl: string;
+  targetKeywords: string[];
+  competitorUrls: string[];
+}): Promise<void> {
+  const { projectId, userId, teamId, websiteUrl, targetKeywords, competitorUrls } = data;
+
+  // Job data structure for all analysis types
+  const baseJobData = {
+    projectId,
+    userId,
+    teamId,
+    params: {},
+  };
+
+  // 1. Content Analysis (Priority: Critical - runs first)
+  if (targetKeywords.length > 0) {
+    await jobQueue.addJob('content-analysis', {
+      ...baseJobData,
+      params: {
+        websiteUrl,
+        targetKeywords,
+        competitorUrls,
+        analysisDepth: 'comprehensive',
+      },
+    }, 'critical');
+  }
+
+  // 2. SEO Health Check (Priority: High)
+  await jobQueue.addJob('seo-health-check', {
+    ...baseJobData,
+    params: {
+      websiteUrl,
+      pages: [websiteUrl], // Start with homepage, expand later
+      includePerformance: true,
+      includeMobile: true,
+    },
+  }, 'high');
+
+  // 3. Performance Analysis (Priority: High)
+  await jobQueue.addJob('performance-analysis', {
+    ...baseJobData,
+    params: {
+      websiteUrl,
+      pages: [websiteUrl],
+      locations: ['US'], // Default location
+      devices: ['desktop', 'mobile'],
+    },
+  }, 'high');
+
+  // 4. Competitive Intelligence (Priority: Normal - if competitors provided)
+  if (competitorUrls.length > 0) {
+    await jobQueue.addJob('competitive-intelligence', {
+      ...baseJobData,
+      params: {
+        targetDomain: websiteUrl,
+        competitorDomains: competitorUrls,
+        keywords: targetKeywords,
+        analysisScope: 'comprehensive',
+      },
+    }, 'normal');
+  }
+
+  // 5. Industry Benchmarking (Priority: Normal - runs last)
+  await jobQueue.addJob('industry-benchmarking', {
+    ...baseJobData,
+    params: {
+      industry: 'general', // Will be determined by AI analysis
+      businessType: 'website',
+      targetMetrics: ['seo', 'performance', 'content'],
+      region: 'global',
+    },
+  }, 'normal');
+
+  console.warn(`Triggered comprehensive analysis for project ${projectId}`);
 }
 
 // Helper function to extract domain name from URL

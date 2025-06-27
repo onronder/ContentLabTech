@@ -10,6 +10,14 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { useAuth } from "@/lib/auth/context";
 import {
   Settings,
   Crown,
@@ -17,6 +25,7 @@ import {
   Database,
   Sparkles,
   LucideIcon,
+  FolderOpen,
 } from "lucide-react";
 
 // Import role-based dashboards
@@ -31,14 +40,32 @@ interface DashboardConfig {
   name: string;
   description: string;
   icon: LucideIcon;
-  component: React.ComponentType;
+  component: React.ComponentType<{ projectId?: string }>;
   color: string;
   bgColor: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  website_url?: string;
+}
+
 export const AdaptiveDashboard = () => {
+  const { currentTeam } = useAuth();
   const [currentRole, setCurrentRole] = useState<UserRole>("executive");
   const [isLoading, setIsLoading] = useState(true);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+
+  // Load projects when team changes
+  useEffect(() => {
+    if (currentTeam?.id) {
+      loadProjects();
+    }
+  }, [currentTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Simulate loading and role detection
   useEffect(() => {
@@ -49,6 +76,28 @@ export const AdaptiveDashboard = () => {
     }, 1000);
     return () => clearTimeout(timer);
   }, []);
+
+  const loadProjects = async () => {
+    if (!currentTeam?.id) return;
+    
+    setProjectsLoading(true);
+    try {
+      const response = await fetch(`/api/projects?teamId=${currentTeam.id}&limit=10`);
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.projects || []);
+        
+        // Set first project as current if none selected
+        if (!currentProject && data.projects?.length > 0) {
+          setCurrentProject(data.projects[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
 
   const dashboardConfigs: DashboardConfig[] = [
     {
@@ -191,12 +240,48 @@ export const AdaptiveDashboard = () => {
             </TabsList>
           </Tabs>
         </div>
+        
+        {/* Project Selector */}
+        {projects.length > 0 && (
+          <div className="mt-4 flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <FolderOpen className="h-4 w-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Project:</span>
+            </div>
+            <Select
+              value={currentProject?.id || ""}
+              onValueChange={(value) => {
+                const project = projects.find(p => p.id === value);
+                setCurrentProject(project || null);
+              }}
+            >
+              <SelectTrigger className="w-[280px]">
+                <SelectValue placeholder="Select a project..." />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => (
+                  <SelectItem key={project.id} value={project.id}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{project.name}</span>
+                      {project.website_url && (
+                        <span className="text-xs text-gray-500">{project.website_url}</span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {projectsLoading && (
+              <div className="text-xs text-gray-500">Loading projects...</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Role-Based Dashboard Content */}
       <div className="min-h-screen">
         <div className="animate-fade-in-up">
-          <DashboardComponent />
+          <DashboardComponent projectId={currentProject?.id} />
         </div>
       </div>
 
