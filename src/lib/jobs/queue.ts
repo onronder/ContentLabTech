@@ -315,11 +315,19 @@ class JobQueue {
           "./processors/performance"
         );
         return new PerformanceAnalysisProcessor();
+      case "competitive-analysis":
+        const { CompetitiveAnalysisProcessor } = await import(
+          "./processors/competitive-analysis"
+        );
+        return new CompetitiveAnalysisProcessor();
       case "competitive-intelligence":
         const { CompetitiveIntelligenceProcessor } = await import(
           "./processors/competitive"
         );
         return new CompetitiveIntelligenceProcessor();
+      case "competitive-monitoring":
+        // TODO: Implement competitive monitoring processor
+        throw new Error("Competitive monitoring processor not yet implemented");
       case "industry-benchmarking":
         const { IndustryBenchmarkingProcessor } = await import(
           "./processors/benchmarking"

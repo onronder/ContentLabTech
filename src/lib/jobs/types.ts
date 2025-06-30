@@ -7,7 +7,9 @@ export type JobType =
   | "content-analysis"
   | "seo-health-check"
   | "performance-analysis"
+  | "competitive-analysis"
   | "competitive-intelligence"
+  | "competitive-monitoring"
   | "industry-benchmarking"
   | "project-health-scoring";
 
@@ -83,12 +85,52 @@ export interface PerformanceAnalysisJobData extends JobData {
   };
 }
 
+export interface CompetitiveAnalysisJobData extends JobData {
+  params: {
+    targetDomain: string;
+    competitorIds: string[];
+    analysisTypes: (
+      | "content-similarity"
+      | "seo-comparison"
+      | "performance-benchmark"
+      | "market-position"
+      | "content-gaps"
+      | "comprehensive"
+    )[];
+    options: {
+      depth: "basic" | "standard" | "comprehensive";
+      includeHistorical: boolean;
+      alertsEnabled: boolean;
+      customParameters?: Record<string, unknown>;
+    };
+  };
+}
+
 export interface CompetitiveIntelligenceJobData extends JobData {
   params: {
     targetDomain: string;
     competitorDomains: string[];
     keywords: string[];
     analysisScope: "content" | "technical" | "comprehensive";
+  };
+}
+
+export interface CompetitiveMonitoringJobData extends JobData {
+  params: {
+    competitorIds: string[];
+    monitoringTypes: (
+      | "content-published"
+      | "ranking-change"
+      | "backlink-gained"
+      | "strategy-shift"
+      | "performance-improvement"
+    )[];
+    alertThresholds: {
+      rankingChange: number;
+      contentFrequency: number;
+      performanceChange: number;
+    };
+    scheduledFrequency: "hourly" | "daily" | "weekly";
   };
 }
 
@@ -261,6 +303,126 @@ export interface DevicePerformance {
   };
 }
 
+export interface CompetitiveAnalysisResult {
+  id: string;
+  projectId: string;
+  competitorId: string;
+  analysisType:
+    | "content-similarity"
+    | "seo-comparison"
+    | "performance-benchmark"
+    | "market-position"
+    | "content-gaps"
+    | "comprehensive";
+  timestamp: Date;
+  status: "pending" | "processing" | "completed" | "failed";
+  progress: number;
+  data: {
+    contentAnalysis?: {
+      contentSimilarity: {
+        overall: number;
+        semantic: number;
+        structural: number;
+        performanceCorrelation: number;
+        breakdown: {
+          topics: number;
+          keywords: number;
+          format: number;
+          style: number;
+        };
+      };
+      contentQuality: {
+        userScore: number;
+        competitorScore: number;
+        relativeDifference: number;
+      };
+      topicAnalysis: {
+        sharedTopics: string[];
+        uniqueUserTopics: string[];
+        uniqueCompetitorTopics: string[];
+        topicGaps: {
+          topic: string;
+          opportunityScore: number;
+          difficulty: number;
+          searchVolume: number;
+          strategicRelevance: number;
+          recommendation: string;
+        }[];
+      };
+    };
+    seoAnalysis?: {
+      overallComparison: {
+        userScore: number;
+        competitorScore: number;
+        gap: number;
+      };
+      keywordAnalysis: {
+        sharedKeywords: {
+          keyword: string;
+          userRanking?: number;
+          competitorRanking?: number;
+          searchVolume: number;
+          difficulty: number;
+        }[];
+        keywordGaps: {
+          keyword: string;
+          competitorRanking: number;
+          searchVolume: number;
+          difficulty: number;
+          opportunityScore: number;
+          priority: "high" | "medium" | "low";
+        }[];
+      };
+    };
+    performanceAnalysis?: {
+      speedComparison: {
+        loadTime: { user: number; competitor: number; gap: number };
+        firstContentfulPaint: { user: number; competitor: number; gap: number };
+        largestContentfulPaint: {
+          user: number;
+          competitor: number;
+          gap: number;
+        };
+      };
+    };
+    marketPosition?: {
+      overallPosition: {
+        score: number;
+        category: "leader" | "challenger" | "follower" | "niche";
+        trend: "improving" | "stable" | "declining";
+      };
+      competitiveStrengths: {
+        area: string;
+        score: number;
+        description: string;
+        impact: "high" | "medium" | "low";
+      }[];
+      marketOpportunities: {
+        title: string;
+        description: string;
+        size: number;
+        accessibility: number;
+        competitiveIntensity: number;
+        strategicFit: number;
+        priority: "high" | "medium" | "low";
+      }[];
+    };
+  };
+  confidence: {
+    overall: number;
+    dataQuality: number;
+    sampleSize: number;
+    recency: number;
+    sourceReliability: number;
+  };
+  metadata: {
+    version: string;
+    algorithm: string;
+    executionTime: number;
+    limitations: string[];
+  };
+}
+
 export interface CompetitiveIntelligenceResult {
   marketPosition: number; // 0-100
   competitiveScore: number; // 0-100
@@ -269,6 +431,42 @@ export interface CompetitiveIntelligenceResult {
   threats: CompetitiveThreat[];
   strategicRecommendations: string[];
   competitorAnalysis: CompetitorAnalysis[];
+}
+
+export interface CompetitiveMonitoringResult {
+  alertsGenerated: {
+    id: string;
+    competitorId: string;
+    type:
+      | "content-published"
+      | "ranking-change"
+      | "backlink-gained"
+      | "strategy-shift"
+      | "performance-improvement"
+      | "market-movement"
+      | "threat-detected"
+      | "opportunity-identified";
+    severity: "critical" | "high" | "medium" | "low" | "info";
+    title: string;
+    description: string;
+    timestamp: Date;
+    status: "new" | "acknowledged" | "in-progress" | "resolved" | "dismissed";
+    actionRequired: boolean;
+    recommendations: {
+      action: string;
+      priority: "immediate" | "short-term" | "medium-term" | "long-term";
+      description: string;
+      expectedOutcome: string;
+      effort: "low" | "medium" | "high";
+    }[];
+  }[];
+  monitoringSummary: {
+    totalCompetitors: number;
+    activeAlerts: number;
+    newThreats: number;
+    newOpportunities: number;
+    averageCompetitorActivity: number;
+  };
 }
 
 export interface CompetitiveOpportunity {
