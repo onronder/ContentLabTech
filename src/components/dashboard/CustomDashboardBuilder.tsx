@@ -232,17 +232,10 @@ export function CustomDashboardBuilder({
     null
   );
   const [isEditingWidget, setIsEditingWidget] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isDragging, _setIsDragging] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
-  useEffect(() => {
-    if (dashboardId) {
-      loadDashboard();
-    }
-  }, [dashboardId]);
-
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       const response = await fetch(`/api/dashboard/${dashboardId}`, {
         method: "GET",
@@ -258,7 +251,13 @@ export function CustomDashboardBuilder({
     } catch (error) {
       console.error("Failed to load dashboard:", error);
     }
-  };
+  }, [dashboardId]);
+
+  useEffect(() => {
+    if (dashboardId) {
+      loadDashboard();
+    }
+  }, [dashboardId, loadDashboard]);
 
   const saveDashboard = async () => {
     try {
@@ -284,6 +283,37 @@ export function CustomDashboardBuilder({
       console.error("Failed to save dashboard:", error);
     }
   };
+
+  const findEmptyPosition = useCallback(
+    (width: number, height: number) => {
+      const { columns } = dashboard.layout;
+
+      for (let y = 0; y < 20; y++) {
+        for (let x = 0; x <= columns - width; x++) {
+          const isOccupied = dashboard.widgets.some(widget => {
+            const wx = widget.position.x;
+            const wy = widget.position.y;
+            const ww = widget.position.width;
+            const wh = widget.position.height;
+
+            return !(
+              x + width <= wx ||
+              x >= wx + ww ||
+              y + height <= wy ||
+              y >= wy + wh
+            );
+          });
+
+          if (!isOccupied) {
+            return { x, y };
+          }
+        }
+      }
+
+      return { x: 0, y: 0 };
+    },
+    [dashboard.widgets, dashboard.layout]
+  );
 
   const addWidget = useCallback(
     (type: DashboardWidget["type"]) => {
@@ -323,7 +353,7 @@ export function CustomDashboardBuilder({
         widgets: [...prev.widgets, newWidget],
       }));
     },
-    [dashboard.widgets]
+    [dashboard.widgets, findEmptyPosition]
   );
 
   const updateWidget = useCallback(
@@ -367,34 +397,6 @@ export function CustomDashboardBuilder({
     },
     [dashboard.widgets]
   );
-
-  const findEmptyPosition = (width: number, height: number) => {
-    const { columns } = dashboard.layout;
-
-    for (let y = 0; y < 20; y++) {
-      for (let x = 0; x <= columns - width; x++) {
-        const isOccupied = dashboard.widgets.some(widget => {
-          const wx = widget.position.x;
-          const wy = widget.position.y;
-          const ww = widget.position.width;
-          const wh = widget.position.height;
-
-          return !(
-            x + width <= wx ||
-            x >= wx + ww ||
-            y + height <= wy ||
-            y >= wy + wh
-          );
-        });
-
-        if (!isOccupied) {
-          return { x, y };
-        }
-      }
-    }
-
-    return { x: 0, y: 0 };
-  };
 
   const handleWidgetClick = (
     widget: DashboardWidget,

@@ -19,7 +19,7 @@ interface AnalyticsData {
       type: string;
       title: string;
       description: string;
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
       impact?: number;
     }>;
     lastUpdated: string;
@@ -32,7 +32,7 @@ interface AnalyticsData {
     mobile: number;
     criticalIssues: Array<{
       type: string;
-      severity: 'low' | 'medium' | 'high' | 'critical';
+      severity: "low" | "medium" | "high" | "critical";
       title: string;
       description: string;
     }>;
@@ -40,7 +40,7 @@ interface AnalyticsData {
       type: string;
       title: string;
       description: string;
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
       impact?: number;
     }>;
     lastUpdated: string;
@@ -58,7 +58,7 @@ interface AnalyticsData {
       type: string;
       title: string;
       description: string;
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
       impact?: number;
     }>;
     lastUpdated: string;
@@ -75,13 +75,13 @@ interface AnalyticsData {
     threats: Array<{
       title: string;
       description: string;
-      severity: 'low' | 'medium' | 'high';
+      severity: "low" | "medium" | "high";
       likelihood: number;
     }>;
     strategicRecommendations: Array<{
       title: string;
       description: string;
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
       impact: number;
     }>;
     lastUpdated: string;
@@ -97,7 +97,7 @@ interface AnalyticsData {
     }>;
     industryTrends: Array<{
       metric: string;
-      trend: 'up' | 'down' | 'stable';
+      trend: "up" | "down" | "stable";
       change: number;
       period: string;
     }>;
@@ -108,7 +108,7 @@ interface AnalyticsData {
 interface JobStatus {
   id: string;
   type: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  status: "pending" | "processing" | "completed" | "failed" | "cancelled";
   progress: number;
   progressMessage?: string;
   createdAt: string;
@@ -138,7 +138,10 @@ interface AnalyticsStatus {
   error: string | null;
 }
 
-export function useAnalyticsData(projectId: string, refreshInterval: number = 30000) {
+export function useAnalyticsData(
+  projectId: string | undefined,
+  refreshInterval = 30000
+) {
   const [status, setStatus] = useState<AnalyticsStatus>({
     jobs: [],
     results: {},
@@ -165,14 +168,16 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
     if (!projectId) return;
 
     try {
-      const response = await fetch(`/api/analytics/status?projectId=${projectId}`);
-      
+      const response = await fetch(
+        `/api/analytics/status?projectId=${projectId}`
+      );
+
       if (!response.ok) {
         throw new Error(`Failed to fetch analytics status: ${response.status}`);
       }
 
       const data = await response.json();
-      
+
       setStatus(prev => ({
         ...prev,
         jobs: data.jobs || [],
@@ -183,11 +188,11 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
         error: null,
       }));
     } catch (error) {
-      console.error('Error fetching analytics status:', error);
+      console.error("Error fetching analytics status:", error);
       setStatus(prev => ({
         ...prev,
         loading: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       }));
     }
   }, [projectId]);
@@ -214,25 +219,25 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
   // Get analysis progress
   const getAnalysisProgress = useCallback(() => {
     const { jobs } = status;
-    if (jobs.length === 0) return { progress: 0, phase: 'Not started' };
+    if (jobs.length === 0) return { progress: 0, phase: "Not started" };
 
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter(j => j.status === 'completed').length;
-    const failedJobs = jobs.filter(j => j.status === 'failed').length;
-    const processingJobs = jobs.filter(j => j.status === 'processing').length;
+    const completedJobs = jobs.filter(j => j.status === "completed").length;
+    const failedJobs = jobs.filter(j => j.status === "failed").length;
+    const processingJobs = jobs.filter(j => j.status === "processing").length;
 
     const progress = Math.round((completedJobs / totalJobs) * 100);
 
-    let phase = '';
+    let phase = "";
     if (processingJobs > 0) {
-      const processingJob = jobs.find(j => j.status === 'processing');
-      phase = `Processing ${processingJob?.type.replace('-', ' ') || 'analysis'}...`;
+      const processingJob = jobs.find(j => j.status === "processing");
+      phase = `Processing ${processingJob?.type.replace("-", " ") || "analysis"}...`;
     } else if (completedJobs === totalJobs) {
-      phase = 'Analysis complete';
+      phase = "Analysis complete";
     } else if (failedJobs > 0 && completedJobs + failedJobs === totalJobs) {
-      phase = 'Analysis completed with errors';
+      phase = "Analysis completed with errors";
     } else {
-      phase = 'Analysis in progress';
+      phase = "Analysis in progress";
     }
 
     return { progress, phase };
@@ -255,7 +260,8 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
 
     if (scores.length === 0) return null;
 
-    const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    const average =
+      scores.reduce((sum, score) => sum + score, 0) / scores.length;
     return Math.round(average);
   }, [status]);
 
@@ -266,14 +272,14 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
       type: string;
       title: string;
       description: string;
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
       source: string;
     }> = [];
 
     // Content analysis recommendations
     if (results.contentAnalysis?.recommendations) {
       results.contentAnalysis.recommendations
-        .filter(r => r.priority === 'high')
+        .filter(r => r.priority === "high")
         .slice(0, 2)
         .forEach(r => {
           recommendations.push({
@@ -281,7 +287,7 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
             title: r.title,
             description: r.description,
             priority: r.priority,
-            source: 'Content Analysis',
+            source: "Content Analysis",
           });
         });
     }
@@ -293,11 +299,11 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
         .slice(0, 2)
         .forEach(r => {
           recommendations.push({
-            type: 'seo',
+            type: "seo",
             title: r.title,
             description: r.description,
-            priority: (r.impact || 0) >= 80 ? 'high' : 'medium',
-            source: 'SEO Health',
+            priority: (r.impact || 0) >= 80 ? "high" : "medium",
+            source: "SEO Health",
           });
         });
     }
@@ -305,15 +311,15 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
     // Performance recommendations
     if (results.performance?.recommendations) {
       results.performance.recommendations
-        .filter(r => r.type === 'critical')
+        .filter(r => r.type === "critical")
         .slice(0, 2)
         .forEach(r => {
           recommendations.push({
-            type: 'performance',
+            type: "performance",
             title: r.title,
             description: r.description,
-            priority: 'high',
-            source: 'Performance',
+            priority: "high",
+            source: "Performance",
           });
         });
     }
@@ -323,7 +329,9 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
 
   // Check if analysis is still running
   const isAnalysisRunning = useCallback(() => {
-    return status.jobs.some(job => job.status === 'processing' || job.status === 'pending');
+    return status.jobs.some(
+      job => job.status === "processing" || job.status === "pending"
+    );
   }, [status]);
 
   // Get data freshness indicator
@@ -344,11 +352,13 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
     if (dates.length === 0) return null;
 
     const mostRecent = new Date(Math.max(...dates.map(d => d.getTime())));
-    const hoursAgo = Math.floor((Date.now() - mostRecent.getTime()) / (1000 * 60 * 60));
+    const hoursAgo = Math.floor(
+      (Date.now() - mostRecent.getTime()) / (1000 * 60 * 60)
+    );
 
-    if (hoursAgo < 1) return 'Just updated';
+    if (hoursAgo < 1) return "Just updated";
     if (hoursAgo < 24) return `${hoursAgo} hours ago`;
-    
+
     const daysAgo = Math.floor(hoursAgo / 24);
     return `${daysAgo} days ago`;
   }, [status]);
@@ -366,11 +376,19 @@ export function useAnalyticsData(projectId: string, refreshInterval: number = 30
 
 // Helper hook for single analysis type
 export function useAnalysisResult<T>(
-  projectId: string,
-  analysisType: 'contentAnalysis' | 'seoHealth' | 'performance' | 'competitive' | 'industryBenchmark'
+  projectId: string | undefined,
+  analysisType:
+    | "contentAnalysis"
+    | "seoHealth"
+    | "performance"
+    | "competitive"
+    | "industryBenchmark"
 ) {
-  const { results, loading, error, refresh } = useAnalyticsData(projectId, 60000); // 1 minute refresh
-  
+  const { results, loading, error, refresh } = useAnalyticsData(
+    projectId,
+    60000
+  ); // 1 minute refresh
+
   return {
     data: results[analysisType] as T | undefined,
     loading,

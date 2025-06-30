@@ -162,7 +162,7 @@ export interface HistoricalDataInput {
 
 class PerformancePredictionModel {
   private modelVersion: string;
-  private isLoaded: boolean = false;
+  private isLoaded = false;
   private trainingData: TrainingDataPoint[] = [];
   private modelWeights: Map<string, number> = new Map();
   private featureScalers: Map<
@@ -170,7 +170,7 @@ class PerformancePredictionModel {
     { min: number; max: number; mean: number; std: number }
   > = new Map();
 
-  constructor(modelVersion: string = "v2.0.0") {
+  constructor(modelVersion = "v2.0.0") {
     this.modelVersion = modelVersion;
   }
 
@@ -379,7 +379,7 @@ class PerformancePredictionModel {
   async predict(
     contentId: string,
     features: MLFeatures,
-    timeframe: number = 30
+    timeframe = 30
   ): Promise<PerformancePrediction> {
     if (!this.isLoaded) {
       throw new Error("Model not loaded. Please train the model first.");
@@ -976,7 +976,7 @@ export class MLPerformanceService {
   async predictPerformance(
     contentId: string,
     projectId: string,
-    timeframe: number = 30
+    timeframe = 30
   ): Promise<PerformancePrediction> {
     if (!this.isInitialized) {
       await this.initialize();

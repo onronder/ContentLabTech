@@ -19,13 +19,17 @@ export class PerformanceAnalysisProcessor
   implements JobProcessor<PerformanceAnalysisJobData, PerformanceResult>
 {
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SECRET_KEY"]!
   );
 
   async process(job: Job): Promise<JobResult<PerformanceResult>> {
     try {
-      const { websiteUrl, pages, devices } = job.data.params;
+      const { websiteUrl, pages, devices } = job.data.params as {
+        websiteUrl: string;
+        pages: string[];
+        devices: ("desktop" | "mobile")[];
+      };
 
       await this.updateProgress(job.id, 10, "Starting performance analysis...");
 
@@ -138,7 +142,7 @@ export class PerformanceAnalysisProcessor
     await jobQueue.updateJobProgress(jobId, progress, message);
   }
 
-  private async measureCoreWebVitals(): Promise<{
+  private async measureCoreWebVitals(_url: string): Promise<{
     lcp: number;
     fid: number;
     cls: number;
@@ -185,7 +189,10 @@ export class PerformanceAnalysisProcessor
     return Math.random() * 0.25 + 0.25; // Poor range (0.25-0.5)
   }
 
-  private async collectPerformanceMetrics(): Promise<{
+  private async collectPerformanceMetrics(
+    _url: string,
+    _pages: string[]
+  ): Promise<{
     speedIndex: number;
     firstContentfulPaint: number;
     totalBlockingTime: number;

@@ -264,7 +264,7 @@ class GoogleSearchConsoleClient {
     siteUrl: string,
     startDate: string,
     endDate: string,
-    limit: number = 100
+    limit = 100
   ): Promise<QueryData[]> {
     const response = await this.getSearchAnalytics({
       siteUrl,
@@ -284,7 +284,7 @@ class GoogleSearchConsoleClient {
     siteUrl: string,
     startDate: string,
     endDate: string,
-    limit: number = 100
+    limit = 100
   ): Promise<PageData[]> {
     const response = await this.getSearchAnalytics({
       siteUrl,
@@ -322,7 +322,7 @@ class GoogleSearchConsoleClient {
     siteUrl: string,
     startDate: string,
     endDate: string,
-    limit: number = 50
+    limit = 50
   ): Promise<CountryData[]> {
     const response = await this.getSearchAnalytics({
       siteUrl,
@@ -343,7 +343,7 @@ class GoogleSearchConsoleClient {
     pageUrl: string,
     startDate: string,
     endDate: string,
-    limit: number = 100
+    limit = 100
   ): Promise<QueryData[]> {
     const response = await this.getSearchAnalytics({
       siteUrl,

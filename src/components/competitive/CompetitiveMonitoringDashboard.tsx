@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -100,12 +100,7 @@ export function CompetitiveMonitoringDashboard({
   const [selectedTimeframe, setSelectedTimeframe] = useState("7d");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  useEffect(() => {
-    loadCompetitiveData();
-    loadAlerts();
-  }, [projectId, selectedTimeframe]);
-
-  const loadCompetitiveData = async () => {
+  const loadCompetitiveData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch("/api/competitive/analyze", {
@@ -131,9 +126,9 @@ export function CompetitiveMonitoringDashboard({
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId, selectedTimeframe]);
 
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     try {
       const response = await fetch("/api/competitive/alerts", {
         method: "POST",
@@ -151,7 +146,12 @@ export function CompetitiveMonitoringDashboard({
     } catch (err) {
       console.error("Failed to load alerts:", err);
     }
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    loadCompetitiveData();
+    loadAlerts();
+  }, [projectId, selectedTimeframe, loadCompetitiveData, loadAlerts]);
 
   const runAnalysis = async () => {
     setIsAnalyzing(true);

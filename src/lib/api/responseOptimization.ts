@@ -4,8 +4,8 @@
  * Implements intelligent payload optimization for improved performance
  */
 
-import { NextResponse } from 'next/server';
-import { compress, decompress } from 'lz-string';
+import { NextResponse } from "next/server";
+import { compress, decompress } from "lz-string";
 
 interface OptimizationOptions {
   compress?: boolean;
@@ -39,10 +39,10 @@ interface ResponseMetadata {
 export function createOptimizedResponse<T = unknown>(
   data: T,
   options: OptimizationOptions = {},
-  status: number = 200
+  status = 200
 ): NextResponse {
   const startTime = Date.now();
-  
+
   const {
     compress: shouldCompress = true,
     compressionThreshold = 1024, // 1KB threshold
@@ -63,7 +63,12 @@ export function createOptimizedResponse<T = unknown>(
   try {
     // Step 1: Selective field inclusion/exclusion
     if (fields || exclude || mobile) {
-      processedData = selectFields(processedData, { fields, exclude, mobile, maxDepth });
+      processedData = selectFields(processedData, {
+        ...(fields && { fields }),
+        ...(exclude && { exclude }),
+        mobile,
+        maxDepth,
+      });
       metadata.fieldsSelected = true;
       metadata.originalFields = countFields(data);
       metadata.selectedFields = countFields(processedData);
@@ -75,8 +80,8 @@ export function createOptimizedResponse<T = unknown>(
 
     let responseData = processedData;
     const responseHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-Response-Optimized': 'true',
+      "Content-Type": "application/json",
+      "X-Response-Optimized": "true",
     };
 
     // Step 3: Apply compression if beneficial
@@ -97,45 +102,47 @@ export function createOptimizedResponse<T = unknown>(
           compressionRatio,
           compressionTime,
         };
-        responseHeaders['X-Content-Compressed'] = 'lz-string';
-        responseHeaders['X-Original-Size'] = originalSize.toString();
-        responseHeaders['X-Compressed-Size'] = compressedSize.toString();
+        responseHeaders["X-Content-Compressed"] = "lz-string";
+        responseHeaders["X-Original-Size"] = originalSize.toString();
+        responseHeaders["X-Compressed-Size"] = compressedSize.toString();
       }
     }
 
     // Step 4: Add optimization metadata in development
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       metadata.processingTime = Date.now() - startTime;
-      responseHeaders['X-Optimization-Metadata'] = JSON.stringify(metadata);
+      responseHeaders["X-Optimization-Metadata"] = JSON.stringify(metadata);
     }
 
     // Step 5: Mobile-specific optimizations
     if (mobile) {
-      responseHeaders['Cache-Control'] = 'public, max-age=300, stale-while-revalidate=600';
-      responseHeaders['X-Mobile-Optimized'] = 'true';
+      responseHeaders["Cache-Control"] =
+        "public, max-age=300, stale-while-revalidate=600";
+      responseHeaders["X-Mobile-Optimized"] = "true";
     } else {
-      responseHeaders['Cache-Control'] = 'public, max-age=600, stale-while-revalidate=1200';
+      responseHeaders["Cache-Control"] =
+        "public, max-age=600, stale-while-revalidate=1200";
     }
 
     // Step 6: Performance monitoring headers
-    responseHeaders['X-Response-Time'] = (Date.now() - startTime).toString();
-    responseHeaders['X-Optimization-Version'] = '1.0';
+    responseHeaders["X-Response-Time"] = (Date.now() - startTime).toString();
+    responseHeaders["X-Optimization-Version"] = "1.0";
 
     return NextResponse.json(responseData, {
       status,
       headers: responseHeaders,
     });
-
   } catch (error) {
-    console.error('Response optimization failed:', error);
-    
+    console.error("Response optimization failed:", error);
+
     // Fallback to unoptimized response
     return NextResponse.json(data, {
       status,
       headers: {
-        'Content-Type': 'application/json',
-        'X-Response-Optimized': 'false',
-        'X-Optimization-Error': error instanceof Error ? error.message : 'Unknown error',
+        "Content-Type": "application/json",
+        "X-Response-Optimized": "false",
+        "X-Optimization-Error":
+          error instanceof Error ? error.message : "Unknown error",
       },
     });
   }
@@ -168,14 +175,20 @@ function selectFields<T>(
   }
 
   // Handle primitive types
-  if (data === null || data === undefined || typeof data !== 'object') {
+  if (data === null || data === undefined || typeof data !== "object") {
     return data;
   }
 
   // Handle arrays
   if (Array.isArray(data)) {
-    return data.map(item => 
-      selectFields(item, { fields, exclude, mobile, maxDepth, currentDepth: currentDepth + 1 })
+    return data.map(item =>
+      selectFields(item, {
+        ...(fields && { fields }),
+        ...(exclude && { exclude }),
+        mobile,
+        maxDepth,
+        currentDepth: currentDepth + 1,
+      })
     ) as T;
   }
 
@@ -184,14 +197,16 @@ function selectFields<T>(
   const obj = data as Record<string, unknown>;
 
   // Mobile optimization: exclude heavy fields by default
-  const mobileExclusions = mobile ? [
-    'rawData',
-    'detailedMetrics',
-    'fullAnalysis',
-    'debugInfo',
-    'internalMetadata',
-    'largeArrays',
-  ] : [];
+  const mobileExclusions = mobile
+    ? [
+        "rawData",
+        "detailedMetrics",
+        "fullAnalysis",
+        "debugInfo",
+        "internalMetadata",
+        "largeArrays",
+      ]
+    : [];
 
   const effectiveExclusions = [...(exclude || []), ...mobileExclusions];
 
@@ -205,18 +220,25 @@ function selectFields<T>(
     if (fields && fields.length > 0) {
       const shouldInclude = fields.some(field => {
         // Support nested field notation (e.g., 'user.profile.name')
-        return field === key || field.startsWith(`${key}.`) || key.startsWith(`${field}.`);
+        return (
+          field === key ||
+          field.startsWith(`${key}.`) ||
+          key.startsWith(`${field}.`)
+        );
       });
-      
+
       if (!shouldInclude) {
         continue;
       }
     }
 
     // Recursively process nested objects
+    const nestedFields = fields
+      ?.filter(f => f.startsWith(`${key}.`))
+      ?.map(f => f.substring(key.length + 1));
     result[key] = selectFields(value, {
-      fields: fields?.filter(f => f.startsWith(`${key}.`))?.map(f => f.substring(key.length + 1)),
-      exclude,
+      ...(nestedFields && { fields: nestedFields }),
+      ...(exclude && { exclude }),
       mobile,
       maxDepth,
       currentDepth: currentDepth + 1,
@@ -230,7 +252,7 @@ function selectFields<T>(
  * Count total fields in an object for optimization metrics
  */
 function countFields(data: unknown, visited = new Set()): number {
-  if (data === null || data === undefined || typeof data !== 'object') {
+  if (data === null || data === undefined || typeof data !== "object") {
     return 0;
   }
 
@@ -257,14 +279,19 @@ function countFields(data: unknown, visited = new Set()): number {
  * Decompress response data on client side
  */
 export function decompressResponse(response: unknown): unknown {
-  if (response && typeof response === 'object' && response !== null && 
-      'compressed' in response && 'data' in response && 
-      (response as { compressed: boolean; data: string }).compressed) {
+  if (
+    response &&
+    typeof response === "object" &&
+    response !== null &&
+    "compressed" in response &&
+    "data" in response &&
+    (response as { compressed: boolean; data: string }).compressed
+  ) {
     try {
       const decompressed = decompress((response as { data: string }).data);
       return JSON.parse(decompressed);
     } catch (error) {
-      console.error('Decompression failed:', error);
+      console.error("Decompression failed:", error);
       return response;
     }
   }
@@ -274,20 +301,29 @@ export function decompressResponse(response: unknown): unknown {
 /**
  * Smart caching headers based on data type and freshness requirements
  */
-export function getCacheHeaders(dataType: string, isMobile: boolean = false): Record<string, string> {
-  const cacheConfig: Record<string, { maxAge: number; staleWhileRevalidate: number }> = {
-    'analytics-status': { maxAge: 300, staleWhileRevalidate: 600 }, // 5 min / 10 min
-    'content-analysis': { maxAge: 3600, staleWhileRevalidate: 7200 }, // 1 hour / 2 hours
-    'seo-health': { maxAge: 1800, staleWhileRevalidate: 3600 }, // 30 min / 1 hour
-    'performance': { maxAge: 900, staleWhileRevalidate: 1800 }, // 15 min / 30 min
-    'competitive': { maxAge: 14400, staleWhileRevalidate: 28800 }, // 4 hours / 8 hours
-    'industry-benchmark': { maxAge: 86400, staleWhileRevalidate: 172800 }, // 24 hours / 48 hours
-    'projects': { maxAge: 1800, staleWhileRevalidate: 3600 }, // 30 min / 1 hour
-    'teams': { maxAge: 3600, staleWhileRevalidate: 7200 }, // 1 hour / 2 hours
+export function getCacheHeaders(
+  dataType: string,
+  isMobile = false
+): Record<string, string> {
+  const cacheConfig: Record<
+    string,
+    { maxAge: number; staleWhileRevalidate: number }
+  > = {
+    "analytics-status": { maxAge: 300, staleWhileRevalidate: 600 }, // 5 min / 10 min
+    "content-analysis": { maxAge: 3600, staleWhileRevalidate: 7200 }, // 1 hour / 2 hours
+    "seo-health": { maxAge: 1800, staleWhileRevalidate: 3600 }, // 30 min / 1 hour
+    performance: { maxAge: 900, staleWhileRevalidate: 1800 }, // 15 min / 30 min
+    competitive: { maxAge: 14400, staleWhileRevalidate: 28800 }, // 4 hours / 8 hours
+    "industry-benchmark": { maxAge: 86400, staleWhileRevalidate: 172800 }, // 24 hours / 48 hours
+    projects: { maxAge: 1800, staleWhileRevalidate: 3600 }, // 30 min / 1 hour
+    teams: { maxAge: 3600, staleWhileRevalidate: 7200 }, // 1 hour / 2 hours
   };
 
-  const config = cacheConfig[dataType] || { maxAge: 300, staleWhileRevalidate: 600 };
-  
+  const config = cacheConfig[dataType] || {
+    maxAge: 300,
+    staleWhileRevalidate: 600,
+  };
+
   // Reduce cache times for mobile to ensure fresher data
   if (isMobile) {
     config.maxAge = Math.floor(config.maxAge * 0.7);
@@ -295,9 +331,9 @@ export function getCacheHeaders(dataType: string, isMobile: boolean = false): Re
   }
 
   return {
-    'Cache-Control': `public, max-age=${config.maxAge}, stale-while-revalidate=${config.staleWhileRevalidate}`,
-    'CDN-Cache-Control': `public, max-age=${config.maxAge * 2}`, // CDN caches longer
-    'Vary': 'Accept-Encoding, User-Agent',
+    "Cache-Control": `public, max-age=${config.maxAge}, stale-while-revalidate=${config.staleWhileRevalidate}`,
+    "CDN-Cache-Control": `public, max-age=${config.maxAge * 2}`, // CDN caches longer
+    Vary: "Accept-Encoding, User-Agent",
   };
 }
 
@@ -305,23 +341,26 @@ export function getCacheHeaders(dataType: string, isMobile: boolean = false): Re
  * Middleware for request-based optimization detection
  */
 export function detectOptimizationNeeds(request: Request): OptimizationOptions {
-  const userAgent = request.headers.get('user-agent')?.toLowerCase() || '';
-  const acceptEncoding = request.headers.get('accept-encoding') || '';
+  const userAgent = request.headers.get("user-agent")?.toLowerCase() || "";
+  const acceptEncoding = request.headers.get("accept-encoding") || "";
   const isMobile = /mobile|android|iphone|ipad|phone/i.test(userAgent);
-  const isSlowConnection = request.headers.get('downlink') ? 
-    parseFloat(request.headers.get('downlink')!) < 1.0 : false;
+  const isSlowConnection = request.headers.get("downlink")
+    ? parseFloat(request.headers.get("downlink")!) < 1.0
+    : false;
 
   const url = new URL(request.url);
-  const fieldsParam = url.searchParams.get('fields');
-  const excludeParam = url.searchParams.get('exclude');
-  const compressParam = url.searchParams.get('compress');
+  const fieldsParam = url.searchParams.get("fields");
+  const excludeParam = url.searchParams.get("exclude");
+  const compressParam = url.searchParams.get("compress");
 
   return {
     mobile: isMobile,
-    compress: compressParam !== 'false' && (isMobile || isSlowConnection || acceptEncoding.includes('gzip')),
+    compress:
+      compressParam !== "false" &&
+      (isMobile || isSlowConnection || acceptEncoding.includes("gzip")),
     compressionThreshold: isMobile ? 512 : 1024, // Lower threshold for mobile
-    fields: fieldsParam ? fieldsParam.split(',') : undefined,
-    exclude: excludeParam ? excludeParam.split(',') : undefined,
+    ...(fieldsParam && { fields: fieldsParam.split(",") }),
+    ...(excludeParam && { exclude: excludeParam.split(",") }),
     maxDepth: isMobile ? 5 : 10, // Reduce depth for mobile
   };
 }
@@ -345,7 +384,7 @@ const optimizationMetrics: OptimizationMetrics[] = [];
 
 export function recordOptimizationMetrics(metrics: OptimizationMetrics): void {
   optimizationMetrics.push(metrics);
-  
+
   // Keep only last 1000 entries to prevent memory issues
   if (optimizationMetrics.length > 1000) {
     optimizationMetrics.splice(0, optimizationMetrics.length - 1000);
@@ -370,17 +409,29 @@ export function getOptimizationStats(): {
   }
 
   const withCompression = optimizationMetrics.filter(m => m.compressionRatio);
-  const withFieldsReduction = optimizationMetrics.filter(m => m.fieldsReduction);
+  const withFieldsReduction = optimizationMetrics.filter(
+    m => m.fieldsReduction
+  );
   const mobileRequests = optimizationMetrics.filter(m => m.mobile);
 
   return {
-    averageCompressionRatio: withCompression.length > 0 
-      ? withCompression.reduce((sum, m) => sum + (m.compressionRatio || 0), 0) / withCompression.length
-      : 0,
-    averageFieldsReduction: withFieldsReduction.length > 0
-      ? withFieldsReduction.reduce((sum, m) => sum + (m.fieldsReduction || 0), 0) / withFieldsReduction.length
-      : 0,
-    averageProcessingTime: optimizationMetrics.reduce((sum, m) => sum + m.processingTime, 0) / optimizationMetrics.length,
+    averageCompressionRatio:
+      withCompression.length > 0
+        ? withCompression.reduce(
+            (sum, m) => sum + (m.compressionRatio || 0),
+            0
+          ) / withCompression.length
+        : 0,
+    averageFieldsReduction:
+      withFieldsReduction.length > 0
+        ? withFieldsReduction.reduce(
+            (sum, m) => sum + (m.fieldsReduction || 0),
+            0
+          ) / withFieldsReduction.length
+        : 0,
+    averageProcessingTime:
+      optimizationMetrics.reduce((sum, m) => sum + m.processingTime, 0) /
+      optimizationMetrics.length,
     mobileOptimizationRate: mobileRequests.length / optimizationMetrics.length,
     totalRequests: optimizationMetrics.length,
   };

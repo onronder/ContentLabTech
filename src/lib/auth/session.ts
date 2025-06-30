@@ -293,7 +293,7 @@ export async function validateApiAuth() {
 /**
  * Helper to create standardized API responses
  */
-export function createApiResponse<T>(data: T, status: number = 200): Response {
+export function createApiResponse<T>(data: T, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -307,7 +307,7 @@ export function createApiResponse<T>(data: T, status: number = 200): Response {
  */
 export function createErrorResponse(
   message: string,
-  status: number = 400,
+  status = 400,
   details?: Record<string, unknown>
 ): Response {
   return new Response(

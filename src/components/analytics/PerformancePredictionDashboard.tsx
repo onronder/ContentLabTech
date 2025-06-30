@@ -106,13 +106,6 @@ export function PerformancePredictionDashboard({
   const [selectedTimeframe, setSelectedTimeframe] = useState("30");
   const [selectedContent] = useState(contentId || "");
 
-  useEffect(() => {
-    if (selectedContent) {
-      generatePrediction();
-      loadTrendData();
-    }
-  }, [selectedContent, selectedTimeframe]);
-
   const generatePrediction = useCallback(async () => {
     if (!selectedContent) return;
 
@@ -176,6 +169,13 @@ export function PerformancePredictionDashboard({
       console.error("Failed to load trend data:", err);
     }
   }, [selectedContent, selectedTimeframe, projectId]);
+
+  useEffect(() => {
+    if (selectedContent) {
+      generatePrediction();
+      loadTrendData();
+    }
+  }, [selectedContent, selectedTimeframe, generatePrediction, loadTrendData]);
 
   const getConfidenceColor = (confidence: string) => {
     switch (confidence) {

@@ -20,14 +20,19 @@ export class SEOHealthProcessor
   implements JobProcessor<SEOHealthJobData, SEOHealthResult>
 {
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SECRET_KEY"]!
   );
 
   async process(job: Job): Promise<JobResult<SEOHealthResult>> {
     try {
-      const { websiteUrl, pages, includePerformance, includeMobile } =
-        job.data.params;
+      const { websiteUrl, pages, includePerformance, includeMobile } = job.data
+        .params as {
+        websiteUrl: string;
+        pages: string[];
+        includePerformance: boolean;
+        includeMobile: boolean;
+      };
 
       await this.updateProgress(
         job.id,
@@ -128,7 +133,7 @@ export class SEOHealthProcessor
         progress: 100,
         progressMessage: "SEO health assessment completed successfully",
       };
-    } catch (_error) {
+    } catch (error) {
       console.error("SEO health analysis failed:", error);
       return {
         success: false,
@@ -254,7 +259,7 @@ export class SEOHealthProcessor
       }
 
       return { score: Math.round(mockSpeedScore), issues };
-    } catch (_error) {
+    } catch {
       return { score: 70, issues }; // Fallback score
     }
   }
@@ -282,7 +287,7 @@ export class SEOHealthProcessor
       }
 
       return { score: Math.round(mockMobileScore), issues };
-    } catch (_error) {
+    } catch {
       return { score: 80, issues };
     }
   }
@@ -347,7 +352,7 @@ export class SEOHealthProcessor
       issues.push(...urlStructureScore.issues);
 
       return { score: Math.max(0, score), issues };
-    } catch (_error) {
+    } catch {
       return { score: 25, issues };
     }
   }
@@ -358,11 +363,16 @@ export class SEOHealthProcessor
     try {
       const robotsUrl = new URL("/robots.txt", _url).toString();
       const response = await fetch(robotsUrl);
-      return {
+      const result: { exists: boolean; content?: string } = {
         exists: response.ok,
-        content: response.ok ? await response.text() : undefined,
       };
-    } catch (_error) {
+
+      if (response.ok) {
+        result.content = await response.text();
+      }
+
+      return result;
+    } catch {
       return { exists: false };
     }
   }
@@ -372,7 +382,7 @@ export class SEOHealthProcessor
       const sitemapUrl = new URL("/sitemap.xml", _url).toString();
       const response = await fetch(sitemapUrl);
       return { exists: response.ok };
-    } catch (_error) {
+    } catch {
       return { exists: false };
     }
   }
@@ -400,7 +410,7 @@ export class SEOHealthProcessor
         if (/[^a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=]/.test(url.pathname)) {
           hasUnsafeCharacters = true;
         }
-      } catch (_error) {
+      } catch {
         // Invalid URL
         score -= 2;
       }
@@ -500,7 +510,7 @@ export class SEOHealthProcessor
       issues.push(...linkingAnalysis.issues);
 
       return { score: (score / maxScore) * 100, issues };
-    } catch (_error) {
+    } catch {
       return { score: 60, issues }; // Fallback score
     }
   }
@@ -524,7 +534,7 @@ export class SEOHealthProcessor
       return { score: 0, issues };
     }
 
-    const title = titleMatch[1].trim();
+    const title = titleMatch[1]?.trim() || "";
 
     if (title.length === 0) {
       issues.push({
@@ -590,7 +600,7 @@ export class SEOHealthProcessor
       return { score: 0, issues };
     }
 
-    const description = metaMatch[1].trim();
+    const description = metaMatch[1]?.trim() || "";
 
     if (description.length === 0) {
       issues.push({
@@ -693,7 +703,6 @@ export class SEOHealthProcessor
       html.match(/<a[^>]*href=["']([^"']*)["'][^>]*>/gi) || [];
 
     let internalLinks = 0;
-    const externalLinks = 0; // eslint-disable-line @typescript-eslint/no-unused-vars
 
     try {
       const baseDomain = new URL(baseUrl).hostname;
@@ -703,18 +712,18 @@ export class SEOHealthProcessor
         if (hrefMatch) {
           const href = hrefMatch[1];
 
-          if (href.startsWith("http")) {
+          if (href && href.startsWith("http")) {
             try {
               const linkDomain = new URL(href).hostname;
               if (linkDomain === baseDomain) {
                 internalLinks++;
               } else {
-                // externalLinks++; // External link found
+                // External link found - not used in current implementation
               }
-            } catch (_error) {
+            } catch {
               // Invalid URL
             }
-          } else if (href.startsWith("/") || !href.includes(":")) {
+          } else if (href && (href.startsWith("/") || !href.includes(":"))) {
             internalLinks++;
           }
         }
@@ -746,7 +755,7 @@ export class SEOHealthProcessor
       } else {
         score = 30; // Good internal linking
       }
-    } catch (_error) {
+    } catch {
       score = 15; // Fallback score
     }
 
@@ -799,7 +808,7 @@ export class SEOHealthProcessor
 
   private generateSEORecommendations(
     issues: SEOIssue[],
-    scores: {
+    _scores: {
       technical: number;
       onPage: number;
       performance: number;
@@ -860,7 +869,10 @@ export class SEOHealthProcessor
     return timeframes[complexity];
   }
 
-  private getRequiredResources(category: string, complexity: string): string[] {
+  private getRequiredResources(
+    category: string,
+    _complexity: string
+  ): string[] {
     const resources: Record<string, string[]> = {
       technical: ["Developer", "Server Access"],
       content: ["Content Writer", "SEO Specialist"],
@@ -911,7 +923,7 @@ export class SEOHealthProcessor
       // Invalidate cache for this project's SEO health analysis and complete analytics
       analyticsCache.invalidate(projectId, CacheKeys.SEO_HEALTH);
       analyticsCache.invalidate(projectId, "complete-analytics");
-    } catch (_error) {
+    } catch (error) {
       console.error("Failed to store SEO health results:", error);
       throw error;
     }

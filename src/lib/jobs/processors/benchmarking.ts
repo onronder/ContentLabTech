@@ -8,20 +8,19 @@ import type {
   JobProcessor,
   JobResult,
   IndustryBenchmarkingJobData,
-  IndustryBenchmarkingResult,
+  IndustryBenchmarkResult,
 } from "../types";
 import { createClient } from "@supabase/supabase-js";
 
 export class IndustryBenchmarkingProcessor
-  implements
-    JobProcessor<IndustryBenchmarkingJobData, IndustryBenchmarkingResult>
+  implements JobProcessor<IndustryBenchmarkingJobData, IndustryBenchmarkResult>
 {
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SECRET_KEY"]!
   );
 
-  async process(job: Job): Promise<JobResult<IndustryBenchmarkingResult>> {
+  async process(job: Job): Promise<JobResult<IndustryBenchmarkResult>> {
     try {
       // Placeholder implementation - will be enhanced in Phase 1B
       await this.updateProgress(
@@ -30,11 +29,13 @@ export class IndustryBenchmarkingProcessor
         "Processing industry benchmarks..."
       );
 
-      const result: IndustryBenchmarkingResult = {
+      const result: IndustryBenchmarkResult = {
         industryPercentile: Math.floor(Math.random() * 40) + 60,
         performanceRank: Math.floor(Math.random() * 20) + 1,
+        totalIndustrySample: Math.floor(Math.random() * 1000) + 500,
         benchmarkScores: [],
         industryTrends: [],
+        improvementOpportunities: [],
       };
 
       await this.updateProgress(job.id, 100, "Industry benchmarking completed");
@@ -79,7 +80,7 @@ export class IndustryBenchmarkingProcessor
   private async storeResults(
     projectId: string,
     jobId: string,
-    result: IndustryBenchmarkingResult
+    result: IndustryBenchmarkResult
   ): Promise<void> {
     try {
       await this.supabase.from("industry_benchmark_results").insert({

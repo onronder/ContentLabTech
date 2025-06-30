@@ -139,7 +139,9 @@ class FallbackDataGenerator {
   generateFallbackAnalytics(
     projectId: string,
     availableData?: Partial<FallbackAnalytics>,
-    strategy: DegradationStrategy = DEGRADATION_STRATEGIES.external_api_failure
+    strategy: DegradationStrategy = DEGRADATION_STRATEGIES[
+      "external_api_failure"
+    ]!
   ): FallbackAnalytics {
     const fallbackData: FallbackAnalytics = {};
 
@@ -156,26 +158,44 @@ class FallbackDataGenerator {
       );
 
       if (cachedContent) {
-        fallbackData.contentAnalysis = { ...cachedContent, fallback: true };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (fallbackData as any).contentAnalysis = {
+          ...cachedContent,
+          fallback: true,
+        };
       }
       if (cachedSEO) {
-        fallbackData.seoHealth = { ...cachedSEO, fallback: true };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (fallbackData as any).seoHealth = { ...cachedSEO, fallback: true };
       }
       if (cachedPerformance) {
-        fallbackData.performance = { ...cachedPerformance, fallback: true };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (fallbackData as any).performance = {
+          ...cachedPerformance,
+          fallback: true,
+        };
       }
     }
 
     // Generate placeholder data if needed
     if (strategy.usePlaceholder) {
       if (!fallbackData.contentAnalysis && availableData?.contentAnalysis) {
-        fallbackData.contentAnalysis = this.generateContentAnalysisFallback();
+        fallbackData["contentAnalysis"] = {
+          ...this.generateContentAnalysisFallback(),
+          fallback: true,
+        };
       }
       if (!fallbackData.seoHealth && availableData?.seoHealth) {
-        fallbackData.seoHealth = this.generateSEOHealthFallback();
+        fallbackData["seoHealth"] = {
+          ...this.generateSEOHealthFallback(),
+          fallback: true,
+        };
       }
       if (!fallbackData.performance && availableData?.performance) {
-        fallbackData.performance = this.generatePerformanceFallback();
+        fallbackData["performance"] = {
+          ...this.generatePerformanceFallback(),
+          fallback: true,
+        };
       }
     }
 
@@ -427,16 +447,16 @@ export class GracefulDegradationManager {
   private selectDegradationStrategy(error: AppError): DegradationStrategy {
     switch (error.details.category) {
       case ErrorCategory.DATABASE:
-        return DEGRADATION_STRATEGIES.database_unavailable;
+        return DEGRADATION_STRATEGIES["database_unavailable"]!;
 
       case ErrorCategory.EXTERNAL_SERVICE:
-        return DEGRADATION_STRATEGIES.external_api_failure;
+        return DEGRADATION_STRATEGIES["external_api_failure"]!;
 
       case ErrorCategory.PROCESSING:
-        return DEGRADATION_STRATEGIES.processing_overload;
+        return DEGRADATION_STRATEGIES["processing_overload"]!;
 
       default:
-        return DEGRADATION_STRATEGIES.partial_service_failure;
+        return DEGRADATION_STRATEGIES["partial_service_failure"]!;
     }
   }
 

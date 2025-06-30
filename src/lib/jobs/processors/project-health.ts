@@ -16,8 +16,8 @@ export class ProjectHealthProcessor
   implements JobProcessor<ProjectHealthJobData, ProjectHealthResult>
 {
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SECRET_KEY"]!
   );
 
   async process(job: Job): Promise<JobResult<ProjectHealthResult>> {
@@ -31,6 +31,11 @@ export class ProjectHealthProcessor
 
       const result: ProjectHealthResult = {
         overallScore: Math.floor(Math.random() * 30) + 70,
+        overallHealth: Math.floor(Math.random() * 30) + 70,
+        progressVelocity: Math.floor(Math.random() * 30) + 70,
+        implementationQuality: Math.floor(Math.random() * 30) + 70,
+        marketAdaptation: Math.floor(Math.random() * 30) + 70,
+        successPrediction: Math.floor(Math.random() * 30) + 70,
         categoryScores: {
           content: Math.floor(Math.random() * 30) + 70,
           seo: Math.floor(Math.random() * 30) + 70,
@@ -40,6 +45,9 @@ export class ProjectHealthProcessor
         healthIndicators: [],
         actionItems: [],
         trendData: [],
+        riskFactors: [],
+        milestoneProgress: [],
+        recommendations: [],
       };
 
       await this.updateProgress(

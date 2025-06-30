@@ -26,13 +26,13 @@ import {
 } from "lucide-react";
 
 interface ExecutiveDashboardProps {
-  projectId: string;
+  projectId?: string | undefined;
 }
 
 export const ExecutiveDashboard = ({ projectId }: ExecutiveDashboardProps) => {
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Get real-time analytics data
+
+  // Get real-time analytics data (must be called unconditionally)
   const {
     results,
     loading,
@@ -55,75 +55,109 @@ export const ExecutiveDashboard = ({ projectId }: ExecutiveDashboardProps) => {
   const strategicMetrics = useMemo(() => {
     const overallHealthScore = getOverallHealthScore();
     const analysisProgress = getAnalysisProgress();
-    
+
     return [
       {
         title: "Content Performance",
-        value: results.contentAnalysis?.overallScore 
-          ? `${results.contentAnalysis.overallScore}%` 
-          : loading ? "..." : "No Data",
-        change: { 
-          value: results.contentAnalysis?.overallScore 
-            ? Math.max(1, results.contentAnalysis.overallScore - 85) 
-            : 0, 
-          type: "increase" as const 
+        value: results.contentAnalysis?.overallScore
+          ? `${results.contentAnalysis.overallScore}%`
+          : loading
+            ? "..."
+            : "No Data",
+        change: {
+          value: results.contentAnalysis?.overallScore
+            ? Math.max(1, results.contentAnalysis.overallScore - 85)
+            : 0,
+          type: "increase" as const,
         },
         icon: TrendingUp,
-        description: results.contentAnalysis?.overallScore 
-          ? results.contentAnalysis.overallScore >= 80 ? "Excellent quality" : 
-            results.contentAnalysis.overallScore >= 60 ? "Good quality" : "Needs improvement"
+        description: results.contentAnalysis?.overallScore
+          ? results.contentAnalysis.overallScore >= 80
+            ? "Excellent quality"
+            : results.contentAnalysis.overallScore >= 60
+              ? "Good quality"
+              : "Needs improvement"
           : "Analysis pending",
-        trend: (results.contentAnalysis?.overallScore ?? 0) >= 75 ? "up" as const : "down" as const,
+        trend:
+          (results.contentAnalysis?.overallScore ?? 0) >= 75
+            ? ("up" as const)
+            : ("down" as const),
       },
       {
         title: "SEO Health",
-        value: results.seoHealth?.overallScore 
-          ? `${results.seoHealth.overallScore}%` 
-          : loading ? "..." : "No Data",
-        change: { 
-          value: results.seoHealth?.overallScore 
-            ? Math.max(1, results.seoHealth.overallScore - 80) 
-            : 0, 
-          type: "increase" as const 
+        value: results.seoHealth?.overallScore
+          ? `${results.seoHealth.overallScore}%`
+          : loading
+            ? "..."
+            : "No Data",
+        change: {
+          value: results.seoHealth?.overallScore
+            ? Math.max(1, results.seoHealth.overallScore - 80)
+            : 0,
+          type: "increase" as const,
         },
         icon: Target,
-        description: results.seoHealth?.overallScore 
-          ? results.seoHealth.overallScore >= 85 ? "Excellent SEO" : 
-            results.seoHealth.overallScore >= 70 ? "Good SEO health" : "SEO issues found"
+        description: results.seoHealth?.overallScore
+          ? results.seoHealth.overallScore >= 85
+            ? "Excellent SEO"
+            : results.seoHealth.overallScore >= 70
+              ? "Good SEO health"
+              : "SEO issues found"
           : "Analysis pending",
-        trend: (results.seoHealth?.overallScore ?? 0) >= 75 ? "up" as const : "down" as const,
+        trend:
+          (results.seoHealth?.overallScore ?? 0) >= 75
+            ? ("up" as const)
+            : ("down" as const),
       },
       {
         title: "Performance Score",
-        value: results.performance?.overallScore 
-          ? `${results.performance.overallScore}%` 
-          : loading ? "..." : "No Data",
-        change: { 
-          value: results.performance?.overallScore 
-            ? Math.max(1, results.performance.overallScore - 75) 
-            : 0, 
-          type: "increase" as const 
+        value: results.performance?.overallScore
+          ? `${results.performance.overallScore}%`
+          : loading
+            ? "..."
+            : "No Data",
+        change: {
+          value: results.performance?.overallScore
+            ? Math.max(1, results.performance.overallScore - 75)
+            : 0,
+          type: "increase" as const,
         },
         icon: BarChart3,
-        description: results.performance?.overallScore 
-          ? results.performance.overallScore >= 85 ? "Fast & efficient" : 
-            results.performance.overallScore >= 70 ? "Good performance" : "Performance issues"
+        description: results.performance?.overallScore
+          ? results.performance.overallScore >= 85
+            ? "Fast & efficient"
+            : results.performance.overallScore >= 70
+              ? "Good performance"
+              : "Performance issues"
           : "Analysis pending",
-        trend: (results.performance?.overallScore ?? 0) >= 75 ? "up" as const : "down" as const,
+        trend:
+          (results.performance?.overallScore ?? 0) >= 75
+            ? ("up" as const)
+            : ("down" as const),
       },
       {
         title: "Overall Health",
-        value: overallHealthScore ? `${overallHealthScore}%` : loading ? "..." : "No Data",
-        change: { 
-          value: overallHealthScore ? Math.max(1, overallHealthScore - 80) : 0, 
-          type: "increase" as const 
+        value: overallHealthScore
+          ? `${overallHealthScore}%`
+          : loading
+            ? "..."
+            : "No Data",
+        change: {
+          value: overallHealthScore ? Math.max(1, overallHealthScore - 80) : 0,
+          type: "increase" as const,
         },
         icon: Users,
-        description: overallHealthScore 
-          ? overallHealthScore >= 85 ? "Excellent overall" : 
-            overallHealthScore >= 70 ? "Good health" : "Needs attention"
-          : analysisProgress.progress > 0 ? analysisProgress.phase : "Analysis pending",
-        trend: (overallHealthScore ?? 0) >= 75 ? "up" as const : "down" as const,
+        description: overallHealthScore
+          ? overallHealthScore >= 85
+            ? "Excellent overall"
+            : overallHealthScore >= 70
+              ? "Good health"
+              : "Needs attention"
+          : analysisProgress.progress > 0
+            ? analysisProgress.phase
+            : "Analysis pending",
+        trend:
+          (overallHealthScore ?? 0) >= 75 ? ("up" as const) : ("down" as const),
       },
     ];
   }, [results, loading, getOverallHealthScore, getAnalysisProgress]);
@@ -132,14 +166,16 @@ export const ExecutiveDashboard = ({ projectId }: ExecutiveDashboardProps) => {
   const aiInsights = useMemo(() => {
     const priorityRecommendations = getPriorityRecommendations();
     const analysisProgress = getAnalysisProgress();
-    
+
     // If no recommendations yet, show analysis status
     if (priorityRecommendations.length === 0) {
       return [
         {
           priority: "medium" as const,
-          title: isAnalysisRunning() ? "Analysis in Progress" : "Analysis Pending",
-          description: isAnalysisRunning() 
+          title: isAnalysisRunning()
+            ? "Analysis in Progress"
+            : "Analysis Pending",
+          description: isAnalysisRunning()
             ? `${analysisProgress.phase} - ${analysisProgress.progress}% complete`
             : "Comprehensive analytical engines will provide strategic insights once analysis begins.",
           action: isAnalysisRunning() ? "View Progress" : "Start Analysis",
@@ -148,33 +184,37 @@ export const ExecutiveDashboard = ({ projectId }: ExecutiveDashboardProps) => {
         },
       ];
     }
-    
+
     // Convert analytical recommendations to executive insights
-    return priorityRecommendations.slice(0, 3).map((rec) => {
-      const priorityMap = { high: "high" as const, medium: "medium" as const, low: "low" as const };
-      
+    return priorityRecommendations.slice(0, 3).map(rec => {
+      const priorityMap = {
+        high: "high" as const,
+        medium: "medium" as const,
+        low: "low" as const,
+      };
+
       let actionText = "Review Details";
       const categoryText = rec.source;
       let metricValue = "";
       let metricLabel = "Impact";
-      
+
       // Customize based on recommendation type
-      if (rec.type === 'seo') {
+      if (rec.type === "seo") {
         actionText = "Optimize SEO";
         metricValue = "SEO";
         metricLabel = "Priority Area";
-      } else if (rec.type === 'performance') {
+      } else if (rec.type === "performance") {
         actionText = "Improve Performance";
         metricValue = "Speed";
         metricLabel = "Focus Area";
-      } else if (rec.source === 'Content Analysis') {
+      } else if (rec.source === "Content Analysis") {
         actionText = "Enhance Content";
         metricValue = "Content";
         metricLabel = "Quality Focus";
       }
-      
+
       return {
-        priority: priorityMap[rec.priority] || "medium" as const,
+        priority: priorityMap[rec.priority] || ("medium" as const),
         title: rec.title,
         description: rec.description,
         action: actionText,
@@ -183,6 +223,22 @@ export const ExecutiveDashboard = ({ projectId }: ExecutiveDashboardProps) => {
       };
     });
   }, [getPriorityRecommendations, getAnalysisProgress, isAnalysisRunning]);
+
+  // Guard clause for when no project is selected (must be after all hooks)
+  if (!projectId) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center">
+          <h3 className="mb-2 text-lg font-semibold text-gray-900">
+            No Project Selected
+          </h3>
+          <p className="text-gray-600">
+            Please select a project to view the executive dashboard.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -264,14 +320,21 @@ export const ExecutiveDashboard = ({ projectId }: ExecutiveDashboardProps) => {
           </div>
           <div className="flex items-center space-x-2 rounded-lg bg-blue-100 px-3 py-1.5 text-sm text-blue-700">
             <Calendar className="h-4 w-4" />
-            <span>{new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+            <span>
+              {new Date().toLocaleDateString("en-US", {
+                month: "short",
+                year: "numeric",
+              })}
+            </span>
           </div>
         </div>
 
         {error ? (
           <div className="flex items-center justify-center rounded-lg border border-red-200 bg-red-50 p-8 text-red-700">
             <AlertCircle className="mr-2 h-5 w-5" />
-            <span>Failed to load analytics data. Please refresh and try again.</span>
+            <span>
+              Failed to load analytics data. Please refresh and try again.
+            </span>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">

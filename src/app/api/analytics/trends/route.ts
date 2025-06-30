@@ -400,7 +400,7 @@ interface ProcessedAnalytics {
 function processAnalyticsData(
   analytics: AnalyticsItem[],
   metric?: string,
-  granularity: string = "daily"
+  granularity = "daily"
 ): ProcessedAnalytics[] {
   if (!analytics.length) return [];
 

@@ -3,23 +3,23 @@
  * Comprehensive type definitions for background processing
  */
 
-export type JobType = 
-  | 'content-analysis'
-  | 'seo-health-check'
-  | 'performance-analysis'
-  | 'competitive-intelligence'
-  | 'industry-benchmarking'
-  | 'project-health-scoring';
+export type JobType =
+  | "content-analysis"
+  | "seo-health-check"
+  | "performance-analysis"
+  | "competitive-intelligence"
+  | "industry-benchmarking"
+  | "project-health-scoring";
 
-export type JobPriority = 'critical' | 'high' | 'normal' | 'low';
+export type JobPriority = "critical" | "high" | "normal" | "low";
 
-export type JobStatus = 
-  | 'pending'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'retrying';
+export type JobStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "retrying";
 
 export interface JobData {
   projectId: string;
@@ -51,6 +51,7 @@ export interface JobResult<T = unknown> {
   data?: T;
   error?: string;
   retryable: boolean;
+  retryAfter?: number;
   progress: number;
   progressMessage?: string;
 }
@@ -60,7 +61,7 @@ export interface ContentAnalysisJobData extends JobData {
     websiteUrl: string;
     targetKeywords: string[];
     competitorUrls?: string[];
-    analysisDepth: 'basic' | 'comprehensive';
+    analysisDepth: "basic" | "comprehensive";
   };
 }
 
@@ -78,7 +79,7 @@ export interface PerformanceAnalysisJobData extends JobData {
     websiteUrl: string;
     pages: string[];
     locations: string[];
-    devices: ('desktop' | 'mobile')[];
+    devices: ("desktop" | "mobile")[];
   };
 }
 
@@ -87,7 +88,7 @@ export interface CompetitiveIntelligenceJobData extends JobData {
     targetDomain: string;
     competitorDomains: string[];
     keywords: string[];
-    analysisScope: 'content' | 'technical' | 'comprehensive';
+    analysisScope: "content" | "technical" | "comprehensive";
   };
 }
 
@@ -99,6 +100,9 @@ export interface IndustryBenchmarkingJobData extends JobData {
     region: string;
   };
 }
+
+// Type aliases for missing exports
+export type ProjectHealthJobData = ProjectHealthScoringJobData;
 
 export interface ProjectHealthScoringJobData extends JobData {
   params: {
@@ -145,13 +149,13 @@ export interface JobProgress {
 }
 
 // Job Events
-export type JobEvent = 
-  | 'job.created'
-  | 'job.started'
-  | 'job.progress'
-  | 'job.completed'
-  | 'job.failed'
-  | 'job.cancelled';
+export type JobEvent =
+  | "job.created"
+  | "job.started"
+  | "job.progress"
+  | "job.completed"
+  | "job.failed"
+  | "job.cancelled";
 
 export interface JobEventData {
   jobId: string;
@@ -173,10 +177,10 @@ export interface ContentQualityResult {
 }
 
 export interface ContentRecommendation {
-  type: 'title' | 'meta' | 'content' | 'structure' | 'keywords';
-  priority: 'high' | 'medium' | 'low';
-  impact: 'high' | 'medium' | 'low';
-  effort: 'high' | 'medium' | 'low';
+  type: "title" | "meta" | "content" | "structure" | "keywords";
+  priority: "high" | "medium" | "low";
+  impact: "high" | "medium" | "low";
+  effort: "high" | "medium" | "low";
   title: string;
   description: string;
   implementation: string;
@@ -195,12 +199,12 @@ export interface SEOHealthResult {
 }
 
 export interface SEOIssue {
-  type: 'critical' | 'warning' | 'recommendation';
-  category: 'technical' | 'content' | 'performance' | 'mobile';
+  type: "critical" | "warning" | "recommendation";
+  category: "technical" | "content" | "performance" | "mobile";
   title: string;
   description: string;
-  impact: 'high' | 'medium' | 'low';
-  fixComplexity: 'easy' | 'medium' | 'hard';
+  impact: "high" | "medium" | "low";
+  fixComplexity: "easy" | "medium" | "hard";
   howToFix: string;
 }
 
@@ -235,7 +239,7 @@ export interface PerformanceResult {
 }
 
 export interface PerformanceRecommendation {
-  type: 'critical' | 'important' | 'optimization';
+  type: "critical" | "important" | "optimization";
   title: string;
   description: string;
   potentialSavings: {
@@ -246,13 +250,20 @@ export interface PerformanceRecommendation {
 }
 
 export interface DevicePerformance {
-  device: 'desktop' | 'mobile';
+  device: "desktop" | "mobile";
   score: number;
-  metrics: Record<string, number>;
+  metrics: {
+    speedIndex: number;
+    firstContentfulPaint: number;
+    largestContentfulPaint: number;
+    timeToInteractive: number;
+    cumulativeLayoutShift: number;
+  };
 }
 
 export interface CompetitiveIntelligenceResult {
   marketPosition: number; // 0-100
+  competitiveScore: number; // 0-100
   competitiveGaps: string[];
   opportunities: CompetitiveOpportunity[];
   threats: CompetitiveThreat[];
@@ -261,20 +272,20 @@ export interface CompetitiveIntelligenceResult {
 }
 
 export interface CompetitiveOpportunity {
-  type: 'content' | 'technical' | 'market';
+  type: "content" | "technical" | "market";
   title: string;
   description: string;
-  impact: 'high' | 'medium' | 'low';
-  effort: 'high' | 'medium' | 'low';
+  impact: "high" | "medium" | "low";
+  effort: "high" | "medium" | "low";
   timeframe: string;
   estimatedRoi: number;
 }
 
 export interface CompetitiveThreat {
-  type: 'content' | 'technical' | 'market';
+  type: "content" | "technical" | "market";
   competitor: string;
   threat: string;
-  severity: 'high' | 'medium' | 'low';
+  severity: "high" | "medium" | "low";
   mitigation: string;
 }
 
@@ -306,7 +317,7 @@ export interface BenchmarkMetric {
 
 export interface IndustryTrend {
   metric: string;
-  direction: 'up' | 'down' | 'stable';
+  direction: "up" | "down" | "stable";
   magnitude: number;
   timeframe: string;
   implications: string[];
@@ -321,18 +332,23 @@ export interface BenchmarkOpportunity {
 }
 
 export interface ProjectHealthResult {
+  overallScore: number;
   overallHealth: number;
   progressVelocity: number;
   implementationQuality: number;
   marketAdaptation: number;
   successPrediction: number;
+  categoryScores: Record<string, number>;
+  healthIndicators: string[];
+  actionItems: string[];
+  trendData: number[];
   riskFactors: RiskFactor[];
   milestoneProgress: MilestoneProgress[];
   recommendations: ProjectRecommendation[];
 }
 
 export interface RiskFactor {
-  type: 'technical' | 'market' | 'resource' | 'timeline';
+  type: "technical" | "market" | "resource" | "timeline";
   description: string;
   probability: number;
   impact: number;
@@ -348,10 +364,10 @@ export interface MilestoneProgress {
 }
 
 export interface ProjectRecommendation {
-  category: 'optimization' | 'resource' | 'strategy' | 'timeline';
+  category: "optimization" | "resource" | "strategy" | "timeline";
   title: string;
   description: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: "high" | "medium" | "low";
   expectedImpact: number;
   implementation: string[];
 }

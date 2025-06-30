@@ -11,7 +11,10 @@ import type {
   ContentQualityResult,
   ContentRecommendation,
 } from "../types";
-import { analyzeContent /*, generateKeywordStrategy*/ } from "@/lib/openai";
+import {
+  analyzeContent /*, generateKeywordStrategy*/,
+  ContentOptimizationResult,
+} from "@/lib/openai";
 import { createClient } from "@supabase/supabase-js";
 import { analyticsCache, CacheKeys } from "@/lib/cache/analyticsCache";
 import {
@@ -31,8 +34,8 @@ export class ContentAnalysisProcessor
   implements JobProcessor<ContentAnalysisJobData, ContentQualityResult>
 {
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SECRET_KEY"]!
   );
 
   async process(job: Job): Promise<JobResult<ContentQualityResult>> {
@@ -44,8 +47,13 @@ export class ContentAnalysisProcessor
     });
 
     try {
-      const { websiteUrl, targetKeywords, competitorUrls, analysisDepth } =
-        job.data.params;
+      const { websiteUrl, targetKeywords, competitorUrls, analysisDepth } = job
+        .data.params as {
+        websiteUrl: string;
+        targetKeywords: string[];
+        competitorUrls?: string[];
+        analysisDepth: string;
+      };
 
       // Update progress
       await this.updateProgress(job.id, 10, "Starting content analysis...");
@@ -109,7 +117,7 @@ export class ContentAnalysisProcessor
         technicalSEO,
         readabilityScore,
         semanticRelevance,
-        competitorComparison,
+        ...(competitorComparison && { competitorComparison }),
         analysisDepth,
       });
 
@@ -138,7 +146,9 @@ export class ContentAnalysisProcessor
           error: error.details.userMessage,
           retryable: error.details.retryable,
           progress: 0,
-          retryAfter: error.details.retryAfter,
+          ...(error.details.retryAfter !== undefined && {
+            retryAfter: error.details.retryAfter,
+          }),
         };
       }
 
@@ -159,7 +169,7 @@ export class ContentAnalysisProcessor
         error: processingError.details.userMessage,
         retryable: isRetryable,
         progress: 0,
-        retryAfter: isRetryable ? 120 : undefined, // 2 minutes for retryable errors
+        ...(isRetryable && { retryAfter: 120 }), // 2 minutes for retryable errors
       };
     }
   }
@@ -225,7 +235,7 @@ export class ContentAnalysisProcessor
       return {
         title,
         content,
-        metaDescription,
+        ...(metaDescription && { metaDescription }),
         headings,
         wordCount: content.split(/\s+/).length,
         images: (html.match(/<img/g) || []).length,
@@ -246,14 +256,14 @@ export class ContentAnalysisProcessor
 
   private extractTitle(html: string): string {
     const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    return match ? match[1].trim() : "";
+    return match?.[1]?.trim() || "";
   }
 
   private extractMetaDescription(html: string): string | undefined {
     const match = html.match(
       /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i
     );
-    return match ? match[1].trim() : undefined;
+    return match?.[1]?.trim();
   }
 
   private extractTextContent(html: string): string {
@@ -276,8 +286,8 @@ export class ContentAnalysisProcessor
 
     while ((match = headingRegex.exec(html)) !== null) {
       headings.push({
-        level: parseInt(match[1]),
-        text: match[2].trim(),
+        level: parseInt(match[1]!),
+        text: match[2]!.trim(),
       });
     }
 
@@ -300,27 +310,77 @@ export class ContentAnalysisProcessor
     topicCoverage: number;
   }> {
     try {
-      return await analyzeContent({
+      const aiResult = await analyzeContent({
         title: content.title,
         content: content.content,
-        metaDescription: content.metaDescription,
+        ...(content.metaDescription && {
+          metaDescription: content.metaDescription,
+        }),
         focusKeywords: targetKeywords,
         contentType: "article",
       });
+
+      // Map ContentOptimizationResult to expected format
+      return this.mapContentOptimizationResult(aiResult, content);
     } catch (error) {
       console.error("OpenAI content analysis failed:", error);
-      // Return fallback analysis
+      // Return fallback analysis with correct structure
       return {
-        overallScore: 75,
-        recommendations: [],
-        seoAnalysis: {
-          titleOptimization: { score: 80, suggestions: [] },
-          contentStructure: { score: 75, suggestions: [] },
-          keywordDensity: { score: 70, suggestions: [] },
-          readability: { score: 85, suggestions: [] },
-        },
+        wordCount: content.content.split(/\s+/).length,
+        headingStructure: content.headings.length,
+        keywordDensity: 2.5,
+        contentGaps: ["Technical Implementation", "Advanced Strategies"],
+        topicCoverage: 75,
       };
     }
+  }
+
+  private mapContentOptimizationResult(
+    aiResult: ContentOptimizationResult,
+    content: {
+      title: string;
+      content: string;
+      metaDescription?: string;
+      headings: { level: number; text: string }[];
+    }
+  ): {
+    wordCount: number;
+    headingStructure: number;
+    keywordDensity: number;
+    contentGaps: string[];
+    topicCoverage: number;
+  } {
+    // Extract word count from actual content
+    const wordCount = content.content
+      .split(/\s+/)
+      .filter(word => word.length > 0).length;
+
+    // Map heading structure score from AI analysis
+    const headingStructure =
+      aiResult.seoAnalysis?.contentStructure?.score || content.headings.length;
+
+    // Map keyword density from AI analysis
+    const keywordDensity = aiResult.seoAnalysis?.keywordDensity?.score || 2.5;
+
+    // Extract content gaps from competitor insights or recommendations
+    const contentGaps = aiResult.competitorInsights?.gaps ||
+      aiResult.recommendations
+        ?.filter(rec => rec.type === "content")
+        ?.map(rec => rec.title) || [
+        "Content depth improvements needed",
+        "Additional topic coverage recommended",
+      ];
+
+    // Map overall score to topic coverage (both are 0-100 scores)
+    const topicCoverage = aiResult.overallScore || 75;
+
+    return {
+      wordCount,
+      headingStructure,
+      keywordDensity,
+      contentGaps,
+      topicCoverage,
+    };
   }
 
   private async analyzeTechnicalSEO(content: {
@@ -392,7 +452,7 @@ export class ContentAnalysisProcessor
 
   private checkHeadingLogicalFlow(levels: number[]): boolean {
     for (let i = 1; i < levels.length; i++) {
-      if (levels[i] > levels[i - 1] + 1) {
+      if (levels[i]! > levels[i - 1]! + 1) {
         return false; // Skip heading levels
       }
     }
@@ -481,18 +541,23 @@ export class ContentAnalysisProcessor
     return totalKeywords > 0 ? Math.round(relevanceScore / totalKeywords) : 0;
   }
 
-  private async analyzeCompetitors(): Promise<{
+  private async analyzeCompetitors(
+    competitorUrls: string[],
+    _targetKeywords: string[]
+  ): Promise<{
     averageScore: number;
     topPerformer: string;
     gaps: string[];
     advantages: string[];
   }> {
     // This would integrate with competitive intelligence in a full implementation
+    // For now, return mock data but acknowledge the parameters
+
     return {
-      averageContentLength: 1500,
-      averageKeywordDensity: 2.1,
-      commonTopics: ["SEO", "Content Marketing", "Analytics"],
-      contentGaps: ["Technical Implementation", "Advanced Strategies"],
+      averageScore: 72,
+      topPerformer: competitorUrls[0] || "competitor.com",
+      gaps: ["Technical Implementation", "Advanced Strategies"],
+      advantages: ["Better Content Depth", "Improved SEO Structure"],
     };
   }
 
@@ -521,7 +586,7 @@ export class ContentAnalysisProcessor
     const readabilityWeight = 0.2;
     const semanticRelevanceWeight = 0.1;
 
-    const contentDepth = data.contentAnalysis.overallScore || 75;
+    const contentDepth = data.contentAnalysis.topicCoverage || 75;
 
     const overallScore = Math.round(
       data.technicalSEO * technicalSeoWeight +
@@ -544,7 +609,7 @@ export class ContentAnalysisProcessor
       readability: data.readabilityScore,
       semanticRelevance: data.semanticRelevance,
       recommendations: recommendations.slice(0, 10), // Top 10 recommendations
-      contentGaps: data.competitorComparison?.contentGaps || [],
+      contentGaps: data.competitorComparison?.gaps || [],
       improvementTimeline: this.estimateImprovementTimeline(overallScore),
     };
   }

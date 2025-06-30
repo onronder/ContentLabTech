@@ -3,34 +3,36 @@
  * Handles background processing with progress tracking and error recovery
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 import type {
   Job,
   JobType,
   JobPriority,
   JobStatus,
   JobData,
+  JobProcessor,
   // JobResult,
   JobProgress,
   JobQueueConfig,
   // JobEventData,
-} from './types';
+} from "./types";
 
 // In-memory job queue (Redis replacement for now)
 class JobQueue {
   private jobs: Map<string, Job> = new Map();
   private processing: Set<string> = new Set();
-  private listeners: Map<string, ((progress: JobProgress) => void)[]> = new Map();
+  private listeners: Map<string, ((progress: JobProgress) => void)[]> =
+    new Map();
   private config: JobQueueConfig;
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SECRET_KEY"]!
   );
 
   constructor(config: Partial<JobQueueConfig> = {}) {
     this.config = {
       concurrency: config.concurrency ?? 3,
-      defaultPriority: config.defaultPriority ?? 'normal',
+      defaultPriority: config.defaultPriority ?? "normal",
       maxRetries: config.maxRetries ?? 3,
       retryDelay: config.retryDelay ?? 1000,
       cleanupInterval: config.cleanupInterval ?? 60000, // 1 minute
@@ -53,7 +55,7 @@ class JobQueue {
     const job: Job = {
       id: this.generateJobId(),
       type,
-      status: 'pending',
+      status: "pending",
       priority,
       data,
       attempts: 0,
@@ -68,7 +70,7 @@ class JobQueue {
     await this.storeJob(job);
 
     // Emit job created event
-    this.emitJobEvent(job.id, 'job.created');
+    this.emitJobEvent(job.id, "job.created");
 
     // Start processing if capacity available
     this.processNextJob();
@@ -104,15 +106,15 @@ class JobQueue {
    */
   async cancelJob(jobId: string): Promise<boolean> {
     const job = this.jobs.get(jobId);
-    if (!job || job.status === 'completed' || job.status === 'failed') {
+    if (!job || job.status === "completed" || job.status === "failed") {
       return false;
     }
 
-    job.status = 'cancelled';
+    job.status = "cancelled";
     this.processing.delete(jobId);
 
     await this.updateJobInDatabase(job);
-    this.emitJobEvent(jobId, 'job.cancelled');
+    this.emitJobEvent(jobId, "job.cancelled");
 
     return true;
   }
@@ -120,7 +122,10 @@ class JobQueue {
   /**
    * Subscribe to job progress updates
    */
-  onJobProgress(jobId: string, callback: (progress: JobProgress) => void): () => void {
+  onJobProgress(
+    jobId: string,
+    callback: (progress: JobProgress) => void
+  ): () => void {
     if (!this.listeners.has(jobId)) {
       this.listeners.set(jobId, []);
     }
@@ -151,12 +156,12 @@ class JobQueue {
     if (!job) return;
 
     job.progress = Math.max(0, Math.min(100, progress));
-    job.progressMessage = message;
+    job.progressMessage = message || "";
 
     const progressUpdate: JobProgress = {
       jobId,
       progress: job.progress,
-      message: message || '',
+      message: message || "",
       partialResults,
     };
 
@@ -170,7 +175,7 @@ class JobQueue {
     await this.updateJobInDatabase(job);
 
     // Emit progress event
-    this.emitJobEvent(jobId, 'job.progress', progressUpdate);
+    this.emitJobEvent(jobId, "job.progress", progressUpdate);
   }
 
   /**
@@ -180,7 +185,7 @@ class JobQueue {
     const job = this.jobs.get(jobId);
     if (!job) return;
 
-    job.status = 'completed';
+    job.status = "completed";
     job.progress = 100;
     job.result = result;
     job.completedAt = new Date();
@@ -188,7 +193,7 @@ class JobQueue {
     this.processing.delete(jobId);
 
     await this.updateJobInDatabase(job);
-    this.emitJobEvent(jobId, 'job.completed', result);
+    this.emitJobEvent(jobId, "job.completed", result);
 
     // Process next job
     this.processNextJob();
@@ -197,7 +202,7 @@ class JobQueue {
   /**
    * Mark job as failed
    */
-  async failJob(jobId: string, error: string, retryable: boolean = true): Promise<void> {
+  async failJob(jobId: string, error: string, retryable = true): Promise<void> {
     const job = this.jobs.get(jobId);
     if (!job) return;
 
@@ -207,23 +212,26 @@ class JobQueue {
 
     if (retryable && job.attempts < job.maxAttempts) {
       // Schedule retry
-      job.status = 'retrying';
-      setTimeout(() => {
-        if (this.jobs.has(jobId)) {
-          job.status = 'pending';
-          this.processNextJob();
-        }
-      }, this.config.retryDelay * Math.pow(2, job.attempts - 1)); // Exponential backoff
+      job.status = "retrying";
+      setTimeout(
+        () => {
+          if (this.jobs.has(jobId)) {
+            job.status = "pending";
+            this.processNextJob();
+          }
+        },
+        this.config.retryDelay * Math.pow(2, job.attempts - 1)
+      ); // Exponential backoff
     } else {
-      job.status = 'failed';
+      job.status = "failed";
       this.processing.delete(jobId);
     }
 
     await this.updateJobInDatabase(job);
-    this.emitJobEvent(jobId, 'job.failed', { error, retryable });
+    this.emitJobEvent(jobId, "job.failed", { error, retryable });
 
     // Process next job if not retrying
-    if (job.status === 'failed') {
+    if (job.status === "failed") {
       this.processNextJob();
     }
   }
@@ -237,7 +245,7 @@ class JobQueue {
     }
 
     // Get next pending job by priority
-    const pendingJobs = this.getJobsByStatus('pending');
+    const pendingJobs = this.getJobsByStatus("pending");
     if (pendingJobs.length === 0) {
       return; // No jobs to process
     }
@@ -245,12 +253,15 @@ class JobQueue {
     // Sort by priority and creation time
     const priorityOrder = { critical: 0, high: 1, normal: 2, low: 3 };
     const nextJob = pendingJobs.sort((a, b) => {
-      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      const priorityDiff =
+        priorityOrder[a.priority] - priorityOrder[b.priority];
       if (priorityDiff !== 0) return priorityDiff;
       return a.createdAt.getTime() - b.createdAt.getTime();
     })[0];
 
-    await this.processJob(nextJob);
+    if (nextJob) {
+      await this.processJob(nextJob);
+    }
   }
 
   /**
@@ -258,11 +269,11 @@ class JobQueue {
    */
   private async processJob(job: Job): Promise<void> {
     this.processing.add(job.id);
-    job.status = 'processing';
+    job.status = "processing";
     job.processedAt = new Date();
 
     await this.updateJobInDatabase(job);
-    this.emitJobEvent(job.id, 'job.started');
+    this.emitJobEvent(job.id, "job.started");
 
     try {
       // Import and execute the appropriate processor
@@ -272,10 +283,17 @@ class JobQueue {
       if (result.success) {
         await this.completeJob(job.id, result.data);
       } else {
-        await this.failJob(job.id, result.error || 'Unknown error', result.retryable);
+        await this.failJob(
+          job.id,
+          result.error || "Unknown error",
+          result.retryable
+        );
       }
     } catch (error) {
-      await this.failJob(job.id, error instanceof Error ? error.message : 'Unknown error');
+      await this.failJob(
+        job.id,
+        error instanceof Error ? error.message : "Unknown error"
+      );
     }
   }
 
@@ -284,23 +302,33 @@ class JobQueue {
    */
   private async getJobProcessor(type: JobType): Promise<JobProcessor> {
     switch (type) {
-      case 'content-analysis':
-        const { ContentAnalysisProcessor } = await import('./processors/content-analysis');
+      case "content-analysis":
+        const { ContentAnalysisProcessor } = await import(
+          "./processors/content-analysis"
+        );
         return new ContentAnalysisProcessor();
-      case 'seo-health-check':
-        const { SEOHealthProcessor } = await import('./processors/seo-health');
+      case "seo-health-check":
+        const { SEOHealthProcessor } = await import("./processors/seo-health");
         return new SEOHealthProcessor();
-      case 'performance-analysis':
-        const { PerformanceAnalysisProcessor } = await import('./processors/performance');
+      case "performance-analysis":
+        const { PerformanceAnalysisProcessor } = await import(
+          "./processors/performance"
+        );
         return new PerformanceAnalysisProcessor();
-      case 'competitive-intelligence':
-        const { CompetitiveIntelligenceProcessor } = await import('./processors/competitive');
+      case "competitive-intelligence":
+        const { CompetitiveIntelligenceProcessor } = await import(
+          "./processors/competitive"
+        );
         return new CompetitiveIntelligenceProcessor();
-      case 'industry-benchmarking':
-        const { IndustryBenchmarkingProcessor } = await import('./processors/benchmarking');
+      case "industry-benchmarking":
+        const { IndustryBenchmarkingProcessor } = await import(
+          "./processors/benchmarking"
+        );
         return new IndustryBenchmarkingProcessor();
-      case 'project-health-scoring':
-        const { ProjectHealthProcessor } = await import('./processors/project-health');
+      case "project-health-scoring":
+        const { ProjectHealthProcessor } = await import(
+          "./processors/project-health"
+        );
         return new ProjectHealthProcessor();
       default:
         throw new Error(`Unknown job type: ${type}`);
@@ -312,7 +340,7 @@ class JobQueue {
    */
   private async storeJob(job: Job): Promise<void> {
     try {
-      await this.supabase.from('processing_jobs').insert({
+      await this.supabase.from("processing_jobs").insert({
         id: job.id,
         type: job.type,
         status: job.status,
@@ -328,7 +356,7 @@ class JobQueue {
         created_at: job.createdAt.toISOString(),
       });
     } catch (error) {
-      console.error('Failed to store job in database:', error);
+      console.error("Failed to store job in database:", error);
     }
   }
 
@@ -338,7 +366,7 @@ class JobQueue {
   private async updateJobInDatabase(job: Job): Promise<void> {
     try {
       await this.supabase
-        .from('processing_jobs')
+        .from("processing_jobs")
         .update({
           status: job.status,
           attempts: job.attempts,
@@ -350,9 +378,9 @@ class JobQueue {
           completed_at: job.completedAt?.toISOString(),
           failed_at: job.failedAt?.toISOString(),
         })
-        .eq('id', job.id);
+        .eq("id", job.id);
     } catch (error) {
-      console.error('Failed to update job in database:', error);
+      console.error("Failed to update job in database:", error);
     }
   }
 
@@ -374,7 +402,7 @@ class JobQueue {
 
     for (const [jobId, job] of this.jobs.entries()) {
       if (
-        (job.status === 'completed' || job.status === 'failed') &&
+        (job.status === "completed" || job.status === "failed") &&
         now - job.createdAt.getTime() > this.config.maxJobAge
       ) {
         toDelete.push(jobId);
@@ -412,10 +440,10 @@ class JobQueue {
     const jobs = Array.from(this.jobs.values());
     return {
       total: jobs.length,
-      pending: jobs.filter(j => j.status === 'pending').length,
-      processing: jobs.filter(j => j.status === 'processing').length,
-      completed: jobs.filter(j => j.status === 'completed').length,
-      failed: jobs.filter(j => j.status === 'failed').length,
+      pending: jobs.filter(j => j.status === "pending").length,
+      processing: jobs.filter(j => j.status === "processing").length,
+      completed: jobs.filter(j => j.status === "completed").length,
+      failed: jobs.filter(j => j.status === "failed").length,
       processing_capacity: this.config.concurrency - this.processing.size,
     };
   }

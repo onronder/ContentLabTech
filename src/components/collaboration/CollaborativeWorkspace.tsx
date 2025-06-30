@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -169,31 +169,7 @@ export function CollaborativeWorkspace({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    loadTeamMembers();
-    if (sessionId) {
-      loadSession();
-      loadComments();
-      loadActivities();
-      // Set up real-time updates
-      const interval = setInterval(() => {
-        loadComments();
-        loadActivities();
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-    return undefined;
-  }, [sessionId]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [comments]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const loadTeamMembers = async () => {
+  const loadTeamMembers = useCallback(async () => {
     try {
       const response = await fetch(`/api/team/members?projectId=${projectId}`);
       if (response.ok) {
@@ -204,9 +180,9 @@ export function CollaborativeWorkspace({
     } catch (error) {
       console.error("Failed to load team members:", error);
     }
-  };
+  }, [projectId]);
 
-  const loadSession = async () => {
+  const loadSession = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -230,9 +206,9 @@ export function CollaborativeWorkspace({
     } catch (error) {
       console.error("Failed to load session:", error);
     }
-  };
+  }, [sessionId, projectId]);
 
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -253,9 +229,9 @@ export function CollaborativeWorkspace({
     } catch (error) {
       console.error("Failed to load comments:", error);
     }
-  };
+  }, [sessionId, projectId]);
 
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     if (!sessionId) return;
 
     try {
@@ -276,6 +252,30 @@ export function CollaborativeWorkspace({
     } catch (error) {
       console.error("Failed to load activities:", error);
     }
+  }, [sessionId, projectId]);
+
+  useEffect(() => {
+    loadTeamMembers();
+    if (sessionId) {
+      loadSession();
+      loadComments();
+      loadActivities();
+      // Set up real-time updates
+      const interval = setInterval(() => {
+        loadComments();
+        loadActivities();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [sessionId, loadTeamMembers, loadSession, loadComments, loadActivities]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [comments]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const createSession = async () => {
@@ -493,7 +493,6 @@ export function CollaborativeWorkspace({
     );
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getActivityDescription = (type: string, _activityData?: unknown) => {
     switch (type) {
       case "session_created":

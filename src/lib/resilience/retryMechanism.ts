@@ -4,7 +4,11 @@
  * Implements intelligent failure handling and system protection
  */
 
-import { AppError, ErrorCategory, ErrorSeverity /*, createExternalServiceError*/ } from '../errors/errorHandling';
+import {
+  AppError,
+  ErrorCategory,
+  ErrorSeverity /*, createExternalServiceError*/,
+} from "../errors/errorHandling";
 
 // ================================================
 // Retry Configuration
@@ -31,9 +35,9 @@ export interface CircuitBreakerConfig {
 // ================================================
 
 enum CircuitState {
-  CLOSED = 'closed',     // Normal operation
-  OPEN = 'open',         // Failing fast
-  HALF_OPEN = 'half_open' // Testing recovery
+  CLOSED = "closed", // Normal operation
+  OPEN = "open", // Failing fast
+  HALF_OPEN = "half_open", // Testing recovery
 }
 
 interface CircuitBreakerMetrics {
@@ -51,7 +55,7 @@ class CircuitBreaker {
     failureCount: 0,
     successCount: 0,
   };
-  private nextAttemptTime: number = 0;
+  private nextAttemptTime = 0;
 
   constructor(
     private readonly name: string,
@@ -62,9 +66,10 @@ class CircuitBreaker {
     if (this.state === CircuitState.OPEN) {
       if (Date.now() < this.nextAttemptTime) {
         throw new AppError({
-          code: 'CIRCUIT_BREAKER_OPEN',
+          code: "CIRCUIT_BREAKER_OPEN",
           message: `Circuit breaker ${this.name} is open`,
-          userMessage: 'This service is temporarily unavailable. Please try again later.',
+          userMessage:
+            "This service is temporarily unavailable. Please try again later.",
           category: ErrorCategory.EXTERNAL_SERVICE,
           severity: ErrorSeverity.HIGH,
           retryable: true,
@@ -72,7 +77,7 @@ class CircuitBreaker {
           statusCode: 503,
         });
       }
-      
+
       // Transition to half-open for testing
       this.state = CircuitState.HALF_OPEN;
     }
@@ -166,8 +171,12 @@ export class RetryManager {
     circuitBreakerName?: string,
     circuitBreakerConfig?: CircuitBreakerConfig
   ): Promise<T> {
-    const wrappedOperation = circuitBreakerName 
-      ? this.wrapWithCircuitBreaker(operation, circuitBreakerName, circuitBreakerConfig)
+    const wrappedOperation = circuitBreakerName
+      ? this.wrapWithCircuitBreaker(
+          operation,
+          circuitBreakerName,
+          circuitBreakerConfig
+        )
       : operation;
 
     return this.retryWithBackoff(wrappedOperation, config);
@@ -179,7 +188,7 @@ export class RetryManager {
     config?: CircuitBreakerConfig
   ): () => Promise<T> {
     let circuitBreaker = this.circuitBreakers.get(name);
-    
+
     if (!circuitBreaker) {
       const defaultConfig: CircuitBreakerConfig = {
         failureThreshold: 0.5, // 50% failure rate
@@ -187,7 +196,7 @@ export class RetryManager {
         monitoringWindow: 60000, // 1 minute
         minimumCalls: 10,
       };
-      
+
       circuitBreaker = new CircuitBreaker(name, config || defaultConfig);
       this.circuitBreakers.set(name, circuitBreaker);
     }
@@ -219,12 +228,12 @@ export class RetryManager {
         }
 
         // Calculate delay with jitter
-        const actualDelay = config.jitter 
+        const actualDelay = config.jitter
           ? delay + Math.random() * delay * 0.1 // Add up to 10% jitter
           : delay;
 
         await this.sleep(Math.min(actualDelay, config.maxDelay));
-        
+
         // Increase delay for next attempt
         delay *= config.backoffMultiplier;
       }
@@ -240,9 +249,15 @@ export class RetryManager {
   /**
    * Get circuit breaker status for monitoring
    */
-  getCircuitBreakerStatus(): Record<string, CircuitBreakerMetrics & { state: CircuitState }> {
-    const status: Record<string, CircuitBreakerMetrics & { state: CircuitState }> = {};
-    
+  getCircuitBreakerStatus(): Record<
+    string,
+    CircuitBreakerMetrics & { state: CircuitState }
+  > {
+    const status: Record<
+      string,
+      CircuitBreakerMetrics & { state: CircuitState }
+    > = {};
+
     for (const [name, breaker] of this.circuitBreakers.entries()) {
       status[name] = breaker.getMetrics();
     }
@@ -282,13 +297,15 @@ export const DEFAULT_RETRY_CONFIGS: Record<string, RetryConfig> = {
     maxDelay: 5000,
     backoffMultiplier: 2,
     jitter: true,
-    retryCondition: (error) => {
+    retryCondition: error => {
       // Retry on connection errors, timeouts, but not on constraint violations
       const message = error.message.toLowerCase();
-      return message.includes('connection') || 
-             message.includes('timeout') ||
-             message.includes('network') ||
-             !message.includes('constraint');
+      return (
+        message.includes("connection") ||
+        message.includes("timeout") ||
+        message.includes("network") ||
+        !message.includes("constraint")
+      );
     },
   },
 
@@ -299,16 +316,18 @@ export const DEFAULT_RETRY_CONFIGS: Record<string, RetryConfig> = {
     maxDelay: 30000,
     backoffMultiplier: 2,
     jitter: true,
-    retryCondition: (error) => {
+    retryCondition: error => {
       // Retry on 5xx errors, timeouts, but not on 4xx client errors
       if (error instanceof AppError) {
         return error.details.retryable;
       }
       const message = error.message.toLowerCase();
-      return !message.includes('400') && 
-             !message.includes('401') && 
-             !message.includes('403') && 
-             !message.includes('404');
+      return (
+        !message.includes("400") &&
+        !message.includes("401") &&
+        !message.includes("403") &&
+        !message.includes("404")
+      );
     },
   },
 
@@ -319,11 +338,13 @@ export const DEFAULT_RETRY_CONFIGS: Record<string, RetryConfig> = {
     maxDelay: 2000,
     backoffMultiplier: 2,
     jitter: false,
-    retryCondition: (error) => {
+    retryCondition: error => {
       const message = error.message.toLowerCase();
-      return message.includes('busy') || 
-             message.includes('locked') ||
-             message.includes('temporary');
+      return (
+        message.includes("busy") ||
+        message.includes("locked") ||
+        message.includes("temporary")
+      );
     },
   },
 
@@ -334,7 +355,7 @@ export const DEFAULT_RETRY_CONFIGS: Record<string, RetryConfig> = {
     maxDelay: 60000,
     backoffMultiplier: 3,
     jitter: true,
-    retryCondition: (error) => {
+    retryCondition: error => {
       // Retry on processing errors but not on validation errors
       if (error instanceof AppError) {
         return error.details.category !== ErrorCategory.VALIDATION;
@@ -350,18 +371,23 @@ export const DEFAULT_RETRY_CONFIGS: Record<string, RetryConfig> = {
     maxDelay: 32000,
     backoffMultiplier: 2,
     jitter: true,
-    retryCondition: (error) => {
+    retryCondition: error => {
       const message = error.message.toLowerCase();
       // Retry on rate limits and server errors, not on token limits or invalid requests
-      return message.includes('rate limit') ||
-             message.includes('timeout') ||
-             message.includes('server error') ||
-             (!message.includes('token') && !message.includes('invalid'));
+      return (
+        message.includes("rate limit") ||
+        message.includes("timeout") ||
+        message.includes("server error") ||
+        (!message.includes("token") && !message.includes("invalid"))
+      );
     },
   },
 };
 
-export const DEFAULT_CIRCUIT_BREAKER_CONFIGS: Record<string, CircuitBreakerConfig> = {
+export const DEFAULT_CIRCUIT_BREAKER_CONFIGS: Record<
+  string,
+  CircuitBreakerConfig
+> = {
   // External services
   external_service: {
     failureThreshold: 0.5, // 50% failure rate
@@ -412,12 +438,15 @@ export async function retryDatabaseOperation<T>(
   operation: () => Promise<T>,
   customConfig?: Partial<RetryConfig>
 ): Promise<T> {
-  const config = { ...DEFAULT_RETRY_CONFIGS.database, ...customConfig };
+  const config = {
+    ...DEFAULT_RETRY_CONFIGS["database"],
+    ...customConfig,
+  } as RetryConfig;
   return retryManager.executeWithRetry(
     operation,
     config,
-    'database',
-    DEFAULT_CIRCUIT_BREAKER_CONFIGS.database
+    "database",
+    DEFAULT_CIRCUIT_BREAKER_CONFIGS["database"]
   );
 }
 
@@ -429,12 +458,15 @@ export async function retryExternalAPI<T>(
   operation: () => Promise<T>,
   customConfig?: Partial<RetryConfig>
 ): Promise<T> {
-  const config = { ...DEFAULT_RETRY_CONFIGS.external_api, ...customConfig };
+  const config = {
+    ...DEFAULT_RETRY_CONFIGS["external_api"],
+    ...customConfig,
+  } as RetryConfig;
   return retryManager.executeWithRetry(
     operation,
     config,
     `external_api_${apiName}`,
-    DEFAULT_CIRCUIT_BREAKER_CONFIGS.external_service
+    DEFAULT_CIRCUIT_BREAKER_CONFIGS["external_service"]
   );
 }
 
@@ -445,12 +477,15 @@ export async function retryOpenAICall<T>(
   operation: () => Promise<T>,
   customConfig?: Partial<RetryConfig>
 ): Promise<T> {
-  const config = { ...DEFAULT_RETRY_CONFIGS.openai_api, ...customConfig };
+  const config = {
+    ...DEFAULT_RETRY_CONFIGS["openai_api"],
+    ...customConfig,
+  } as RetryConfig;
   return retryManager.executeWithRetry(
     operation,
     config,
-    'openai_api',
-    DEFAULT_CIRCUIT_BREAKER_CONFIGS.openai_api
+    "openai_api",
+    DEFAULT_CIRCUIT_BREAKER_CONFIGS["openai_api"]
   );
 }
 
@@ -462,12 +497,15 @@ export async function retryAnalyticsProcessing<T>(
   operation: () => Promise<T>,
   customConfig?: Partial<RetryConfig>
 ): Promise<T> {
-  const config = { ...DEFAULT_RETRY_CONFIGS.analytics_processing, ...customConfig };
+  const config = {
+    ...DEFAULT_RETRY_CONFIGS["analytics_processing"],
+    ...customConfig,
+  } as RetryConfig;
   return retryManager.executeWithRetry(
     operation,
     config,
     `analytics_${jobType}`,
-    DEFAULT_CIRCUIT_BREAKER_CONFIGS.analytics_processing
+    DEFAULT_CIRCUIT_BREAKER_CONFIGS["analytics_processing"]
   );
 }
 
@@ -476,7 +514,10 @@ export async function retryAnalyticsProcessing<T>(
 // ================================================
 
 export interface SystemHealthStatus {
-  circuitBreakers: Record<string, CircuitBreakerMetrics & { state: CircuitState }>;
+  circuitBreakers: Record<
+    string,
+    CircuitBreakerMetrics & { state: CircuitState }
+  >;
   healthScore: number; // 0-100
   degradedServices: string[];
   recommendations: string[];
@@ -485,7 +526,7 @@ export interface SystemHealthStatus {
 export function getSystemHealthStatus(): SystemHealthStatus {
   const circuitBreakers = retryManager.getCircuitBreakerStatus();
   const totalBreakers = Object.keys(circuitBreakers).length;
-  
+
   if (totalBreakers === 0) {
     return {
       circuitBreakers,
@@ -495,28 +536,39 @@ export function getSystemHealthStatus(): SystemHealthStatus {
     };
   }
 
-  const openBreakers = Object.entries(circuitBreakers)
-    .filter(([, metrics]) => metrics.state === CircuitState.OPEN);
-  
-  const halfOpenBreakers = Object.entries(circuitBreakers)
-    .filter(([, metrics]) => metrics.state === CircuitState.HALF_OPEN);
+  const openBreakers = Object.entries(circuitBreakers).filter(
+    ([, metrics]) => metrics.state === CircuitState.OPEN
+  );
+
+  const halfOpenBreakers = Object.entries(circuitBreakers).filter(
+    ([, metrics]) => metrics.state === CircuitState.HALF_OPEN
+  );
 
   const degradedServices = [
     ...openBreakers.map(([name]) => name),
     ...halfOpenBreakers.map(([name]) => name),
   ];
 
-  const healthScore = Math.max(0, 100 - (openBreakers.length * 30) - (halfOpenBreakers.length * 15));
+  const healthScore = Math.max(
+    0,
+    100 - openBreakers.length * 30 - halfOpenBreakers.length * 15
+  );
 
   const recommendations: string[] = [];
   if (openBreakers.length > 0) {
-    recommendations.push(`${openBreakers.length} service(s) are currently unavailable. Check external dependencies.`);
+    recommendations.push(
+      `${openBreakers.length} service(s) are currently unavailable. Check external dependencies.`
+    );
   }
   if (halfOpenBreakers.length > 0) {
-    recommendations.push(`${halfOpenBreakers.length} service(s) are recovering. Monitor closely.`);
+    recommendations.push(
+      `${halfOpenBreakers.length} service(s) are recovering. Monitor closely.`
+    );
   }
   if (healthScore < 80) {
-    recommendations.push('System health is degraded. Consider scaling or checking external services.');
+    recommendations.push(
+      "System health is degraded. Consider scaling or checking external services."
+    );
   }
 
   return {

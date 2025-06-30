@@ -17,8 +17,8 @@ export class CompetitiveIntelligenceProcessor
     JobProcessor<CompetitiveIntelligenceJobData, CompetitiveIntelligenceResult>
 {
   private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
+    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+    process.env["SUPABASE_SECRET_KEY"]!
   );
 
   async process(job: Job): Promise<JobResult<CompetitiveIntelligenceResult>> {
@@ -33,9 +33,11 @@ export class CompetitiveIntelligenceProcessor
       const result: CompetitiveIntelligenceResult = {
         marketPosition: Math.floor(Math.random() * 10) + 1,
         competitiveScore: Math.floor(Math.random() * 30) + 70,
+        competitiveGaps: [],
         opportunities: [],
         threats: [],
         strategicRecommendations: [],
+        competitorAnalysis: [],
       };
 
       await this.updateProgress(job.id, 100, "Competitive analysis completed");
