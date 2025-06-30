@@ -9,10 +9,12 @@ import type {
   JobResult,
   ProjectHealthJobData,
   ProjectHealthResult,
-} from '../types';
-import { createClient } from '@supabase/supabase-js';
+} from "../types";
+import { createClient } from "@supabase/supabase-js";
 
-export class ProjectHealthProcessor implements JobProcessor<ProjectHealthJobData, ProjectHealthResult> {
+export class ProjectHealthProcessor
+  implements JobProcessor<ProjectHealthJobData, ProjectHealthResult>
+{
   private supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!
@@ -21,8 +23,12 @@ export class ProjectHealthProcessor implements JobProcessor<ProjectHealthJobData
   async process(job: Job): Promise<JobResult<ProjectHealthResult>> {
     try {
       // Placeholder implementation - will be enhanced in Phase 1B
-      await this.updateProgress(job.id, 50, 'Calculating project health score...');
-      
+      await this.updateProgress(
+        job.id,
+        50,
+        "Calculating project health score..."
+      );
+
       const result: ProjectHealthResult = {
         overallScore: Math.floor(Math.random() * 30) + 70,
         categoryScores: {
@@ -36,7 +42,11 @@ export class ProjectHealthProcessor implements JobProcessor<ProjectHealthJobData
         trendData: [],
       };
 
-      await this.updateProgress(job.id, 100, 'Project health analysis completed');
+      await this.updateProgress(
+        job.id,
+        100,
+        "Project health analysis completed"
+      );
       await this.storeResults(job.data.projectId, job.id, result);
 
       return {
@@ -48,7 +58,10 @@ export class ProjectHealthProcessor implements JobProcessor<ProjectHealthJobData
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Project health analysis failed',
+        error:
+          error instanceof Error
+            ? error.message
+            : "Project health analysis failed",
         retryable: true,
         progress: 0,
       };
@@ -59,18 +72,26 @@ export class ProjectHealthProcessor implements JobProcessor<ProjectHealthJobData
     return !!(data.projectId && data.userId && data.teamId);
   }
 
-  estimateProcessingTime(_data: ProjectHealthJobData): number {
+  estimateProcessingTime(): number {
     return 180; // 3 minutes placeholder
   }
 
-  private async updateProgress(jobId: string, progress: number, message: string): Promise<void> {
-    const { jobQueue } = await import('../queue');
+  private async updateProgress(
+    jobId: string,
+    progress: number,
+    message: string
+  ): Promise<void> {
+    const { jobQueue } = await import("../queue");
     await jobQueue.updateJobProgress(jobId, progress, message);
   }
 
-  private async storeResults(projectId: string, jobId: string, result: ProjectHealthResult): Promise<void> {
+  private async storeResults(
+    projectId: string,
+    jobId: string,
+    result: ProjectHealthResult
+  ): Promise<void> {
     try {
-      await this.supabase.from('project_health_results').insert({
+      await this.supabase.from("project_health_results").insert({
         job_id: jobId,
         project_id: projectId,
         overall_score: result.overallScore,
@@ -80,7 +101,7 @@ export class ProjectHealthProcessor implements JobProcessor<ProjectHealthJobData
         trend_data: result.trendData,
       });
     } catch (error) {
-      console.error('Failed to store project health results:', error);
+      console.error("Failed to store project health results:", error);
       throw error;
     }
   }

@@ -11,11 +11,13 @@ import type {
   PerformanceResult,
   PerformanceRecommendation,
   DevicePerformance,
-} from '../types';
-import { createClient } from '@supabase/supabase-js';
-import { analyticsCache, CacheKeys } from '@/lib/cache/analyticsCache';
+} from "../types";
+import { createClient } from "@supabase/supabase-js";
+import { analyticsCache, CacheKeys } from "@/lib/cache/analyticsCache";
 
-export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAnalysisJobData, PerformanceResult> {
+export class PerformanceAnalysisProcessor
+  implements JobProcessor<PerformanceAnalysisJobData, PerformanceResult>
+{
   private supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!
@@ -23,24 +25,38 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
 
   async process(job: Job): Promise<JobResult<PerformanceResult>> {
     try {
-      const { websiteUrl, pages, locations: _locations, devices } = job.data.params;
+      const { websiteUrl, pages, devices } = job.data.params;
 
-      await this.updateProgress(job.id, 10, 'Starting performance analysis...');
+      await this.updateProgress(job.id, 10, "Starting performance analysis...");
 
       // Step 1: Core Web Vitals analysis
-      await this.updateProgress(job.id, 30, 'Measuring Core Web Vitals...');
+      await this.updateProgress(job.id, 30, "Measuring Core Web Vitals...");
       const coreWebVitals = await this.measureCoreWebVitals(websiteUrl);
 
       // Step 2: Performance metrics collection
-      await this.updateProgress(job.id, 50, 'Collecting performance metrics...');
-      const performanceMetrics = await this.collectPerformanceMetrics(websiteUrl, pages);
+      await this.updateProgress(
+        job.id,
+        50,
+        "Collecting performance metrics..."
+      );
+      const performanceMetrics = await this.collectPerformanceMetrics(
+        websiteUrl,
+        pages
+      );
 
       // Step 3: Device-specific analysis
-      await this.updateProgress(job.id, 70, 'Analyzing device performance...');
-      const deviceComparison = await this.analyzeDevicePerformance(websiteUrl, devices);
+      await this.updateProgress(job.id, 70, "Analyzing device performance...");
+      const deviceComparison = await this.analyzeDevicePerformance(
+        websiteUrl,
+        devices
+      );
 
       // Step 4: Generate recommendations
-      await this.updateProgress(job.id, 85, 'Generating optimization recommendations...');
+      await this.updateProgress(
+        job.id,
+        85,
+        "Generating optimization recommendations..."
+      );
       const recommendations = this.generatePerformanceRecommendations({
         coreWebVitals,
         performanceMetrics,
@@ -48,7 +64,7 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
       });
 
       // Step 5: Calculate overall score
-      await this.updateProgress(job.id, 95, 'Calculating performance score...');
+      await this.updateProgress(job.id, 95, "Calculating performance score...");
       const overallScore = this.calculateOverallScore({
         coreWebVitals,
         performanceMetrics,
@@ -65,24 +81,26 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
       };
 
       // Step 6: Store results
-      await this.updateProgress(job.id, 98, 'Storing performance results...');
+      await this.updateProgress(job.id, 98, "Storing performance results...");
       await this.storeResults(job.data.projectId, job.id, result);
 
-      await this.updateProgress(job.id, 100, 'Performance analysis completed!');
+      await this.updateProgress(job.id, 100, "Performance analysis completed!");
 
       return {
         success: true,
         data: result,
         retryable: false,
         progress: 100,
-        progressMessage: 'Performance analysis completed successfully',
+        progressMessage: "Performance analysis completed successfully",
       };
-
     } catch (error) {
-      console.error('Performance analysis failed:', error);
+      console.error("Performance analysis failed:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error during performance analysis',
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unknown error during performance analysis",
         retryable: true,
         progress: 0,
       };
@@ -102,20 +120,25 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
 
   estimateProcessingTime(data: PerformanceAnalysisJobData): number {
     // Base time: 3 minutes per page per device
-    const baseTime = data.params.pages.length * (data.params.devices?.length || 1) * 180;
-    
+    const baseTime =
+      data.params.pages.length * (data.params.devices?.length || 1) * 180;
+
     // Add time for multiple locations
     const locationMultiplier = data.params.locations?.length || 1;
-    
+
     return Math.max(300, baseTime * locationMultiplier); // Minimum 5 minutes
   }
 
-  private async updateProgress(jobId: string, progress: number, message: string): Promise<void> {
-    const { jobQueue } = await import('../queue');
+  private async updateProgress(
+    jobId: string,
+    progress: number,
+    message: string
+  ): Promise<void> {
+    const { jobQueue } = await import("../queue");
     await jobQueue.updateJobProgress(jobId, progress, message);
   }
 
-  private async measureCoreWebVitals(_url: string): Promise<{
+  private async measureCoreWebVitals(): Promise<{
     lcp: number;
     fid: number;
     cls: number;
@@ -123,18 +146,18 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
     try {
       // In production, this would use Google PageSpeed Insights API
       // For now, we'll simulate realistic Core Web Vitals measurements
-      
+
       // Largest Contentful Paint (LCP) - Good: <2.5s, Needs Improvement: 2.5-4s, Poor: >4s
       const lcp = this.generateRealisticLCP();
-      
+
       // First Input Delay (FID) - Good: <100ms, Needs Improvement: 100-300ms, Poor: >300ms
       const fid = this.generateRealisticFID();
-      
+
       // Cumulative Layout Shift (CLS) - Good: <0.1, Needs Improvement: 0.1-0.25, Poor: >0.25
       const cls = this.generateRealisticCLS();
 
       return { lcp, fid, cls };
-    } catch (_error) {
+    } catch {
       // Fallback values indicating needs improvement
       return { lcp: 3500, fid: 150, cls: 0.15 };
     }
@@ -162,7 +185,7 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
     return Math.random() * 0.25 + 0.25; // Poor range (0.25-0.5)
   }
 
-  private async collectPerformanceMetrics(_url: string, _pages: string[]): Promise<{
+  private async collectPerformanceMetrics(): Promise<{
     speedIndex: number;
     firstContentfulPaint: number;
     totalBlockingTime: number;
@@ -171,7 +194,7 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
     try {
       // In production, this would use real performance testing tools
       // For now, simulate realistic performance metrics
-      
+
       const speedIndex = Math.random() * 3000 + 2000; // 2-5 seconds
       const firstContentfulPaint = Math.random() * 2000 + 1000; // 1-3 seconds
       const totalBlockingTime = Math.random() * 300 + 100; // 100-400ms
@@ -183,7 +206,7 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
         totalBlockingTime,
         timeToInteractive,
       };
-    } catch (_error) {
+    } catch {
       return {
         speedIndex: 4000,
         firstContentfulPaint: 2500,
@@ -195,7 +218,7 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
 
   private async analyzeDevicePerformance(
     url: string,
-    devices: ('desktop' | 'mobile')[]
+    devices: ("desktop" | "mobile")[]
   ): Promise<DevicePerformance[]> {
     const devicePerformance: DevicePerformance[] = [];
 
@@ -203,17 +226,17 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
       try {
         // Simulate device-specific performance analysis
         const baseScore = Math.random() * 40 + 60; // 60-100 range
-        
+
         // Mobile typically performs slightly worse
-        const deviceMultiplier = device === 'mobile' ? 0.85 : 1.0;
+        const deviceMultiplier = device === "mobile" ? 0.85 : 1.0;
         const score = Math.round(baseScore * deviceMultiplier);
 
         const metrics = {
-          speedIndex: device === 'mobile' ? 4500 : 3000,
-          firstContentfulPaint: device === 'mobile' ? 2800 : 1800,
-          largestContentfulPaint: device === 'mobile' ? 4200 : 2800,
-          timeToInteractive: device === 'mobile' ? 6500 : 4500,
-          cumulativeLayoutShift: device === 'mobile' ? 0.12 : 0.08,
+          speedIndex: device === "mobile" ? 4500 : 3000,
+          firstContentfulPaint: device === "mobile" ? 2800 : 1800,
+          largestContentfulPaint: device === "mobile" ? 4200 : 2800,
+          timeToInteractive: device === "mobile" ? 6500 : 4500,
+          cumulativeLayoutShift: device === "mobile" ? 0.12 : 0.08,
         };
 
         devicePerformance.push({
@@ -221,17 +244,17 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
           score,
           metrics,
         });
-      } catch (_error) {
+      } catch {
         // Fallback performance data
         devicePerformance.push({
           device,
           score: 70,
           metrics: {
-            speedIndex: device === 'mobile' ? 5000 : 3500,
-            firstContentfulPaint: device === 'mobile' ? 3000 : 2000,
-            largestContentfulPaint: device === 'mobile' ? 4500 : 3000,
-            timeToInteractive: device === 'mobile' ? 7000 : 5000,
-            cumulativeLayoutShift: device === 'mobile' ? 0.15 : 0.1,
+            speedIndex: device === "mobile" ? 5000 : 3500,
+            firstContentfulPaint: device === "mobile" ? 3000 : 2000,
+            largestContentfulPaint: device === "mobile" ? 4500 : 3000,
+            timeToInteractive: device === "mobile" ? 7000 : 5000,
+            cumulativeLayoutShift: device === "mobile" ? 0.15 : 0.1,
           },
         });
       }
@@ -255,88 +278,113 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
     // LCP recommendations
     if (data.coreWebVitals.lcp > 2500) {
       recommendations.push({
-        type: data.coreWebVitals.lcp > 4000 ? 'critical' : 'important',
-        title: 'Improve Largest Contentful Paint (LCP)',
-        description: 'Your LCP is slower than recommended. Focus on optimizing your largest above-the-fold element.',
+        type: data.coreWebVitals.lcp > 4000 ? "critical" : "important",
+        title: "Improve Largest Contentful Paint (LCP)",
+        description:
+          "Your LCP is slower than recommended. Focus on optimizing your largest above-the-fold element.",
         potentialSavings: { ms: Math.round(data.coreWebVitals.lcp - 2000) },
-        implementation: 'Optimize images, preload critical resources, minimize server response times, and use a CDN.',
+        implementation:
+          "Optimize images, preload critical resources, minimize server response times, and use a CDN.",
       });
     }
 
     // FID recommendations
     if (data.coreWebVitals.fid > 100) {
       recommendations.push({
-        type: data.coreWebVitals.fid > 300 ? 'critical' : 'important',
-        title: 'Reduce First Input Delay (FID)',
-        description: 'Users experience delays when trying to interact with your page.',
+        type: data.coreWebVitals.fid > 300 ? "critical" : "important",
+        title: "Reduce First Input Delay (FID)",
+        description:
+          "Users experience delays when trying to interact with your page.",
         potentialSavings: { ms: Math.round(data.coreWebVitals.fid - 50) },
-        implementation: 'Break up long JavaScript tasks, remove unused JavaScript, use a web worker for heavy tasks.',
+        implementation:
+          "Break up long JavaScript tasks, remove unused JavaScript, use a web worker for heavy tasks.",
       });
     }
 
     // CLS recommendations
     if (data.coreWebVitals.cls > 0.1) {
       recommendations.push({
-        type: data.coreWebVitals.cls > 0.25 ? 'critical' : 'important',
-        title: 'Minimize Cumulative Layout Shift (CLS)',
-        description: 'Elements are shifting during page load, causing poor user experience.',
+        type: data.coreWebVitals.cls > 0.25 ? "critical" : "important",
+        title: "Minimize Cumulative Layout Shift (CLS)",
+        description:
+          "Elements are shifting during page load, causing poor user experience.",
         potentialSavings: {},
-        implementation: 'Set size attributes for images and videos, reserve space for ads, avoid inserting content above existing content.',
+        implementation:
+          "Set size attributes for images and videos, reserve space for ads, avoid inserting content above existing content.",
       });
     }
 
     // Speed Index recommendations
     if (data.performanceMetrics.speedIndex > 3400) {
       recommendations.push({
-        type: 'important',
-        title: 'Improve Speed Index',
-        description: 'The page content is not appearing quickly enough.',
-        potentialSavings: { ms: Math.round(data.performanceMetrics.speedIndex - 3000) },
-        implementation: 'Optimize critical rendering path, inline critical CSS, defer non-critical JavaScript.',
+        type: "important",
+        title: "Improve Speed Index",
+        description: "The page content is not appearing quickly enough.",
+        potentialSavings: {
+          ms: Math.round(data.performanceMetrics.speedIndex - 3000),
+        },
+        implementation:
+          "Optimize critical rendering path, inline critical CSS, defer non-critical JavaScript.",
       });
     }
 
     // First Contentful Paint recommendations
     if (data.performanceMetrics.firstContentfulPaint > 1800) {
       recommendations.push({
-        type: 'optimization',
-        title: 'Reduce First Contentful Paint',
-        description: 'Users are waiting too long to see the first content.',
-        potentialSavings: { ms: Math.round(data.performanceMetrics.firstContentfulPaint - 1500) },
-        implementation: 'Minimize server response time, eliminate render-blocking resources, optimize fonts.',
+        type: "optimization",
+        title: "Reduce First Contentful Paint",
+        description: "Users are waiting too long to see the first content.",
+        potentialSavings: {
+          ms: Math.round(data.performanceMetrics.firstContentfulPaint - 1500),
+        },
+        implementation:
+          "Minimize server response time, eliminate render-blocking resources, optimize fonts.",
       });
     }
 
     // Mobile-specific recommendations
-    const mobilePerformance = data.deviceComparison.find(d => d.device === 'mobile');
-    const desktopPerformance = data.deviceComparison.find(d => d.device === 'desktop');
-    
-    if (mobilePerformance && desktopPerformance && mobilePerformance.score < desktopPerformance.score - 15) {
+    const mobilePerformance = data.deviceComparison.find(
+      d => d.device === "mobile"
+    );
+    const desktopPerformance = data.deviceComparison.find(
+      d => d.device === "desktop"
+    );
+
+    if (
+      mobilePerformance &&
+      desktopPerformance &&
+      mobilePerformance.score < desktopPerformance.score - 15
+    ) {
       recommendations.push({
-        type: 'important',
-        title: 'Optimize Mobile Performance',
-        description: 'Mobile performance is significantly worse than desktop.',
+        type: "important",
+        title: "Optimize Mobile Performance",
+        description: "Mobile performance is significantly worse than desktop.",
         potentialSavings: {},
-        implementation: 'Implement responsive images, optimize for mobile networks, prioritize mobile-first design.',
+        implementation:
+          "Implement responsive images, optimize for mobile networks, prioritize mobile-first design.",
       });
     }
 
     // Resource optimization recommendations
     recommendations.push({
-      type: 'optimization',
-      title: 'Optimize Resource Loading',
-      description: 'Improve loading efficiency with better resource management.',
+      type: "optimization",
+      title: "Optimize Resource Loading",
+      description:
+        "Improve loading efficiency with better resource management.",
       potentialSavings: { bytes: 500000 },
-      implementation: 'Compress images, minify CSS/JS, enable Gzip compression, implement lazy loading.',
+      implementation:
+        "Compress images, minify CSS/JS, enable Gzip compression, implement lazy loading.",
     });
 
     // Caching recommendations
     recommendations.push({
-      type: 'optimization',
-      title: 'Implement Effective Caching',
-      description: 'Leverage browser caching to improve repeat visit performance.',
+      type: "optimization",
+      title: "Implement Effective Caching",
+      description:
+        "Leverage browser caching to improve repeat visit performance.",
       potentialSavings: { ms: 1000 },
-      implementation: 'Set proper cache headers, use a CDN, implement service worker for offline caching.',
+      implementation:
+        "Set proper cache headers, use a CDN, implement service worker for offline caching.",
     });
 
     return recommendations.slice(0, 8); // Return top 8 recommendations
@@ -356,7 +404,7 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
 
     // Core Web Vitals scoring (60% weight)
     const { lcp, fid, cls } = data.coreWebVitals;
-    
+
     // LCP scoring (25% weight)
     if (lcp > 4000) score -= 25;
     else if (lcp > 2500) score -= 15;
@@ -387,9 +435,13 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
     return Math.max(0, Math.round(score));
   }
 
-  private async storeResults(projectId: string, jobId: string, result: PerformanceResult): Promise<void> {
+  private async storeResults(
+    projectId: string,
+    jobId: string,
+    result: PerformanceResult
+  ): Promise<void> {
     try {
-      await this.supabase.from('performance_analysis_results').insert({
+      await this.supabase.from("performance_analysis_results").insert({
         job_id: jobId,
         project_id: projectId,
         overall_score: result.overallScore,
@@ -406,15 +458,14 @@ export class PerformanceAnalysisProcessor implements JobProcessor<PerformanceAna
           savings: r.potentialSavings,
         })),
         pages_tested: 1,
-        test_locations: ['default'],
+        test_locations: ["default"],
       });
 
       // Invalidate cache for this project's performance analysis and complete analytics
       analyticsCache.invalidate(projectId, CacheKeys.PERFORMANCE);
-      analyticsCache.invalidate(projectId, 'complete-analytics');
-      
+      analyticsCache.invalidate(projectId, "complete-analytics");
     } catch (error) {
-      console.error('Failed to store performance analysis results:', error);
+      console.error("Failed to store performance analysis results:", error);
       throw error;
     }
   }

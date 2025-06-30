@@ -9,10 +9,13 @@ import type {
   JobResult,
   IndustryBenchmarkingJobData,
   IndustryBenchmarkingResult,
-} from '../types';
-import { createClient } from '@supabase/supabase-js';
+} from "../types";
+import { createClient } from "@supabase/supabase-js";
 
-export class IndustryBenchmarkingProcessor implements JobProcessor<IndustryBenchmarkingJobData, IndustryBenchmarkingResult> {
+export class IndustryBenchmarkingProcessor
+  implements
+    JobProcessor<IndustryBenchmarkingJobData, IndustryBenchmarkingResult>
+{
   private supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!
@@ -21,8 +24,12 @@ export class IndustryBenchmarkingProcessor implements JobProcessor<IndustryBench
   async process(job: Job): Promise<JobResult<IndustryBenchmarkingResult>> {
     try {
       // Placeholder implementation - will be enhanced in Phase 1B
-      await this.updateProgress(job.id, 50, 'Processing industry benchmarks...');
-      
+      await this.updateProgress(
+        job.id,
+        50,
+        "Processing industry benchmarks..."
+      );
+
       const result: IndustryBenchmarkingResult = {
         industryPercentile: Math.floor(Math.random() * 40) + 60,
         performanceRank: Math.floor(Math.random() * 20) + 1,
@@ -30,7 +37,7 @@ export class IndustryBenchmarkingProcessor implements JobProcessor<IndustryBench
         industryTrends: [],
       };
 
-      await this.updateProgress(job.id, 100, 'Industry benchmarking completed');
+      await this.updateProgress(job.id, 100, "Industry benchmarking completed");
       await this.storeResults(job.data.projectId, job.id, result);
 
       return {
@@ -42,7 +49,10 @@ export class IndustryBenchmarkingProcessor implements JobProcessor<IndustryBench
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Industry benchmarking failed',
+        error:
+          error instanceof Error
+            ? error.message
+            : "Industry benchmarking failed",
         retryable: true,
         progress: 0,
       };
@@ -53,18 +63,26 @@ export class IndustryBenchmarkingProcessor implements JobProcessor<IndustryBench
     return !!(data.projectId && data.userId && data.teamId);
   }
 
-  estimateProcessingTime(_data: IndustryBenchmarkingJobData): number {
+  estimateProcessingTime(): number {
     return 240; // 4 minutes placeholder
   }
 
-  private async updateProgress(jobId: string, progress: number, message: string): Promise<void> {
-    const { jobQueue } = await import('../queue');
+  private async updateProgress(
+    jobId: string,
+    progress: number,
+    message: string
+  ): Promise<void> {
+    const { jobQueue } = await import("../queue");
     await jobQueue.updateJobProgress(jobId, progress, message);
   }
 
-  private async storeResults(projectId: string, jobId: string, result: IndustryBenchmarkingResult): Promise<void> {
+  private async storeResults(
+    projectId: string,
+    jobId: string,
+    result: IndustryBenchmarkingResult
+  ): Promise<void> {
     try {
-      await this.supabase.from('industry_benchmark_results').insert({
+      await this.supabase.from("industry_benchmark_results").insert({
         job_id: jobId,
         project_id: projectId,
         industry_percentile: result.industryPercentile,
@@ -73,7 +91,7 @@ export class IndustryBenchmarkingProcessor implements JobProcessor<IndustryBench
         industry_trends: result.industryTrends,
       });
     } catch (error) {
-      console.error('Failed to store industry benchmark results:', error);
+      console.error("Failed to store industry benchmark results:", error);
       throw error;
     }
   }

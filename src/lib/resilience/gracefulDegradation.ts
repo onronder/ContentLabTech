@@ -4,8 +4,12 @@
  * Implements intelligent fallback mechanisms and user experience preservation
  */
 
-import { analyticsCache, CacheKeys } from '@/lib/cache/analyticsCache';
-import { AppError, createGracefulResponse, ErrorCategory } from '@/lib/errors/errorHandling';
+import { analyticsCache, CacheKeys } from "@/lib/cache/analyticsCache";
+import {
+  AppError,
+  createGracefulResponse,
+  ErrorCategory,
+} from "@/lib/errors/errorHandling";
 
 // ================================================
 // Fallback Data Types
@@ -22,7 +26,7 @@ interface FallbackAnalytics {
       type: string;
       title: string;
       description: string;
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
     }>;
     lastUpdated: string;
     fallback: true;
@@ -83,32 +87,44 @@ const DEGRADATION_STRATEGIES: Record<string, DegradationStrategy> = {
     useCache: true,
     usePlaceholder: false,
     useEstimation: false,
-    userMessage: 'Using cached data while we restore database connectivity.',
-    limitations: ['Data may be up to 24 hours old', 'New analysis requests are queued'],
+    userMessage: "Using cached data while we restore database connectivity.",
+    limitations: [
+      "Data may be up to 24 hours old",
+      "New analysis requests are queued",
+    ],
   },
-  
+
   external_api_failure: {
     useCache: true,
     usePlaceholder: true,
     useEstimation: true,
-    userMessage: 'External services are temporarily unavailable. Showing cached and estimated data.',
-    limitations: ['Some features may be limited', 'Fresh analysis temporarily unavailable'],
+    userMessage:
+      "External services are temporarily unavailable. Showing cached and estimated data.",
+    limitations: [
+      "Some features may be limited",
+      "Fresh analysis temporarily unavailable",
+    ],
   },
-  
+
   processing_overload: {
     useCache: true,
     usePlaceholder: false,
     useEstimation: true,
-    userMessage: 'High system load detected. Prioritizing existing data and estimates.',
-    limitations: ['New analysis may be delayed', 'Some real-time features limited'],
+    userMessage:
+      "High system load detected. Prioritizing existing data and estimates.",
+    limitations: [
+      "New analysis may be delayed",
+      "Some real-time features limited",
+    ],
   },
-  
+
   partial_service_failure: {
     useCache: true,
     usePlaceholder: true,
     useEstimation: false,
-    userMessage: 'Some services are experiencing issues. Showing available data.',
-    limitations: ['Limited functionality', 'Some metrics may be unavailable'],
+    userMessage:
+      "Some services are experiencing issues. Showing available data.",
+    limitations: ["Limited functionality", "Some metrics may be unavailable"],
   },
 };
 
@@ -126,13 +142,19 @@ class FallbackDataGenerator {
     strategy: DegradationStrategy = DEGRADATION_STRATEGIES.external_api_failure
   ): FallbackAnalytics {
     const fallbackData: FallbackAnalytics = {};
-    
+
     // Try to get cached data first
     if (strategy.useCache) {
-      const cachedContent = analyticsCache.get(projectId, CacheKeys.CONTENT_ANALYSIS);
+      const cachedContent = analyticsCache.get(
+        projectId,
+        CacheKeys.CONTENT_ANALYSIS
+      );
       const cachedSEO = analyticsCache.get(projectId, CacheKeys.SEO_HEALTH);
-      const cachedPerformance = analyticsCache.get(projectId, CacheKeys.PERFORMANCE);
-      
+      const cachedPerformance = analyticsCache.get(
+        projectId,
+        CacheKeys.PERFORMANCE
+      );
+
       if (cachedContent) {
         fallbackData.contentAnalysis = { ...cachedContent, fallback: true };
       }
@@ -143,7 +165,7 @@ class FallbackDataGenerator {
         fallbackData.performance = { ...cachedPerformance, fallback: true };
       }
     }
-    
+
     // Generate placeholder data if needed
     if (strategy.usePlaceholder) {
       if (!fallbackData.contentAnalysis && availableData?.contentAnalysis) {
@@ -156,12 +178,12 @@ class FallbackDataGenerator {
         fallbackData.performance = this.generatePerformanceFallback();
       }
     }
-    
+
     // Use estimation if enabled
     if (strategy.useEstimation) {
       this.addEstimatedMetrics(fallbackData);
     }
-    
+
     return fallbackData;
   }
 
@@ -174,16 +196,18 @@ class FallbackDataGenerator {
       semanticRelevance: 70,
       recommendations: [
         {
-          type: 'content',
-          title: 'Improve Content Depth',
-          description: 'Add more comprehensive information to improve content value.',
-          priority: 'medium' as const,
+          type: "content",
+          title: "Improve Content Depth",
+          description:
+            "Add more comprehensive information to improve content value.",
+          priority: "medium" as const,
         },
         {
-          type: 'seo',
-          title: 'Optimize Technical SEO',
-          description: 'Review technical SEO implementation for better search visibility.',
-          priority: 'high' as const,
+          type: "seo",
+          title: "Optimize Technical SEO",
+          description:
+            "Review technical SEO implementation for better search visibility.",
+          priority: "high" as const,
         },
       ],
       lastUpdated: new Date().toISOString(),
@@ -200,21 +224,23 @@ class FallbackDataGenerator {
       mobile: 70,
       criticalIssues: [
         {
-          type: 'technical',
-          severity: 'medium',
-          title: 'Page Speed Optimization',
-          description: 'Page loading speed could be improved for better user experience.',
+          type: "technical",
+          severity: "medium",
+          title: "Page Speed Optimization",
+          description:
+            "Page loading speed could be improved for better user experience.",
         },
       ],
       recommendations: [
         {
-          title: 'Optimize Meta Descriptions',
-          description: 'Add compelling meta descriptions to improve click-through rates.',
+          title: "Optimize Meta Descriptions",
+          description:
+            "Add compelling meta descriptions to improve click-through rates.",
           impact: 85,
         },
         {
-          title: 'Improve Mobile Experience',
-          description: 'Enhance mobile usability and responsive design.',
+          title: "Improve Mobile Experience",
+          description: "Enhance mobile usability and responsive design.",
           impact: 78,
         },
       ],
@@ -235,14 +261,15 @@ class FallbackDataGenerator {
       firstContentfulPaint: 2200,
       recommendations: [
         {
-          type: 'optimization',
-          title: 'Optimize Images',
-          description: 'Compress and optimize images to improve loading times.',
+          type: "optimization",
+          title: "Optimize Images",
+          description: "Compress and optimize images to improve loading times.",
         },
         {
-          type: 'caching',
-          title: 'Implement Browser Caching',
-          description: 'Set up proper caching headers to improve repeat visit performance.',
+          type: "caching",
+          title: "Implement Browser Caching",
+          description:
+            "Set up proper caching headers to improve repeat visit performance.",
         },
       ],
       lastUpdated: new Date().toISOString(),
@@ -254,17 +281,19 @@ class FallbackDataGenerator {
     // Add estimated improvements and projections based on available data
     if (fallbackData.contentAnalysis) {
       fallbackData.contentAnalysis.recommendations.push({
-        type: 'estimation',
-        title: 'Estimated Improvement Potential',
-        description: 'Based on similar projects, implementing our recommendations could improve your score by 15-25%.',
-        priority: 'medium',
+        type: "estimation",
+        title: "Estimated Improvement Potential",
+        description:
+          "Based on similar projects, implementing our recommendations could improve your score by 15-25%.",
+        priority: "medium",
       });
     }
-    
+
     if (fallbackData.seoHealth) {
       fallbackData.seoHealth.recommendations.push({
-        title: 'Projected SEO Impact',
-        description: 'Addressing critical issues could improve search rankings within 2-4 weeks.',
+        title: "Projected SEO Impact",
+        description:
+          "Addressing critical issues could improve search rankings within 2-4 weeks.",
         impact: 90,
       });
     }
@@ -297,7 +326,7 @@ export class GracefulDegradationManager {
       availableData,
       strategy
     );
-    
+
     return {
       data: fallbackData,
       strategy,
@@ -308,7 +337,7 @@ export class GracefulDegradationManager {
   /**
    * Handle job queue failures
    */
-  handleJobQueueFailure(_error: AppError): {
+  handleJobQueueFailure(): {
     message: string;
     alternativeActions: Array<{
       title: string;
@@ -317,22 +346,24 @@ export class GracefulDegradationManager {
     }>;
   } {
     return {
-      message: 'Analysis queue is temporarily unavailable. Your request has been saved and will be processed when service is restored.',
+      message:
+        "Analysis queue is temporarily unavailable. Your request has been saved and will be processed when service is restored.",
       alternativeActions: [
         {
-          title: 'View Cached Results',
-          description: 'Access previously analyzed data while we restore service',
-          action: 'view_cache',
+          title: "View Cached Results",
+          description:
+            "Access previously analyzed data while we restore service",
+          action: "view_cache",
         },
         {
-          title: 'Download Report',
-          description: 'Export existing analysis results for offline viewing',
-          action: 'download_report',
+          title: "Download Report",
+          description: "Export existing analysis results for offline viewing",
+          action: "download_report",
         },
         {
-          title: 'Get Notified',
-          description: 'Receive an email when your analysis is complete',
-          action: 'enable_notifications',
+          title: "Get Notified",
+          description: "Receive an email when your analysis is complete",
+          action: "enable_notifications",
         },
       ],
     };
@@ -341,10 +372,7 @@ export class GracefulDegradationManager {
   /**
    * Handle dashboard loading failures
    */
-  handleDashboardFailure(
-    _projectId: string,
-    _error: AppError
-  ): {
+  handleDashboardFailure(): {
     limitedModeData: Record<string, unknown>;
     userGuidance: {
       title: string;
@@ -357,37 +385,38 @@ export class GracefulDegradationManager {
     };
   } {
     const limitedModeData = {
-      status: 'limited_mode',
-      message: 'Dashboard is running in limited mode due to service issues.',
+      status: "limited_mode",
+      message: "Dashboard is running in limited mode due to service issues.",
       availableFeatures: [
-        'View cached analytics',
-        'Access project settings',
-        'Export existing reports',
+        "View cached analytics",
+        "Access project settings",
+        "Export existing reports",
       ],
       unavailableFeatures: [
-        'Real-time data updates',
-        'New analysis requests',
-        'Live collaboration features',
+        "Real-time data updates",
+        "New analysis requests",
+        "Live collaboration features",
       ],
     };
 
     const userGuidance = {
-      title: 'Limited Mode Active',
-      description: 'Some features are temporarily unavailable. You can still access your most important data and settings.',
+      title: "Limited Mode Active",
+      description:
+        "Some features are temporarily unavailable. You can still access your most important data and settings.",
       actions: [
         {
-          title: 'Refresh Page',
-          description: 'Try refreshing to restore full functionality',
+          title: "Refresh Page",
+          description: "Try refreshing to restore full functionality",
         },
         {
-          title: 'Check System Status',
-          description: 'View current system status and estimated recovery time',
-          url: '/status',
+          title: "Check System Status",
+          description: "View current system status and estimated recovery time",
+          url: "/status",
         },
         {
-          title: 'Contact Support',
-          description: 'Get assistance from our technical team',
-          url: '/support',
+          title: "Contact Support",
+          description: "Get assistance from our technical team",
+          url: "/support",
         },
       ],
     };
@@ -399,13 +428,13 @@ export class GracefulDegradationManager {
     switch (error.details.category) {
       case ErrorCategory.DATABASE:
         return DEGRADATION_STRATEGIES.database_unavailable;
-      
+
       case ErrorCategory.EXTERNAL_SERVICE:
         return DEGRADATION_STRATEGIES.external_api_failure;
-      
+
       case ErrorCategory.PROCESSING:
         return DEGRADATION_STRATEGIES.processing_overload;
-      
+
       default:
         return DEGRADATION_STRATEGIES.partial_service_failure;
     }
@@ -422,28 +451,36 @@ export class GracefulDegradationManager {
    * Get overall system health for degradation decisions
    */
   getSystemHealth(): {
-    overall: 'healthy' | 'degraded' | 'critical';
+    overall: "healthy" | "degraded" | "critical";
     services: Record<string, boolean>;
     recommendations: string[];
   } {
     const services = Object.fromEntries(this.serviceStatus);
     const totalServices = this.serviceStatus.size;
-    const healthyServices = Array.from(this.serviceStatus.values()).filter(Boolean).length;
-    
-    let overall: 'healthy' | 'degraded' | 'critical';
+    const healthyServices = Array.from(this.serviceStatus.values()).filter(
+      Boolean
+    ).length;
+
+    let overall: "healthy" | "degraded" | "critical";
     const recommendations: string[] = [];
-    
+
     if (totalServices === 0 || healthyServices === totalServices) {
-      overall = 'healthy';
+      overall = "healthy";
     } else if (healthyServices / totalServices >= 0.7) {
-      overall = 'degraded';
-      recommendations.push('Some services are experiencing issues. Limited functionality may be available.');
+      overall = "degraded";
+      recommendations.push(
+        "Some services are experiencing issues. Limited functionality may be available."
+      );
     } else {
-      overall = 'critical';
-      recommendations.push('Multiple services are down. System is running in emergency mode.');
-      recommendations.push('Consider using cached data and postponing non-critical operations.');
+      overall = "critical";
+      recommendations.push(
+        "Multiple services are down. System is running in emergency mode."
+      );
+      recommendations.push(
+        "Consider using cached data and postponing non-critical operations."
+      );
     }
-    
+
     return { overall, services, recommendations };
   }
 }
@@ -470,11 +507,14 @@ export async function withGracefulDegradation<T>(
     return await operation();
   } catch (error) {
     console.warn(`${context.operationType} failed, using fallback:`, error);
-    
+
     if (error instanceof AppError) {
-      gracefulDegradationManager.updateServiceStatus(context.operationType, false);
+      gracefulDegradationManager.updateServiceStatus(
+        context.operationType,
+        false
+      );
     }
-    
+
     return await fallbackOperation();
   }
 }
@@ -489,6 +529,8 @@ export function createFallbackResponse(
 ) {
   return createGracefulResponse(error, {
     fallbackData,
-    userMessage: userMessage || 'Using cached or limited data due to service unavailability.',
+    userMessage:
+      userMessage ||
+      "Using cached or limited data due to service unavailability.",
   });
 }

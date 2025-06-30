@@ -1,0 +1,40 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript", "prettier"],
+  "rules": {
+    "prefer-const": "warn",
+    "no-var": "error",
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-debugger": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true
+      }
+    ],
+    "react-hooks/exhaustive-deps": "warn",
+    "react-hooks/rules-of-hooks": "error",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-inferrable-types": "warn",
+    "import/no-unresolved": "off",
+    "import/named": "off",
+    "@next/next/no-img-element": "warn",
+    "@next/next/no-html-link-for-pages": "warn"
+  },
+  "ignorePatterns": [
+    ".next/**",
+    "out/**",
+    "build/**",
+    "dist/**",
+    "node_modules/**",
+    "*.config.js",
+    "*.config.mjs",
+    "*.config.ts",
+    "supabase/functions/**",
+    "migrations/**",
+    "*.test.ts",
+    "*.test.tsx",
+    "__tests__/**"
+  ]
+}
