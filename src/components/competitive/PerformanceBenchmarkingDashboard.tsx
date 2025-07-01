@@ -33,28 +33,18 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
   RadarChart,
   Radar,
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
-  ScatterChart,
-  Scatter,
 } from "recharts";
 import {
-  Zap,
   Smartphone,
   Monitor,
-  TrendingUp,
-  TrendingDown,
   AlertTriangle,
   CheckCircle,
   Clock,
-  Activity,
   Eye,
   Target,
   Gauge,
@@ -66,11 +56,7 @@ import {
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
 import type {
-  CompetitiveAnalysisResult,
   CompetitivePerformanceAnalysis,
-  MetricComparison,
-  CoreWebVitalsComparison,
-  PerformanceOpportunity,
 } from "@/lib/competitive/types";
 
 interface PerformanceBenchmarkingDashboardProps {
@@ -524,7 +510,7 @@ export const PerformanceBenchmarkingDashboard: React.FC<
               <CardHeader>
                 <CardTitle>Core Web Vitals Analysis</CardTitle>
                 <CardDescription>
-                  Google's Core Web Vitals performance metrics comparison
+                  Google&apos;s Core Web Vitals performance metrics comparison
                 </CardDescription>
               </CardHeader>
               <CardContent>

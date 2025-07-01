@@ -102,24 +102,24 @@ export default function VirtualScrollDemoPage() {
   const mockCompetitors = useMemo(() => generateMockCompetitors(competitorCount), [competitorCount]);
   const mockAlerts = useMemo(() => generateMockAlerts(alertCount), [alertCount]);
 
-  const handleCompetitorSelect = (competitor: any) => {
-    console.log("Selected competitor:", competitor);
+  const handleCompetitorSelect = (_competitor: unknown) => {
+    // Handle competitor selection
   };
 
-  const handleCompetitorAction = (competitor: any, action: string) => {
-    console.log("Competitor action:", action, competitor);
+  const handleCompetitorAction = (_competitor: unknown, _action: string) => {
+    // Handle competitor action
   };
 
-  const handleAlertSelect = (alert: any) => {
-    console.log("Selected alert:", alert);
+  const handleAlertSelect = (_alert: unknown) => {
+    // Handle alert selection
   };
 
-  const handleAlertAction = (alert: any, action: string) => {
-    console.log("Alert action:", action, alert);
+  const handleAlertAction = (_alert: unknown, _action: string) => {
+    // Handle alert action
   };
 
-  const handleBulkAlertAction = (alertIds: string[], action: string) => {
-    console.log("Bulk alert action:", action, alertIds);
+  const handleBulkAlertAction = (_alertIds: string[], _action: string) => {
+    // Handle bulk alert action
   };
 
   return (

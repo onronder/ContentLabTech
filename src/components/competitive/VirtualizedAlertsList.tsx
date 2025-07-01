@@ -32,7 +32,6 @@ import {
   CheckCircle,
   X,
   Eye,
-  Filter,
   TrendingUp,
   Zap,
   Shield,
@@ -114,7 +113,7 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("timestamp");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [_sortDirection, _setSortDirection] = useState<"asc" | "desc">("desc");
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
@@ -134,7 +133,7 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
 
     // Sort alerts
     filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
+      let aValue: string | number, bValue: string | number;
 
       switch (sortBy) {
         case "title":
@@ -213,7 +212,7 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
   };
 
   // Render individual alert item
-  const renderAlertItem = useCallback((alert: AlertData, index: number) => {
+  const renderAlertItem = useCallback((alert: AlertData, _index: number) => {
     const TypeIcon = ALERT_TYPE_ICONS[alert.type] || Bell;
     const isSelected = selectedAlerts.has(alert.id);
     

@@ -135,7 +135,7 @@ export class CompetitiveWebSocketService {
         this.ws = new WebSocket(wsUrl.toString());
 
         this.ws.onopen = () => {
-          console.log('🔗 Connected to competitive intelligence WebSocket');
+          console.warn('🔗 Connected to competitive intelligence WebSocket');
           this.reconnectAttempts = 0;
           this.isReconnecting = false;
           this.startHeartbeat();
@@ -153,7 +153,7 @@ export class CompetitiveWebSocketService {
         };
 
         this.ws.onclose = (event) => {
-          console.log('🔌 WebSocket connection closed:', event.code, event.reason);
+          console.warn('🔌 WebSocket connection closed:', event.code, event.reason);
           this.cleanup();
           this.handlers.onDisconnect?.();
 
@@ -361,7 +361,7 @@ export class CompetitiveWebSocketService {
     
     const delay = this.config.reconnectInterval! * Math.pow(2, this.reconnectAttempts - 1);
     
-    console.log(`🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    console.warn(`🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
     
     this.reconnectTimer = setTimeout(async () => {
       try {

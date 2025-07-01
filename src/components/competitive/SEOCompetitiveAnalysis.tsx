@@ -35,49 +35,30 @@ import {
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ScatterChart,
-  Scatter,
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
+  Tooltip,
+  ResponsiveContainer,
 } from "recharts";
 import {
   Search,
-  TrendingUp,
-  TrendingDown,
   Target,
-  Zap,
   Eye,
   AlertTriangle,
   CheckCircle,
   XCircle,
-  BarChart3,
   Download,
-  Filter,
   RefreshCw,
-  Star,
   ArrowUp,
   ArrowDown,
   Minus,
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
 import type {
-  CompetitiveAnalysisResult,
   KeywordGap,
   CompetitiveKeyword,
-  TechnicalSEOComparison,
-  SEOComparison,
 } from "@/lib/competitive/types";
 
 interface SEOCompetitiveAnalysisProps {
@@ -114,7 +95,6 @@ const COLORS = {
   info: "#6366f1",
 };
 
-const SEO_METRICS_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
 
 export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
   projectId,
@@ -524,7 +504,7 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
               <CardHeader>
                 <CardTitle>Keyword Gap Analysis</CardTitle>
                 <CardDescription>
-                  Keywords your competitor ranks for but you don't
+                  Keywords your competitor ranks for but you don&apos;t
                 </CardDescription>
               </CardHeader>
               <CardContent>

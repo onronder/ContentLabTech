@@ -14,7 +14,7 @@ const brightDataConfigSchema = z.object({
 });
 
 // Request/Response schemas
-const scrapeRequestSchema = z.object({
+const _scrapeRequestSchema = z.object({
   url: z.string().url(),
   type: z.enum(["content", "seo", "performance", "social"]),
   options: z.object({
@@ -281,7 +281,7 @@ export class BrightDataService {
   /**
    * Get competitor content trends and patterns
    */
-  async getContentTrends(domain: string, timeframe: "7d" | "30d" | "90d"): Promise<{
+  async getContentTrends(domain: string, _timeframe: "7d" | "30d" | "90d"): Promise<{
     success: boolean;
     data?: {
       publishingFrequency: {

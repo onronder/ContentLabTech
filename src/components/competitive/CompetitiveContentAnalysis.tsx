@@ -35,7 +35,6 @@ import {
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart,
   Bar,
@@ -44,50 +43,23 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  TreeMap,
 } from "recharts";
 import {
   FileText,
   Brain,
   Target,
-  TrendingUp,
-  TrendingDown,
-  Users,
-  Eye,
-  Share2,
-  MessageSquare,
-  BookOpen,
-  Lightbulb,
   AlertTriangle,
   CheckCircle,
-  Search,
-  Filter,
   Download,
   RefreshCw,
   Star,
-  Clock,
-  Tag,
-  BarChart3,
-  PieChart as PieChartIcon,
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
 import type {
-  CompetitiveAnalysisResult,
   CompetitiveContentAnalysis,
-  TopicGap,
-  Topic,
-  ContentQualityComparison,
-  ContentVolumeAnalysis,
-  GapRecommendation,
 } from "@/lib/competitive/types";
 
 interface CompetitiveContentAnalysisProps {
@@ -134,7 +106,7 @@ export const CompetitiveContentAnalysis: React.FC<
   const [topicFilter, setTopicFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("opportunityScore");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [_sortOrder, _setSortOrder] = useState<"asc" | "desc">("desc");
   const [refreshing, setRefreshing] = useState(false);
 
   // Get content analysis data for selected competitor

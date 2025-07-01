@@ -119,7 +119,7 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
 
     // Sort competitors
     filtered.sort((a, b) => {
-      let aValue: any, bValue: any;
+      let aValue: string | number, bValue: string | number;
 
       switch (sortBy) {
         case "name":
@@ -169,7 +169,7 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
   }, [competitors, searchTerm, categoryFilter, priorityFilter, sortBy, sortDirection]);
 
   // Get change indicator icon
-  const getChangeIcon = (indicator: string, value: number) => {
+  const getChangeIcon = (indicator: string, _value: number) => {
     if (indicator === "up") return <TrendingUp className="h-4 w-4 text-green-600" />;
     if (indicator === "down") return <TrendingDown className="h-4 w-4 text-red-600" />;
     return <Minus className="h-4 w-4 text-gray-400" />;
@@ -197,7 +197,7 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
   };
 
   // Handle sort change
-  const handleSort = (field: string) => {
+  const _handleSort = (field: string) => {
     if (sortBy === field) {
       setSortDirection(prev => prev === "asc" ? "desc" : "asc");
     } else {
@@ -207,7 +207,7 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
   };
 
   // Render individual competitor item
-  const renderCompetitorItem = useCallback((competitor: CompetitorData, index: number) => {
+  const renderCompetitorItem = useCallback((competitor: CompetitorData, _index: number) => {
     const totalAlerts = getTotalAlerts(competitor.alerts);
     
     return (

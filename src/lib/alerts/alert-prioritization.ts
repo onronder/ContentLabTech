@@ -515,7 +515,7 @@ export class AlertPrioritizationEngine {
    */
   private createAlertCluster(
     alerts: PrioritizedAlert[],
-    timeWindowHours: number
+    _timeWindowHours: number
   ): AlertCluster {
     const category = this.determineClusterCategory(alerts);
     const aggregatedPriority = this.calculateAggregatedPriority(alerts);

@@ -29,7 +29,6 @@ import { retryExternalAPI } from "@/lib/resilience/retryMechanism";
 import { 
   integrationCoordinator, 
   type CompetitiveDataRequest,
-  type CompetitiveDataResponse 
 } from "@/lib/external-apis/integration-coordinator";
 
 export class CompetitiveAnalysisProcessor

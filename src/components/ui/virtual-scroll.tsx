@@ -126,7 +126,7 @@ export function VirtualScroll<T>({
   }, [itemHeight, containerHeight, totalHeight]);
 
   // Scroll to specific item
-  const scrollToItem = useCallback((item: T, align: 'start' | 'center' | 'end' = 'start') => {
+  const _scrollToItem = useCallback((item: T, align: 'start' | 'center' | 'end' = 'start') => {
     const index = items.indexOf(item);
     if (index !== -1) {
       scrollToIndex(index, align);
