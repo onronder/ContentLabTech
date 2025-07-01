@@ -245,7 +245,7 @@ export const AuthForm = ({
               Full Name *
             </Label>
             <div className="group relative">
-              <User className="text-muted-foreground group-focus-within:text-brand-blue absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform transition-colors" />
+              <User className="text-muted-foreground group-focus-within:text-brand-blue pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2 transform transition-colors" />
               <Input
                 id="fullName"
                 type="text"
@@ -253,7 +253,7 @@ export const AuthForm = ({
                 value={formData.fullName}
                 onChange={e => handleInputChange("fullName", e.target.value)}
                 placeholder="Enter your full name"
-                className={`h-12 border-2 pl-10 transition-all duration-200 ${
+                className={`relative z-20 h-12 border-2 pl-10 transition-all duration-200 ${
                   fieldValidation["fullName"]?.isValid === false
                     ? "border-error-500 focus:border-error-500"
                     : formData.fullName && fieldValidation["fullName"]?.isValid
@@ -263,7 +263,7 @@ export const AuthForm = ({
                 disabled={loading || formLoading}
               />
               {formData.fullName && fieldValidation["fullName"]?.isValid && (
-                <Check className="text-success-500 absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 transform" />
+                <Check className="text-success-500 pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 transform" />
               )}
             </div>
             {fieldValidation["fullName"]?.errors.map((error, index) => (
@@ -283,7 +283,7 @@ export const AuthForm = ({
             Email Address *
           </Label>
           <div className="group relative">
-            <Mail className="text-muted-foreground group-focus-within:text-brand-blue absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform transition-colors" />
+            <Mail className="text-muted-foreground group-focus-within:text-brand-blue pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2 transform transition-colors" />
             <Input
               id="email"
               type="email"
@@ -291,7 +291,7 @@ export const AuthForm = ({
               value={formData.email}
               onChange={e => handleInputChange("email", e.target.value)}
               placeholder="Enter your email address"
-              className={`h-12 border-2 pl-10 transition-all duration-200 ${
+              className={`relative z-20 h-12 border-2 pl-10 transition-all duration-200 ${
                 fieldValidation["email"]?.isValid === false
                   ? "border-error-500 focus:border-error-500"
                   : formData.email && fieldValidation["email"]?.isValid
@@ -301,7 +301,7 @@ export const AuthForm = ({
               disabled={loading}
             />
             {formData.email && fieldValidation["email"]?.isValid && (
-              <Check className="text-success-500 absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 transform" />
+              <Check className="text-success-500 pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 transform" />
             )}
           </div>
           {fieldValidation["email"]?.errors.map((error, index) => (
@@ -317,7 +317,7 @@ export const AuthForm = ({
             Password *
           </Label>
           <div className="group relative">
-            <Lock className="text-muted-foreground group-focus-within:text-brand-blue absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform transition-colors" />
+            <Lock className="text-muted-foreground group-focus-within:text-brand-blue pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2 transform transition-colors" />
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
@@ -339,8 +339,9 @@ export const AuthForm = ({
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 transform transition-colors"
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 z-30 -translate-y-1/2 transform transition-colors"
               disabled={loading}
+              style={{ pointerEvents: "auto" }}
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />
@@ -389,7 +390,7 @@ export const AuthForm = ({
               Confirm Password *
             </Label>
             <div className="group relative">
-              <Lock className="text-muted-foreground group-focus-within:text-brand-blue absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform transition-colors" />
+              <Lock className="text-muted-foreground group-focus-within:text-brand-blue pointer-events-none absolute top-1/2 left-3 z-10 h-4 w-4 -translate-y-1/2 transform transition-colors" />
               <Input
                 id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
@@ -412,8 +413,9 @@ export const AuthForm = ({
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 -translate-y-1/2 transform transition-colors"
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 z-30 -translate-y-1/2 transform transition-colors"
                 disabled={loading || formLoading}
+                style={{ pointerEvents: "auto" }}
               >
                 {showConfirmPassword ? (
                   <EyeOff className="h-4 w-4" />

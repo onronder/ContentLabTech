@@ -1,0 +1,61 @@
+/**
+ * Browser-specific fixes for compatibility issues
+ * Focuses on Opera and other browser-specific problems
+ */
+
+/* Opera-specific input fixes */
+@media all and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: 0.001dpcm) {
+  /* This targets Opera specifically */
+  input[data-slot="input"] {
+    position: relative !important;
+    z-index: 20 !important;
+    pointer-events: auto !important;
+  }
+
+  input[data-slot="input"]:disabled {
+    pointer-events: none !important;
+  }
+
+  /* Ensure proper layering for form elements */
+  .group {
+    isolation: isolate;
+  }
+
+  /* Fix focus-visible fallback for Opera */
+  input[data-slot="input"]:focus {
+    outline: 2px solid rgb(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+/* General browser compatibility for form inputs */
+input[data-slot="input"] {
+  /* Ensure proper clickable area */
+  min-height: 44px; /* Touch-friendly minimum */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  /* Fix for potential layering issues */
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure icons don't interfere with input clicks */
+.group svg {
+  pointer-events: none !important;
+}
+
+/* Ensure buttons within input groups work properly */
+.group button {
+  pointer-events: auto !important;
+  z-index: 30;
+  position: relative;
+}
+
+/* Opera-specific button fixes */
+@supports (-webkit-appearance: none) {
+  button[type="button"] {
+    -webkit-appearance: none;
+    cursor: pointer;
+  }
+}
