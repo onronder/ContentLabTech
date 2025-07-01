@@ -26,6 +26,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
+import { CompetitivePositioningMatrix } from "./CompetitivePositioningMatrix";
+import { MarketOpportunityHeatMap } from "./MarketOpportunityHeatMap";
+import { ThreatAssessmentRadar } from "./ThreatAssessmentRadar";
 import {
   Eye,
   AlertTriangle,
@@ -35,7 +38,6 @@ import {
   BarChart3,
   Shield,
   Activity,
-  Clock,
   Zap,
   Award,
   Brain,
@@ -479,92 +481,22 @@ export const CompetitiveExecutiveDashboard: React.FC<
         </TabsContent>
 
         <TabsContent value="positioning">
-          <Card>
-            <CardHeader>
-              <CardTitle>Market Positioning Analysis</CardTitle>
-              <CardDescription>
-                Detailed competitive positioning and market share analysis
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-muted-foreground py-8 text-center">
-                Advanced positioning matrix visualization will be implemented in
-                Phase 2
-              </div>
-            </CardContent>
-          </Card>
+          <CompetitivePositioningMatrix 
+            analysisResults={data?.analysisResults || []}
+          />
         </TabsContent>
 
         <TabsContent value="threats">
-          <Card>
-            <CardHeader>
-              <CardTitle>Threat Assessment</CardTitle>
-              <CardDescription>
-                Critical competitive threats and alert management
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {data?.alerts.length ? (
-                  data.alerts.slice(0, 5).map(alert => (
-                    <div key={alert.id} className="rounded-lg border p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <Badge
-                              variant={
-                                alert.severity === "critical"
-                                  ? "destructive"
-                                  : alert.severity === "high"
-                                    ? "destructive"
-                                    : alert.severity === "medium"
-                                      ? "default"
-                                      : "secondary"
-                              }
-                            >
-                              {alert.severity}
-                            </Badge>
-                            <span className="text-sm font-medium">
-                              {alert.type}
-                            </span>
-                          </div>
-                          <h4 className="font-semibold">{alert.title}</h4>
-                          <p className="text-muted-foreground text-sm">
-                            {alert.description}
-                          </p>
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          <Clock className="mr-1 inline h-3 w-3" />
-                          {new Date(alert.timestamp).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-muted-foreground py-8 text-center">
-                    No active threats detected
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <ThreatAssessmentRadar 
+            analysisResults={data?.analysisResults || []}
+            alerts={data?.alerts || []}
+          />
         </TabsContent>
 
         <TabsContent value="opportunities">
-          <Card>
-            <CardHeader>
-              <CardTitle>Market Opportunities</CardTitle>
-              <CardDescription>
-                Strategic opportunities for competitive advantage
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-muted-foreground py-8 text-center">
-                Opportunity heat map and prioritization matrix will be
-                implemented in Phase 2
-              </div>
-            </CardContent>
-          </Card>
+          <MarketOpportunityHeatMap 
+            analysisResults={data?.analysisResults || []}
+          />
         </TabsContent>
       </Tabs>
     </div>

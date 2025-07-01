@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { CompetitiveExecutiveDashboard } from "@/components/competitive/CompetitiveExecutiveDashboard";
 import { CompetitiveAnalyticsCharts } from "@/components/competitive/CompetitiveAnalyticsCharts";
 import { CompetitorManagement } from "@/components/competitive/CompetitorManagement";
+import { CompetitiveMonitoringDashboard } from "@/components/competitive/CompetitiveMonitoringDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -71,20 +72,9 @@ export default function CompetitivePage() {
           </TabsContent>
 
           <TabsContent value="monitoring" className="space-y-6">
-            <div>
-              <h2 className="mb-4 text-2xl font-bold">Real-time Monitoring</h2>
-              <p className="text-muted-foreground mb-6">
-                Live competitive monitoring and alert management
-              </p>
-              <Card>
-                <CardContent className="py-8">
-                  <div className="text-muted-foreground text-center">
-                    Real-time monitoring capabilities will be implemented in
-                    Phase 3
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <Suspense fallback={<DashboardSkeleton />}>
+              <CompetitiveMonitoringDashboard projectId={projectId} />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </Suspense>

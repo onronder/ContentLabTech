@@ -26,6 +26,11 @@ import type {
 import { createClient } from "@supabase/supabase-js";
 import { analyticsCache } from "@/lib/cache/analyticsCache";
 import { retryExternalAPI } from "@/lib/resilience/retryMechanism";
+import { 
+  integrationCoordinator, 
+  type CompetitiveDataRequest,
+  type CompetitiveDataResponse 
+} from "@/lib/external-apis/integration-coordinator";
 
 export class CompetitiveAnalysisProcessor
   implements JobProcessor<CompetitiveAnalysisJobData, CompetitiveAnalysisResult>
@@ -53,95 +58,157 @@ export class CompetitiveAnalysisProcessor
         "Loading competitor information..."
       );
       const competitors = await this.loadCompetitorData(competitorIds);
+      const competitorDomains = competitors.map(c => c.domain);
 
-      // Step 2: Process each analysis type
-      const analysisData: CompetitiveAnalysisData = {};
-      let progress = 15;
-      const progressIncrement = 70 / analysisTypes.length;
+      // Step 2: Use integration coordinator for real API-based analysis
+      await this.updateProgress(
+        job.id,
+        20,
+        "Performing comprehensive competitive analysis with external APIs..."
+      );
 
-      for (const analysisType of analysisTypes) {
+      // Map analysis types to integration coordinator format
+      const mappedAnalysisTypes = analysisTypes.map(type => {
+        switch (type) {
+          case "content-similarity":
+            return "content" as const;
+          case "seo-comparison":
+            return "seo" as const;
+          case "performance-benchmark":
+            return "performance" as const;
+          case "comprehensive":
+            return "comprehensive" as const;
+          default:
+            return "content" as const;
+        }
+      });
+
+      // Create request for integration coordinator
+      const competitiveRequest: CompetitiveDataRequest = {
+        targetDomain,
+        competitorDomains,
+        analysisTypes: mappedAnalysisTypes,
+        options: {
+          depth: options.depth,
+          includeHistorical: options.includeHistorical,
+          timeframe: "30d", // Default timeframe
+          keywords: options.customParameters?.keywords as string[] || undefined,
+          locations: options.customParameters?.locations as string[] || undefined,
+        },
+      };
+
+      // Perform analysis using integration coordinator
+      const competitiveResponse = await integrationCoordinator.performCompetitiveAnalysis(competitiveRequest);
+
+      let analysisData: CompetitiveAnalysisData = {};
+
+      if (competitiveResponse.success && competitiveResponse.data) {
+        // Use real data from external APIs
+        analysisData = competitiveResponse.data;
+        
         await this.updateProgress(
           job.id,
-          progress,
-          `Processing ${analysisType} analysis...`
+          80,
+          "External API analysis completed successfully. Processing results..."
+        );
+      } else {
+        // Fallback to simulated data if external APIs fail
+        console.warn("External API analysis failed, falling back to simulated data:", competitiveResponse.error);
+        
+        await this.updateProgress(
+          job.id,
+          30,
+          "External APIs unavailable, generating simulated analysis data..."
         );
 
-        switch (analysisType) {
-          case "content-similarity":
-            analysisData.contentAnalysis = await this.performContentAnalysis(
-              targetDomain,
-              competitors,
-              options
-            );
-            break;
+        // Fallback to original simulated analysis
+        let progress = 35;
+        const progressIncrement = 45 / analysisTypes.length;
 
-          case "seo-comparison":
-            analysisData.seoAnalysis = await this.performSEOAnalysis(
-              targetDomain,
-              competitors,
-              options
-            );
-            break;
+        for (const analysisType of analysisTypes) {
+          await this.updateProgress(
+            job.id,
+            progress,
+            `Processing ${analysisType} analysis (simulated)...`
+          );
 
-          case "performance-benchmark":
-            analysisData.performanceAnalysis =
-              await this.performPerformanceAnalysis(
+          switch (analysisType) {
+            case "content-similarity":
+              analysisData.contentAnalysis = await this.performContentAnalysisSimulated(
                 targetDomain,
                 competitors,
                 options
               );
-            break;
+              break;
 
-          case "market-position":
-            analysisData.marketPosition =
-              await this.performMarketPositionAnalysis(
+            case "seo-comparison":
+              analysisData.seoAnalysis = await this.performSEOAnalysisSimulated(
                 targetDomain,
                 competitors,
                 options
               );
-            break;
+              break;
 
-          case "content-gaps":
-            analysisData.contentGaps = await this.performContentGapAnalysis(
-              targetDomain,
-              competitors,
-              options
-            );
-            break;
+            case "performance-benchmark":
+              analysisData.performanceAnalysis =
+                await this.performPerformanceAnalysisSimulated(
+                  targetDomain,
+                  competitors,
+                  options
+                );
+              break;
 
-          case "comprehensive":
-            // Perform all analyses
-            analysisData.contentAnalysis = await this.performContentAnalysis(
-              targetDomain,
-              competitors,
-              options
-            );
-            analysisData.seoAnalysis = await this.performSEOAnalysis(
-              targetDomain,
-              competitors,
-              options
-            );
-            analysisData.performanceAnalysis =
-              await this.performPerformanceAnalysis(
+            case "market-position":
+              analysisData.marketPosition =
+                await this.performMarketPositionAnalysisSimulated(
+                  targetDomain,
+                  competitors,
+                  options
+                );
+              break;
+
+            case "content-gaps":
+              analysisData.contentGaps = await this.performContentGapAnalysisSimulated(
                 targetDomain,
                 competitors,
                 options
               );
-            analysisData.marketPosition =
-              await this.performMarketPositionAnalysis(
+              break;
+
+            case "comprehensive":
+              // Perform all analyses
+              analysisData.contentAnalysis = await this.performContentAnalysisSimulated(
                 targetDomain,
                 competitors,
                 options
               );
-            analysisData.contentGaps = await this.performContentGapAnalysis(
-              targetDomain,
-              competitors,
-              options
-            );
-            break;
+              analysisData.seoAnalysis = await this.performSEOAnalysisSimulated(
+                targetDomain,
+                competitors,
+                options
+              );
+              analysisData.performanceAnalysis =
+                await this.performPerformanceAnalysisSimulated(
+                  targetDomain,
+                  competitors,
+                  options
+                );
+              analysisData.marketPosition =
+                await this.performMarketPositionAnalysisSimulated(
+                  targetDomain,
+                  competitors,
+                  options
+                );
+              analysisData.contentGaps = await this.performContentGapAnalysisSimulated(
+                targetDomain,
+                competitors,
+                options
+              );
+              break;
+          }
+
+          progress += progressIncrement;
         }
-
-        progress += progressIncrement;
       }
 
       // Step 3: Generate alerts and recommendations
@@ -159,10 +226,20 @@ export class CompetitiveAnalysisProcessor
 
       // Step 4: Calculate confidence scores
       await this.updateProgress(job.id, 90, "Calculating confidence scores...");
-      const confidence = this.calculateConfidenceScore(analysisData, options);
+      const confidence = this.calculateConfidenceScore(
+        analysisData, 
+        options, 
+        competitiveResponse.success,
+        competitiveResponse.metadata
+      );
 
       // Step 5: Generate metadata
-      const metadata = this.generateAnalysisMetadata(analysisTypes, options);
+      const metadata = this.generateAnalysisMetadata(
+        analysisTypes, 
+        options, 
+        competitiveResponse.success,
+        competitiveResponse.metadata
+      );
 
       // Step 6: Create comprehensive result
       const result: CompetitiveAnalysisResult = {
@@ -285,7 +362,7 @@ export class CompetitiveAnalysisProcessor
     }
   }
 
-  private async performContentAnalysis(
+  private async performContentAnalysisSimulated(
     _targetDomain: string,
     _competitors: Competitor[],
     _options: CompetitiveAnalysisJobData["params"]["options"]
@@ -538,7 +615,7 @@ export class CompetitiveAnalysisProcessor
     });
   }
 
-  private async performSEOAnalysis(
+  private async performSEOAnalysisSimulated(
     _targetDomain: string,
     _competitors: Competitor[],
     _options: CompetitiveAnalysisJobData["params"]["options"]
@@ -878,7 +955,7 @@ export class CompetitiveAnalysisProcessor
     });
   }
 
-  private async performPerformanceAnalysis(
+  private async performPerformanceAnalysisSimulated(
     _targetDomain: string,
     _competitors: Competitor[],
     _options: CompetitiveAnalysisJobData["params"]["options"]
@@ -1023,7 +1100,7 @@ export class CompetitiveAnalysisProcessor
     });
   }
 
-  private async performMarketPositionAnalysis(
+  private async performMarketPositionAnalysisSimulated(
     _targetDomain: string,
     _competitors: Competitor[],
     _options: CompetitiveAnalysisJobData["params"]["options"]
@@ -1213,7 +1290,7 @@ export class CompetitiveAnalysisProcessor
     });
   }
 
-  private async performContentGapAnalysis(
+  private async performContentGapAnalysisSimulated(
     _targetDomain: string,
     _competitors: Competitor[],
     _options: CompetitiveAnalysisJobData["params"]["options"]
@@ -1550,7 +1627,9 @@ export class CompetitiveAnalysisProcessor
 
   private calculateConfidenceScore(
     analysisData: CompetitiveAnalysisData,
-    options: CompetitiveAnalysisJobData["params"]["options"]
+    options: CompetitiveAnalysisJobData["params"]["options"],
+    usedExternalAPIs: boolean = false,
+    apiMetadata?: { dataSourcesUsed: string[]; confidence: number; limitations: string[] }
   ): ConfidenceScore {
     let overall = 75; // Base confidence
     let dataQuality = 80;
@@ -1558,6 +1637,29 @@ export class CompetitiveAnalysisProcessor
     let recency = 90; // Fresh analysis
     let sourceReliability = 75;
     let analysisAccuracy = 80;
+
+    // Major boost if we used external APIs
+    if (usedExternalAPIs && apiMetadata) {
+      overall = Math.max(overall, apiMetadata.confidence);
+      dataQuality += 20; // Real data is much higher quality
+      sourceReliability += 15; // External APIs are more reliable
+      analysisAccuracy += 20; // Real data provides better accuracy
+      sampleSize += 20; // External APIs provide larger datasets
+      
+      // Further boost based on number of successful data sources
+      const dataSourceBonus = Math.min(apiMetadata.dataSourcesUsed.length * 5, 15);
+      overall += dataSourceBonus;
+      
+      // Penalty for limitations
+      const limitationPenalty = Math.min(apiMetadata.limitations.length * 3, 15);
+      overall -= limitationPenalty;
+    } else {
+      // Penalty for using simulated data
+      overall -= 25;
+      dataQuality -= 30;
+      sourceReliability -= 20;
+      analysisAccuracy -= 25;
+    }
 
     // Adjust based on analysis depth
     if (options.depth === "comprehensive") {
@@ -1597,48 +1699,89 @@ export class CompetitiveAnalysisProcessor
 
   private generateAnalysisMetadata(
     analysisTypes: string[],
-    options: CompetitiveAnalysisJobData["params"]["options"]
+    options: CompetitiveAnalysisJobData["params"]["options"],
+    usedExternalAPIs: boolean = false,
+    apiMetadata?: { dataSourcesUsed: string[]; processingTime: number; limitations: string[] }
   ): AnalysisMetadata {
+    const baseDataSources = [
+      {
+        source: "Internal Analytics",
+        type: "api" as const,
+        lastUpdate: new Date(),
+        coverage: 95,
+        reliability: 90,
+      },
+    ];
+
+    let dataSourceInfo = baseDataSources;
+    let limitations = [
+      "Historical data limited to last 12 months",
+      "Real-time competitive monitoring requires separate monitoring jobs",
+    ];
+    let executionTime = Math.random() * 30000 + 15000; // 15-45 seconds
+
+    if (usedExternalAPIs && apiMetadata) {
+      // Add external API data sources
+      if (apiMetadata.dataSourcesUsed.includes("BrightData")) {
+        dataSourceInfo.push({
+          source: "BrightData Web Scraping",
+          type: "third-party" as const,
+          lastUpdate: new Date(),
+          coverage: 90,
+          reliability: 88,
+        });
+      }
+
+      if (apiMetadata.dataSourcesUsed.includes("SERP API")) {
+        dataSourceInfo.push({
+          source: "SERP API Search Data",
+          type: "third-party" as const,
+          lastUpdate: new Date(),
+          coverage: 95,
+          reliability: 92,
+        });
+      }
+
+      if (apiMetadata.dataSourcesUsed.includes("Google Analytics")) {
+        dataSourceInfo.push({
+          source: "Google Analytics",
+          type: "third-party" as const,
+          lastUpdate: new Date(),
+          coverage: 85,
+          reliability: 95,
+        });
+      }
+
+      executionTime = apiMetadata.processingTime;
+      limitations = [...limitations, ...apiMetadata.limitations];
+    } else {
+      // Add simulated data source info
+      dataSourceInfo.push({
+        source: "Simulated Data (External APIs Unavailable)",
+        type: "manual" as const,
+        lastUpdate: new Date(),
+        coverage: 60,
+        reliability: 70,
+      });
+      limitations.push("Analysis based on simulated data due to external API unavailability");
+    }
+
     return {
-      version: "1.0.0",
-      algorithm: "competitive-analysis-v1",
+      version: "2.0.0", // Updated version to reflect external API integration
+      algorithm: usedExternalAPIs ? "competitive-analysis-external-v2" : "competitive-analysis-simulated-v1",
       parameters: {
         analysisTypes,
         depth: options.depth,
         includeHistorical: options.includeHistorical,
         alertsEnabled: options.alertsEnabled,
         customParameters: options.customParameters || {},
+        externalAPIsUsed: usedExternalAPIs,
+        dataSourcesUsed: apiMetadata?.dataSourcesUsed || [],
       },
-      executionTime: Math.random() * 30000 + 15000, // 15-45 seconds
-      dataSourceInfo: [
-        {
-          source: "Internal Analytics",
-          type: "api",
-          lastUpdate: new Date(),
-          coverage: 95,
-          reliability: 90,
-        },
-        {
-          source: "Competitor Analysis APIs",
-          type: "third-party",
-          lastUpdate: new Date(),
-          coverage: 80,
-          reliability: 85,
-        },
-        {
-          source: "SEO Tools",
-          type: "third-party",
-          lastUpdate: new Date(),
-          coverage: 85,
-          reliability: 80,
-        },
-      ],
-      limitations: [
-        "Some competitor data may be estimated based on available public information",
-        "Historical data limited to last 12 months",
-        "Real-time competitive monitoring requires separate monitoring jobs",
-      ],
-      notes: `Comprehensive competitive analysis performed with ${options.depth} depth level`,
+      executionTime,
+      dataSourceInfo,
+      limitations,
+      notes: `${usedExternalAPIs ? 'Live external API' : 'Simulated'} competitive analysis performed with ${options.depth} depth level`,
     };
   }
 
