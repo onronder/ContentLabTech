@@ -56,6 +56,7 @@ import {
   Download,
   RefreshCw,
   Star,
+  BookOpen,
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
 import type {
@@ -163,7 +164,7 @@ export const CompetitiveContentAnalysis: React.FC<
     });
 
     return processedData;
-  }, [contentAnalysis, topicFilter, priorityFilter, sortBy, sortOrder]);
+  }, [contentAnalysis, topicFilter, priorityFilter, sortBy]);
 
   // Process content quality metrics
   const contentQualityMetrics = useMemo((): ContentMetric[] => {

@@ -57,8 +57,8 @@ import {
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
 import type {
-  KeywordGap,
-  CompetitiveKeyword,
+  KeywordGap as _KeywordGap,
+  CompetitiveKeyword as _CompetitiveKeyword,
 } from "@/lib/competitive/types";
 
 interface SEOCompetitiveAnalysisProps {

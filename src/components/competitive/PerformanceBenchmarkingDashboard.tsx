@@ -56,7 +56,7 @@ import {
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
 import type {
-  CompetitivePerformanceAnalysis,
+  CompetitivePerformanceAnalysis as _CompetitivePerformanceAnalysis,
 } from "@/lib/competitive/types";
 
 interface PerformanceBenchmarkingDashboardProps {

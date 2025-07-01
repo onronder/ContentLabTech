@@ -113,13 +113,13 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("timestamp");
-  const [_sortDirection, _setSortDirection] = useState<"asc" | "desc">("desc");
+  const [sortDirection, _setSortDirection] = useState<"asc" | "desc">("desc");
   const [selectedAlerts, setSelectedAlerts] = useState<Set<string>>(new Set());
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
   // Filter and sort alerts
   const filteredAndSortedAlerts = useMemo(() => {
-    let filtered = alerts.filter(alert => {
+    const filtered = alerts.filter(alert => {
       const matchesSearch = alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            alert.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            alert.competitor.name.toLowerCase().includes(searchTerm.toLowerCase());
