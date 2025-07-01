@@ -1,8 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Remove any custom asset prefix to use Next.js defaults
-  // assetPrefix: undefined,
+  // Ensure proper asset handling for Vercel
+  trailingSlash: false,
 
   // Image optimization
   images: {
@@ -10,10 +10,7 @@ const nextConfig: NextConfig = {
     unoptimized: false,
   },
 
-  // Static file serving
-  trailingSlash: false,
-
-  // Headers for proper MIME types
+  // Headers for proper MIME types and caching
   async headers() {
     return [
       {
@@ -25,27 +22,50 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/_next/static/css/(.*)",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "text/css; charset=utf-8",
+          },
+        ],
+      },
+      {
+        source: "/_next/static/js/(.*)",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+        ],
+      },
     ];
   },
 
   // Experimental features for better performance
   experimental: {
-    optimizeCss: false,
+    optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
   },
 
   // External packages for server components
   serverExternalPackages: ["sharp"],
 
-  // Webpack configuration to ensure proper asset bundling
+  // Webpack configuration for proper bundling
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
+        net: false,
+        tls: false,
       };
     }
     return config;
   },
+
+  // Use default Next.js behavior for output
+  // output: undefined, // Removed to fix TypeScript strict mode
 };
 
 export default nextConfig;
