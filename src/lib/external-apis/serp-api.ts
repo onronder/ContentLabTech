@@ -128,9 +128,9 @@ type RankingAnalysis = z.infer<typeof rankingAnalysisSchema>;
 export class SerpApiService {
   private config: z.infer<typeof serpApiConfigSchema>;
   private requestQueue: Array<{
-    resolve: (value: any) => void;
-    reject: (reason?: any) => void;
-    request: () => Promise<any>;
+    resolve: (value: unknown) => void;
+    reject: (reason?: unknown) => void;
+    request: () => Promise<unknown>;
   }> = [];
   private isProcessingQueue = false;
   private readonly maxConcurrentRequests = 5;
@@ -603,7 +603,11 @@ export class SerpApiService {
 
   private async enqueueRequest<T>(request: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.requestQueue.push({ resolve, reject, request });
+      this.requestQueue.push({
+        resolve: resolve as (value: unknown) => void,
+        reject,
+        request: request as () => Promise<unknown>,
+      });
       this.processQueue();
     });
   }

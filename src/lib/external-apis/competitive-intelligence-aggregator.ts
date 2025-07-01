@@ -8,6 +8,7 @@ import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { brightDataService } from "./brightdata";
 import { serpApiService } from "./serp-api";
+import { brightDataSerpService } from "./brightdata-serp";
 import { googleAnalyticsService } from "./google-analytics";
 
 // Add stealth plugin to avoid detection
@@ -290,6 +291,13 @@ export class CompetitiveIntelligenceAggregator {
         if (seoData) {
           data.seoAnalysis = seoData;
           sources.push("SEO Analysis Engine");
+        }
+
+        // Enhanced SERP ranking analysis using BrightData proxy
+        const serpRankingData = await this.analyzeSerpRankings(domain, options);
+        if (serpRankingData) {
+          data.serpRankings = serpRankingData;
+          sources.push("BrightData SERP Intelligence");
         }
       }
 
@@ -806,6 +814,185 @@ export class CompetitiveIntelligenceAggregator {
         console.error("Error closing browser:", error);
       }
     }
+  }
+
+  /**
+   * Enhanced SERP ranking analysis using BrightData proxy
+   */
+  private async analyzeSerpRankings(
+    domain: string,
+    options: any
+  ): Promise<any> {
+    try {
+      // Define target keywords for competitive analysis
+      const targetKeywords = options.targetKeywords || [
+        `${domain.replace(".com", "")} features`,
+        `${domain.replace(".com", "")} pricing`,
+        `${domain.replace(".com", "")} reviews`,
+        `${domain.replace(".com", "")} vs competitors`,
+        `${domain.replace(".com", "")} alternative`,
+      ];
+
+      // Get competitor domains from options or use common competitors
+      const competitors = options.competitors || [
+        "hubspot.com",
+        "salesforce.com",
+        "marketo.com",
+        "mailchimp.com",
+        "constantcontact.com",
+      ];
+
+      console.log(
+        `🔍 Analyzing SERP rankings for ${domain} with ${targetKeywords.length} keywords`
+      );
+
+      // Use BrightData SERP service for comprehensive ranking analysis
+      const rankingAnalysis =
+        await brightDataSerpService.analyzeCompetitorRankings({
+          domain,
+          keywords: targetKeywords,
+          competitors,
+          location: options.location || "United States",
+          device: options.device || "desktop",
+          includePaid: true,
+          includeLocal: false,
+        });
+
+      if (!rankingAnalysis.success) {
+        console.warn(
+          `SERP ranking analysis failed for ${domain}:`,
+          rankingAnalysis.error
+        );
+        return null;
+      }
+
+      // Enhanced analysis with visibility scoring
+      const data = rankingAnalysis.data;
+      if (!data) return null;
+
+      // Calculate additional metrics
+      const keywordDifficulty = this.calculateKeywordDifficulty(data.rankings);
+      const competitiveGaps = this.identifyCompetitiveGaps(
+        data.rankings,
+        competitors
+      );
+      const opportunityScore = this.calculateOpportunityScore(
+        data.summary,
+        data.rankings
+      );
+
+      return {
+        ...data,
+        enhancedMetrics: {
+          keywordDifficulty,
+          competitiveGaps,
+          opportunityScore,
+          visibility: {
+            organic:
+              (data.summary.ranking_keywords / data.summary.total_keywords) *
+              100,
+            competitive: data.summary.competitive_visibility,
+            growth_potential: (100 - data.summary.competitive_visibility) * 0.7,
+          },
+          positioning: {
+            average_position: data.summary.avg_position,
+            top_3_count: data.rankings.filter(
+              r => r.position && r.position <= 3
+            ).length,
+            top_10_count: data.summary.top_10_rankings,
+            featured_snippets: data.summary.featured_snippets,
+          },
+        },
+        lastUpdated: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error(`SERP ranking analysis failed for ${domain}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Calculate keyword difficulty based on competitor presence
+   */
+  private calculateKeywordDifficulty(rankings: any[]): number {
+    const difficulties = rankings.map(ranking => {
+      const competitorCount = ranking.competitors_above?.length || 0;
+      const hasPosition = ranking.position !== null;
+
+      // Higher difficulty if more competitors and no current ranking
+      if (!hasPosition && competitorCount > 3) return 90;
+      if (!hasPosition && competitorCount > 1) return 70;
+      if (hasPosition && ranking.position > 20) return 60;
+      if (hasPosition && ranking.position > 10) return 40;
+      return 20;
+    });
+
+    return difficulties.length > 0
+      ? difficulties.reduce((a, b) => a + b, 0) / difficulties.length
+      : 50;
+  }
+
+  /**
+   * Identify competitive gaps and opportunities
+   */
+  private identifyCompetitiveGaps(rankings: any[], competitors: string[]): any {
+    const gaps = {
+      keyword_gaps: [] as string[],
+      position_gaps: [] as any[],
+      featured_snippet_opportunities: [] as string[],
+    };
+
+    rankings.forEach(ranking => {
+      // Keywords where competitors rank but we don't
+      if (!ranking.position && ranking.competitors_above.length > 0) {
+        gaps.keyword_gaps.push(ranking.keyword);
+      }
+
+      // Position gaps (competitors ranking higher)
+      if (ranking.position && ranking.competitors_above.length > 0) {
+        gaps.position_gaps.push({
+          keyword: ranking.keyword,
+          our_position: ranking.position,
+          top_competitor: ranking.competitors_above[0],
+          gap: ranking.position - ranking.competitors_above[0].position,
+        });
+      }
+
+      // Featured snippet opportunities
+      if (
+        ranking.position &&
+        ranking.position <= 5 &&
+        !ranking.featured_snippet
+      ) {
+        gaps.featured_snippet_opportunities.push(ranking.keyword);
+      }
+    });
+
+    return gaps;
+  }
+
+  /**
+   * Calculate overall opportunity score
+   */
+  private calculateOpportunityScore(summary: any, rankings: any[]): number {
+    let score = 0;
+
+    // Base score from current visibility
+    score += (summary.ranking_keywords / summary.total_keywords) * 30;
+
+    // Bonus for good positions
+    score += (summary.top_10_rankings / summary.total_keywords) * 40;
+
+    // Bonus for featured snippets
+    score += (summary.featured_snippets / summary.total_keywords) * 20;
+
+    // Growth potential (keywords we could rank for)
+    const improvableKeywords = rankings.filter(
+      r => !r.position || (r.position > 10 && r.position <= 50)
+    ).length;
+    score += (improvableKeywords / summary.total_keywords) * 10;
+
+    return Math.min(100, Math.max(0, score));
   }
 
   /**
