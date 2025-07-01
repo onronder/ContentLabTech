@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
     const supabase: SupabaseClient<Database> = createClient(
       process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["SUPABASE_SERVICE_ROLE_KEY"]!
+      process.env["SUPABASE_SECRET_KEY"]!
     );
 
     // If specific job ID requested

@@ -17,7 +17,7 @@ export const validateSecretKey = (key: string): boolean => {
 export const validateEnvironmentConfig = () => {
   const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
   const publishableKey = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-  const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const serviceRoleKey = process.env["SUPABASE_SECRET_KEY"];
 
   const errors: string[] = [];
 
@@ -36,7 +36,7 @@ export const validateEnvironmentConfig = () => {
 
   // Service role key is optional for client-side only applications
   if (serviceRoleKey && serviceRoleKey.length < 20) {
-    errors.push("Invalid SUPABASE_SERVICE_ROLE_KEY format");
+    errors.push("Invalid SUPABASE_SECRET_KEY format");
   }
 
   // Environment is properly configured
@@ -50,7 +50,7 @@ export const validateEnvironmentConfig = () => {
 // Browser security check
 export const validateBrowserSecurity = () => {
   if (typeof window !== "undefined") {
-    const serviceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
+    const serviceRoleKey = process.env["SUPABASE_SECRET_KEY"];
     if (serviceRoleKey) {
       console.error(
         "🚨 SECURITY VIOLATION: Service role key detected in browser environment! " +
@@ -111,7 +111,7 @@ export const getConfigurationStatus = () => {
   const hasUrl = !!process.env["NEXT_PUBLIC_SUPABASE_URL"];
   const hasPublishableKey =
     !!process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-  const hasServiceKey = !!process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const hasServiceKey = !!process.env["SUPABASE_SECRET_KEY"];
 
   const configured = hasUrl && hasPublishableKey;
 
