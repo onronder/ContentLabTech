@@ -17,6 +17,16 @@ import {
   googleAnalyticsService,
   type CompetitiveMetrics,
 } from "./google-analytics";
+import {
+  competitiveIntelligenceAggregator,
+  type CompetitorAnalysisRequest,
+  type AggregatedResponse,
+} from "./competitive-intelligence-aggregator";
+import {
+  semanticAnalysisEngine,
+  type ContentAnalysisRequest,
+  type KeywordOpportunityRequest,
+} from "./semantic-analysis-engine";
 import type {
   CompetitiveAnalysisData,
   CompetitiveContentAnalysis,
@@ -1222,6 +1232,164 @@ export class IntegrationCoordinator {
       services,
       overallResponseTime: Date.now() - startTime,
     };
+  }
+
+  /**
+   * Extract text content from competitor data
+   */
+  private extractTextContent(competitorData: any): string {
+    const textParts: string[] = [];
+
+    // Extract from basic info
+    if (competitorData.data.basicInfo) {
+      if (competitorData.data.basicInfo.title) {
+        textParts.push(competitorData.data.basicInfo.title);
+      }
+      if (competitorData.data.basicInfo.description) {
+        textParts.push(competitorData.data.basicInfo.description);
+      }
+    }
+
+    // Extract from content analysis
+    if (competitorData.data.contentAnalysis?.topKeywords) {
+      textParts.push(...competitorData.data.contentAnalysis.topKeywords);
+    }
+
+    // Extract from SEO analysis
+    if (competitorData.data.seoAnalysis) {
+      if (competitorData.data.seoAnalysis.metaTitles) {
+        textParts.push(...competitorData.data.seoAnalysis.metaTitles);
+      }
+      if (competitorData.data.seoAnalysis.metaDescriptions) {
+        textParts.push(...competitorData.data.seoAnalysis.metaDescriptions);
+      }
+    }
+
+    return textParts.join(" ");
+  }
+
+  /**
+   * Calculate keyword density from competitor data
+   */
+  private calculateKeywordDensity(competitorData: any): number {
+    if (!competitorData.contentAnalysis?.topKeywords) return 0;
+
+    const keywords = competitorData.contentAnalysis.topKeywords;
+    const contentLength =
+      competitorData.contentAnalysis?.averageContentLength || 1000;
+    const keywordCount = keywords.length;
+
+    return Math.round((keywordCount / contentLength) * 1000) / 10; // Keywords per 100 words
+  }
+
+  /**
+   * Calculate content uniqueness score
+   */
+  private calculateContentUniqueness(
+    competitor: any,
+    allCompetitors: any[]
+  ): number {
+    // Simple uniqueness calculation based on topic coverage
+    const competitorTopics = competitor.data.contentAnalysis?.topKeywords || [];
+
+    let uniqueTopics = 0;
+    competitorTopics.forEach((topic: string) => {
+      const isUnique = !allCompetitors.some(
+        other =>
+          other.domain !== competitor.domain &&
+          other.data.contentAnalysis?.topKeywords?.includes(topic)
+      );
+      if (isUnique) uniqueTopics++;
+    });
+
+    return competitorTopics.length > 0
+      ? Math.round((uniqueTopics / competitorTopics.length) * 100)
+      : 0;
+  }
+
+  /**
+   * Calculate topic depth score
+   */
+  private calculateTopicDepth(competitorData: any): number {
+    // Calculate based on content analysis depth
+    const contentLength =
+      competitorData.contentAnalysis?.averageContentLength || 0;
+    const keywordCount =
+      competitorData.contentAnalysis?.topKeywords?.length || 0;
+
+    // Longer content with more keywords indicates deeper topic coverage
+    const depthScore = Math.min(
+      100,
+      (contentLength / 1000) * 30 + keywordCount * 2
+    );
+    return Math.round(depthScore);
+  }
+
+  /**
+   * Calculate topic coverage percentage
+   */
+  private calculateTopicCoverage(competitorData: any): number {
+    // Calculate based on SEO and content analysis
+    const seoScore = competitorData.seoAnalysis?.technicalSeoScore || 0;
+    const contentQuality = competitorData.contentAnalysis?.contentQuality || 0;
+
+    return Math.round((seoScore + contentQuality) / 2);
+  }
+
+  /**
+   * Generate enhanced content insights
+   */
+  private generateEnhancedContentInsights(
+    aggregatedData: any,
+    semanticData: any,
+    keywordData: any
+  ): any {
+    const insights = {
+      marketPosition: aggregatedData.comparative?.marketPosition || {
+        targetRank: 1,
+        totalAnalyzed: aggregatedData.competitors.length + 1,
+        strengths: [] as string[],
+        weaknesses: [] as string[],
+        opportunities: [] as string[],
+      },
+      contentGaps: [] as any[],
+      keywordOpportunities: [] as any[],
+      topicRecommendations: [] as any[],
+      competitiveAdvantages: [] as string[],
+    };
+
+    // Add semantic insights
+    if (semanticData?.primaryAnalysis) {
+      const sentiment = semanticData.primaryAnalysis.sentiment;
+      if (sentiment.label === "positive") {
+        insights.competitiveAdvantages.push("Positive content tone");
+      } else if (sentiment.label === "negative") {
+        insights.marketPosition.weaknesses.push("Negative content sentiment");
+      }
+
+      // Add readability insights
+      const readability = semanticData.primaryAnalysis.readabilityScore;
+      if (readability > 70) {
+        insights.competitiveAdvantages.push("High content readability");
+      } else if (readability < 50) {
+        insights.marketPosition.weaknesses.push("Poor content readability");
+      }
+    }
+
+    // Add keyword insights
+    if (keywordData?.opportunities) {
+      insights.keywordOpportunities = keywordData.opportunities.slice(0, 10);
+    }
+
+    if (keywordData?.gaps) {
+      insights.contentGaps = keywordData.gaps.slice(0, 5);
+    }
+
+    if (keywordData?.recommendations) {
+      insights.topicRecommendations = keywordData.recommendations.slice(0, 8);
+    }
+
+    return insights;
   }
 }
 

@@ -38,11 +38,19 @@ import {
   Globe,
 } from "lucide-react";
 
-interface AlertData {
+interface VirtualizedVirtualizedAlertData {
   id: string;
   title: string;
   description: string;
-  type: "ranking_change" | "content_published" | "backlink_gained" | "strategy_shift" | "performance_change" | "market_movement" | "threat_detected" | "opportunity_identified";
+  type:
+    | "ranking_change"
+    | "content_published"
+    | "backlink_gained"
+    | "strategy_shift"
+    | "performance_change"
+    | "market_movement"
+    | "threat_detected"
+    | "opportunity_identified";
   severity: "critical" | "high" | "medium" | "low" | "info";
   status: "new" | "acknowledged" | "in_progress" | "resolved" | "dismissed";
   timestamp: Date;
@@ -63,9 +71,12 @@ interface AlertData {
 }
 
 interface VirtualizedAlertsListProps {
-  alerts: AlertData[];
-  onAlertSelect?: (alert: AlertData) => void;
-  onAlertAction?: (alert: AlertData, action: string) => void;
+  alerts: VirtualizedVirtualizedAlertData[];
+  onAlertSelect?: (alert: VirtualizedVirtualizedAlertData) => void;
+  onAlertAction?: (
+    alert: VirtualizedVirtualizedAlertData,
+    action: string
+  ) => void;
   onBulkAction?: (alertIds: string[], action: string) => void;
   className?: string;
   containerHeight?: number;
@@ -120,15 +131,24 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
   // Filter and sort alerts
   const filteredAndSortedAlerts = useMemo(() => {
     const filtered = alerts.filter(alert => {
-      const matchesSearch = alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           alert.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           alert.competitor.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesSeverity = severityFilter === "all" || alert.severity === severityFilter;
+      const matchesSearch =
+        alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alert.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alert.competitor.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSeverity =
+        severityFilter === "all" || alert.severity === severityFilter;
       const matchesType = typeFilter === "all" || alert.type === typeFilter;
-      const matchesStatus = statusFilter === "all" || alert.status === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" || alert.status === statusFilter;
       const matchesReadStatus = !showUnreadOnly || !alert.isRead;
-      
-      return matchesSearch && matchesSeverity && matchesType && matchesStatus && matchesReadStatus;
+
+      return (
+        matchesSearch &&
+        matchesSeverity &&
+        matchesType &&
+        matchesStatus &&
+        matchesReadStatus
+      );
     });
 
     // Sort alerts
@@ -141,7 +161,13 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
           bValue = b.title.toLowerCase();
           break;
         case "severity":
-          const severityOrder = { critical: 5, high: 4, medium: 3, low: 2, info: 1 };
+          const severityOrder = {
+            critical: 5,
+            high: 4,
+            medium: 3,
+            low: 2,
+            info: 1,
+          };
           aValue = severityOrder[a.severity];
           bValue = severityOrder[b.severity];
           break;
@@ -172,29 +198,46 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
     });
 
     return filtered;
-  }, [alerts, searchTerm, severityFilter, typeFilter, statusFilter, sortBy, sortDirection, showUnreadOnly]);
+  }, [
+    alerts,
+    searchTerm,
+    severityFilter,
+    typeFilter,
+    statusFilter,
+    sortBy,
+    sortDirection,
+    showUnreadOnly,
+  ]);
 
   // Handle alert selection
-  const handleAlertSelect = useCallback((alertId: string, selected: boolean) => {
-    setSelectedAlerts(prev => {
-      const newSet = new Set(prev);
-      if (selected) {
-        newSet.add(alertId);
-      } else {
-        newSet.delete(alertId);
-      }
-      return newSet;
-    });
-  }, []);
+  const handleAlertSelect = useCallback(
+    (alertId: string, selected: boolean) => {
+      setSelectedAlerts(prev => {
+        const newSet = new Set(prev);
+        if (selected) {
+          newSet.add(alertId);
+        } else {
+          newSet.delete(alertId);
+        }
+        return newSet;
+      });
+    },
+    []
+  );
 
   // Handle select all
-  const handleSelectAll = useCallback((selected: boolean) => {
-    if (selected) {
-      setSelectedAlerts(new Set(filteredAndSortedAlerts.map(alert => alert.id)));
-    } else {
-      setSelectedAlerts(new Set());
-    }
-  }, [filteredAndSortedAlerts]);
+  const handleSelectAll = useCallback(
+    (selected: boolean) => {
+      if (selected) {
+        setSelectedAlerts(
+          new Set(filteredAndSortedAlerts.map(alert => alert.id))
+        );
+      } else {
+        setSelectedAlerts(new Set());
+      }
+    },
+    [filteredAndSortedAlerts]
+  );
 
   // Get relative time string
   const getRelativeTime = (date: Date) => {
@@ -212,142 +255,161 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
   };
 
   // Render individual alert item
-  const renderAlertItem = useCallback((alert: AlertData, _index: number) => {
-    const TypeIcon = ALERT_TYPE_ICONS[alert.type] || Bell;
-    const isSelected = selectedAlerts.has(alert.id);
-    
-    return (
-      <div 
-        className={`mx-2 mb-2 rounded-lg border bg-white p-4 shadow-sm transition-all hover:shadow-md ${
-          isSelected ? "border-blue-300 bg-blue-50" : "hover:border-blue-200"
-        } ${!alert.isRead ? "border-l-4 border-l-blue-500" : ""}`}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={(e) => handleAlertSelect(alert.id, e.target.checked)}
-              className="mt-1"
-            />
-            <TypeIcon className="h-5 w-5 text-gray-500 mt-0.5" />
-            <div className="flex-1">
-              <h3 
-                className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600"
-                onClick={() => onAlertSelect?.(alert)}
+  const renderAlertItem = useCallback(
+    (alert: (typeof alerts)[0], _index: number) => {
+      const TypeIcon =
+        ALERT_TYPE_ICONS[alert.type as keyof typeof ALERT_TYPE_ICONS] || Bell;
+      const isSelected = selectedAlerts.has(alert.id);
+
+      return (
+        <div
+          className={`mx-2 mb-2 rounded-lg border bg-white p-4 shadow-sm transition-all hover:shadow-md ${
+            isSelected ? "border-blue-300 bg-blue-50" : "hover:border-blue-200"
+          } ${!alert.isRead ? "border-l-4 border-l-blue-500" : ""}`}
+        >
+          {/* Header */}
+          <div className="mb-3 flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={e => handleAlertSelect(alert.id, e.target.checked)}
+                className="mt-1"
+              />
+              <TypeIcon className="mt-0.5 h-5 w-5 text-gray-500" />
+              <div className="flex-1">
+                <h3
+                  className="cursor-pointer font-semibold text-gray-900 hover:text-blue-600"
+                  onClick={() => onAlertSelect?.(alert)}
+                >
+                  {alert.title}
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  {alert.description}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {!alert.isRead && (
+                <div className="h-2 w-2 rounded-full bg-blue-500" />
+              )}
+              <Badge
+                className={
+                  SEVERITY_COLORS[
+                    alert.severity as keyof typeof SEVERITY_COLORS
+                  ]
+                }
               >
-                {alert.title}
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">{alert.description}</p>
+                {alert.severity}
+              </Badge>
+              <Badge
+                className={
+                  STATUS_COLORS[alert.status as keyof typeof STATUS_COLORS]
+                }
+              >
+                {alert.status}
+              </Badge>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {!alert.isRead && (
-              <div className="h-2 w-2 rounded-full bg-blue-500" />
-            )}
-            <Badge className={SEVERITY_COLORS[alert.severity]}>
-              {alert.severity}
-            </Badge>
-            <Badge className={STATUS_COLORS[alert.status]}>
-              {alert.status}
-            </Badge>
-          </div>
-        </div>
 
-        {/* Metadata */}
-        <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
-          <div>
-            <span className="text-gray-500">Competitor:</span>
-            <span className="ml-2 font-medium">{alert.competitor.name}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Source:</span>
-            <span className="ml-2">{alert.metadata.source}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Confidence:</span>
-            <span className="ml-2">{alert.metadata.confidence}%</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Impact:</span>
-            <span className="ml-2">{alert.metadata.impact}%</span>
-          </div>
-        </div>
-
-        {/* Tags */}
-        {alert.metadata.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {alert.metadata.tags.slice(0, 3).map(tag => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-            {alert.metadata.tags.length > 3 && (
-              <Badge variant="outline" className="text-xs">
-                +{alert.metadata.tags.length - 3} more
-              </Badge>
-            )}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <div className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {getRelativeTime(alert.timestamp)}
+          {/* Metadata */}
+          <div className="mb-3 grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">Competitor:</span>
+              <span className="ml-2 font-medium">{alert.competitor.name}</span>
             </div>
-            {alert.actionRequired && (
-              <Badge variant="destructive" className="text-xs">
-                Action Required
-              </Badge>
-            )}
+            <div>
+              <span className="text-gray-500">Source:</span>
+              <span className="ml-2">{alert.metadata.source}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Confidence:</span>
+              <span className="ml-2">{alert.metadata.confidence}%</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Impact:</span>
+              <span className="ml-2">{alert.metadata.impact}%</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAlertAction?.(alert, alert.isRead ? "mark_unread" : "mark_read");
-              }}
-            >
-              {alert.isRead ? "Mark Unread" : "Mark Read"}
-            </Button>
-            
-            {alert.status === "new" && (
+          {/* Tags */}
+          {alert.metadata.tags.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1">
+              {alert.metadata.tags.slice(0, 3).map((tag: string) => (
+                <Badge key={tag} variant="outline" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+              {alert.metadata.tags.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{alert.metadata.tags.length - 3} more
+                </Badge>
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {getRelativeTime(alert.timestamp)}
+              </div>
+              {alert.actionRequired && (
+                <Badge variant="destructive" className="text-xs">
+                  Action Required
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
               <Button
                 size="sm"
                 variant="outline"
-                onClick={(e) => {
+                onClick={e => {
                   e.stopPropagation();
-                  onAlertAction?.(alert, "acknowledge");
+                  onAlertAction?.(
+                    alert,
+                    alert.isRead ? "mark_unread" : "mark_read"
+                  );
                 }}
               >
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Acknowledge
+                {alert.isRead ? "Mark Unread" : "Mark Read"}
               </Button>
-            )}
-            
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAlertAction?.(alert, "dismiss");
-              }}
-            >
-              <X className="h-3 w-3 mr-1" />
-              Dismiss
-            </Button>
+
+              {alert.status === "new" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={e => {
+                    e.stopPropagation();
+                    onAlertAction?.(alert, "acknowledge");
+                  }}
+                >
+                  <CheckCircle className="mr-1 h-3 w-3" />
+                  Acknowledge
+                </Button>
+              )}
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={e => {
+                  e.stopPropagation();
+                  onAlertAction?.(alert, "dismiss");
+                }}
+              >
+                <X className="mr-1 h-3 w-3" />
+                Dismiss
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }, [selectedAlerts, onAlertSelect, onAlertAction, handleAlertSelect]);
+      );
+    },
+    [selectedAlerts, onAlertSelect, onAlertAction, handleAlertSelect]
+  );
 
   return (
     <div className={`space-y-4 ${className || ""}`}>
@@ -357,13 +419,15 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5 text-red-600" />
-                Competitive Alerts ({filteredAndSortedAlerts.length} of {alerts.length})
+                Competitive Alerts ({filteredAndSortedAlerts.length} of{" "}
+                {alerts.length})
               </CardTitle>
               <CardDescription>
-                High-performance virtualized view of competitive intelligence alerts
+                High-performance virtualized view of competitive intelligence
+                alerts
               </CardDescription>
             </div>
-            
+
             {/* Bulk Actions */}
             {selectedAlerts.size > 0 && (
               <div className="flex items-center gap-2">
@@ -398,13 +462,13 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
           {/* Filters and Search */}
           <div className="flex flex-wrap items-center gap-4">
             {/* Search */}
-            <div className="flex-1 min-w-64">
+            <div className="min-w-64 flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
                 <Input
                   placeholder="Search alerts..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -433,13 +497,19 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
                 <SelectItem value="ranking_change">Ranking Change</SelectItem>
-                <SelectItem value="content_published">Content Published</SelectItem>
+                <SelectItem value="content_published">
+                  Content Published
+                </SelectItem>
                 <SelectItem value="backlink_gained">Backlink Gained</SelectItem>
                 <SelectItem value="strategy_shift">Strategy Shift</SelectItem>
-                <SelectItem value="performance_change">Performance Change</SelectItem>
+                <SelectItem value="performance_change">
+                  Performance Change
+                </SelectItem>
                 <SelectItem value="market_movement">Market Movement</SelectItem>
                 <SelectItem value="threat_detected">Threat Detected</SelectItem>
-                <SelectItem value="opportunity_identified">Opportunity</SelectItem>
+                <SelectItem value="opportunity_identified">
+                  Opportunity
+                </SelectItem>
               </SelectContent>
             </Select>
 
@@ -487,10 +557,15 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
-              checked={selectedAlerts.size === filteredAndSortedAlerts.length && filteredAndSortedAlerts.length > 0}
-              onChange={(e) => handleSelectAll(e.target.checked)}
+              checked={
+                selectedAlerts.size === filteredAndSortedAlerts.length &&
+                filteredAndSortedAlerts.length > 0
+              }
+              onChange={e => handleSelectAll(e.target.checked)}
             />
-            <span className="text-sm text-gray-600">Select all visible alerts</span>
+            <span className="text-sm text-gray-600">
+              Select all visible alerts
+            </span>
           </div>
 
           {/* Virtual Scrolled List */}
@@ -500,14 +575,16 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
               itemHeight={ITEM_HEIGHT}
               containerHeight={containerHeight}
               renderItem={renderAlertItem}
-              getItemKey={(alert) => alert.id}
-              className="border rounded-lg bg-gray-50"
+              getItemKey={alert => alert.id}
+              className="rounded-lg border bg-gray-50"
             />
           ) : (
             <div className="py-12 text-center text-gray-500">
-              <Bell className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <Bell className="mx-auto mb-4 h-12 w-12 text-gray-300" />
               <p className="text-lg font-medium">No alerts found</p>
-              <p className="text-sm">Try adjusting your filters or search terms</p>
+              <p className="text-sm">
+                Try adjusting your filters or search terms
+              </p>
             </div>
           )}
         </CardContent>
@@ -519,9 +596,15 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Critical Alerts</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Critical Alerts
+                </p>
                 <p className="text-2xl font-bold text-red-600">
-                  {filteredAndSortedAlerts.filter(a => a.severity === "critical").length}
+                  {
+                    filteredAndSortedAlerts.filter(
+                      a => a.severity === "critical"
+                    ).length
+                  }
                 </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-600" />
@@ -533,7 +616,9 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Unread</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Unread
+                </p>
                 <p className="text-2xl font-bold text-blue-600">
                   {filteredAndSortedAlerts.filter(a => !a.isRead).length}
                 </p>
@@ -547,7 +632,9 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Action Required</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Action Required
+                </p>
                 <p className="text-2xl font-bold text-orange-600">
                   {filteredAndSortedAlerts.filter(a => a.actionRequired).length}
                 </p>
@@ -561,11 +648,19 @@ export const VirtualizedAlertsList: React.FC<VirtualizedAlertsListProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Confidence</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Avg Confidence
+                </p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {filteredAndSortedAlerts.length > 0 
-                    ? Math.round(filteredAndSortedAlerts.reduce((sum, a) => sum + a.metadata.confidence, 0) / filteredAndSortedAlerts.length)
-                    : 0}%
+                  {filteredAndSortedAlerts.length > 0
+                    ? Math.round(
+                        filteredAndSortedAlerts.reduce(
+                          (sum, a) => sum + a.metadata.confidence,
+                          0
+                        ) / filteredAndSortedAlerts.length
+                      )
+                    : 0}
+                  %
                 </p>
               </div>
               <CheckCircle className="h-8 w-8 text-purple-600" />

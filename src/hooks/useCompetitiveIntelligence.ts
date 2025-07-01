@@ -6,12 +6,15 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useWebSocketSubscription } from "./useWebSocketConnection";
 import type {
   CompetitiveAnalysisResult,
   Competitor,
   CompetitiveAlert,
   AnalysisStatusResponse,
+  AlertType,
 } from "@/lib/competitive/types";
+import type { UpdateEvent } from "@/lib/realtime/websocket-manager";
 
 interface CompetitiveIntelligenceData {
   competitors: Competitor[];
@@ -148,35 +151,138 @@ export const useCompetitiveIntelligence = (
         marketInsights,
       });
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load competitive intelligence data"
-      );
+      setError(err instanceof Error ? err.message : "Unknown error occurred");
     } finally {
       setLoading(false);
     }
   }, [fetchCompetitors, fetchAnalysisResults, fetchAlerts]);
+
+  // Handle real-time WebSocket updates
+  const handleRealTimeUpdate = useCallback(
+    (event: UpdateEvent) => {
+      console.log("Received real-time update:", event);
+
+      switch (event.type) {
+        case "job-progress":
+          // Update analysis progress in real-time
+          if (event.data["jobType"] === "competitive-analysis") {
+            setIsAnalysisRunning(true);
+          }
+          break;
+
+        case "job-completed":
+          if (event.data["jobType"] === "competitive-analysis") {
+            setIsAnalysisRunning(false);
+            // Refresh data to show new results
+            loadData();
+          }
+          break;
+
+        case "job-failed":
+          if (event.data["jobType"] === "competitive-analysis") {
+            setIsAnalysisRunning(false);
+            setError(
+              `Analysis failed: ${event.data["error"] || "Unknown error"}`
+            );
+          }
+          break;
+
+        case "competitive-alert":
+        case "seo-alert":
+        case "performance-alert":
+          // Add new alert to the list
+          setData(prevData => {
+            if (!prevData) return prevData;
+
+            const newAlert: CompetitiveAlert = {
+              id: event.id,
+              competitorId: "unknown",
+              type: (event.type === "competitive-alert"
+                ? "strategy-shift"
+                : event.type === "seo-alert"
+                  ? "ranking-change"
+                  : "performance-improvement") as AlertType,
+              title: (event.data["title"] as string) || "New Alert",
+              description: (event.data["message"] as string) || "",
+              severity:
+                event.priority === "critical"
+                  ? "high"
+                  : event.priority === "high"
+                    ? "medium"
+                    : "low",
+              timestamp: new Date(event.timestamp),
+              status: "new",
+              metadata: {
+                source: "websocket",
+                confidence: 80,
+                impact: 70,
+                urgency: 60,
+                relatedEntities: [],
+                data: event.data,
+              },
+              actionRequired:
+                event.priority === "critical" || event.priority === "high",
+              recommendations: [],
+            };
+
+            return {
+              ...prevData,
+              alerts: [newAlert, ...prevData.alerts].slice(0, 50), // Keep latest 50 alerts
+              marketInsights: {
+                ...prevData.marketInsights,
+                criticalAlerts:
+                  prevData.marketInsights.criticalAlerts +
+                  (newAlert.severity === "high" ? 1 : 0),
+                lastUpdated: event.timestamp,
+              },
+            };
+          });
+          break;
+
+        default:
+          console.log("Unhandled event type:", event.type);
+      }
+    },
+    [loadData]
+  );
+
+  // WebSocket subscription for real-time updates
+  const webSocket = useWebSocketSubscription(
+    [
+      "job-progress",
+      "job-completed",
+      "job-failed",
+      "competitive-alert",
+      "seo-alert",
+      "performance-alert",
+    ],
+    {
+      filters: {
+        projectIds: projectId ? [projectId] : undefined,
+      },
+      onEvent: handleRealTimeUpdate,
+    }
+  );
+
+  const refresh = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
 
   const startAnalysis = useCallback(
     async (params: {
       targetDomain: string;
       competitorIds: string[];
       analysisTypes: string[];
-    }): Promise<string> => {
-      if (!projectId) {
-        throw new Error("Project ID is required to start analysis");
-      }
-
-      setIsAnalysisRunning(true);
-
+    }) => {
       try {
+        setIsAnalysisRunning(true);
+        setError(null);
+
         const response = await fetch("/api/competitive/analysis", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             projectId,
-            userId: "current-user", // TODO: Get from auth context
             teamId: "current-team", // TODO: Get from auth context
             targetDomain: params.targetDomain,
             competitorIds: params.competitorIds,
@@ -227,30 +333,10 @@ export const useCompetitiveIntelligence = (
     []
   );
 
-  const refresh = useCallback(async () => {
-    await loadData();
-  }, [loadData]);
-
-  // Initial load and polling for running analyses
+  // Load initial data
   useEffect(() => {
     loadData();
-
-    // Set up polling for running analyses
-    const interval = setInterval(async () => {
-      if (data?.analysisResults.some(r => r.status === "processing")) {
-        await loadData();
-      }
-    }, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [loadData, data?.analysisResults]);
-
-  // Update analysis running state
-  useEffect(() => {
-    const hasRunningAnalysis =
-      data?.analysisResults.some(r => r.status === "processing") || false;
-    setIsAnalysisRunning(hasRunningAnalysis);
-  }, [data?.analysisResults]);
+  }, [loadData]);
 
   return {
     data,

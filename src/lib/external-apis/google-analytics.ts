@@ -4,6 +4,7 @@
  */
 
 import { z } from "zod";
+import jwt from "jsonwebtoken";
 
 // Configuration schema
 const googleAnalyticsConfigSchema = z.object({
@@ -624,64 +625,128 @@ export class GoogleAnalyticsService {
   }
 
   private async ensureAuthentication(): Promise<void> {
-    if (this.accessToken && Date.now() < this.tokenExpiry) {
+    // Check if current token is still valid (with 5-minute buffer)
+    if (this.accessToken && Date.now() < this.tokenExpiry - 300000) {
       return;
     }
 
     try {
-      // Parse service account key
-      const serviceAccount = JSON.parse(this.config.serviceAccountKey);
-
-      // Create JWT token for Google APIs
-      const jwt = await this.createJWTToken(serviceAccount);
-
-      // Exchange JWT for access token
-      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-          assertion: jwt,
-        }),
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error("Failed to authenticate with Google APIs");
+      // Validate service account configuration
+      if (!this.config.serviceAccountKey) {
+        throw new Error("Google service account key not configured");
       }
 
-      const tokenData = await tokenResponse.json();
-      this.accessToken = tokenData.access_token;
-      this.tokenExpiry = Date.now() + tokenData.expires_in * 1000 - 60000; // Subtract 1 minute for safety
+      // Parse and validate service account key
+      let serviceAccount: any;
+      try {
+        serviceAccount = JSON.parse(this.config.serviceAccountKey);
+      } catch (parseError) {
+        throw new Error("Invalid service account key format");
+      }
+
+      // Validate required service account fields
+      if (!serviceAccount.client_email || !serviceAccount.private_key) {
+        throw new Error(
+          "Service account key missing required fields (client_email, private_key)"
+        );
+      }
+
+      // Create JWT token for Google APIs
+      const jwtToken = await this.createJWTToken(serviceAccount);
+
+      // Exchange JWT for access token with retry logic
+      const maxRetries = 3;
+      let lastError: Error | null = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const tokenResponse = await fetch(
+            "https://oauth2.googleapis.com/token",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "ContentLabTech/1.0",
+              },
+              body: new URLSearchParams({
+                grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+                assertion: jwtToken,
+              }),
+              signal: AbortSignal.timeout(10000), // 10 second timeout
+            }
+          );
+
+          if (!tokenResponse.ok) {
+            const errorText = await tokenResponse.text();
+            throw new Error(
+              `Google authentication failed (${tokenResponse.status}): ${errorText}`
+            );
+          }
+
+          const tokenData = await tokenResponse.json();
+
+          // Validate token response
+          if (!tokenData.access_token || !tokenData.expires_in) {
+            throw new Error("Invalid token response from Google");
+          }
+
+          this.accessToken = tokenData.access_token;
+          this.tokenExpiry = Date.now() + tokenData.expires_in * 1000 - 300000; // 5-minute safety buffer
+
+          return; // Success, exit retry loop
+        } catch (error) {
+          lastError =
+            error instanceof Error
+              ? error
+              : new Error("Unknown authentication error");
+
+          if (attempt < maxRetries) {
+            // Exponential backoff: 1s, 2s, 4s
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+
+      // All retries failed
+      throw lastError || new Error("Authentication failed after all retries");
     } catch (error) {
+      // Clear invalid tokens
+      this.accessToken = null;
+      this.tokenExpiry = 0;
+
       throw new Error(
-        `Authentication failed: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Google Analytics authentication failed: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     }
   }
 
   private async createJWTToken(serviceAccount: any): Promise<string> {
-    // This is a simplified JWT creation
-    // In a real implementation, you'd use a proper JWT library like 'jsonwebtoken'
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const payload = {
+        iss: serviceAccount.client_email,
+        scope: "https://www.googleapis.com/auth/analytics.readonly",
+        aud: "https://oauth2.googleapis.com/token",
+        exp: now + 3600, // 1 hour expiration
+        iat: now,
+      };
 
-    const header = {
-      alg: "RS256",
-      typ: "JWT",
-    };
+      // Sign JWT with private key using RS256 algorithm
+      const token = jwt.sign(payload, serviceAccount.private_key, {
+        algorithm: "RS256",
+        header: {
+          alg: "RS256",
+          typ: "JWT",
+        },
+      });
 
-    const now = Math.floor(Date.now() / 1000);
-    const payload = {
-      iss: serviceAccount.client_email,
-      scope: "https://www.googleapis.com/auth/analytics.readonly",
-      aud: "https://oauth2.googleapis.com/token",
-      exp: now + 3600,
-      iat: now,
-    };
-
-    // In a real implementation, you'd sign this with the private key
-    // For now, return a placeholder
-    return "placeholder-jwt-token";
+      return token;
+    } catch (error) {
+      throw new Error(
+        `JWT token creation failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
   }
 
   private extractTotals(
@@ -846,6 +911,58 @@ export class GoogleAnalyticsService {
   }
 
   /**
+   * Test authentication without making API calls
+   */
+  async testAuthentication(): Promise<{
+    success: boolean;
+    error?: string;
+    details?: {
+      serviceAccountConfigured: boolean;
+      tokenGenerated: boolean;
+      tokenExchanged: boolean;
+    };
+  }> {
+    const details = {
+      serviceAccountConfigured: false,
+      tokenGenerated: false,
+      tokenExchanged: false,
+    };
+
+    try {
+      // Check service account configuration
+      if (!this.config.serviceAccountKey) {
+        return {
+          success: false,
+          error: "Google service account key not configured",
+          details,
+        };
+      }
+      details.serviceAccountConfigured = true;
+
+      // Test JWT token generation
+      const serviceAccount = JSON.parse(this.config.serviceAccountKey);
+      await this.createJWTToken(serviceAccount);
+      details.tokenGenerated = true;
+
+      // Test token exchange
+      await this.ensureAuthentication();
+      details.tokenExchanged = true;
+
+      return {
+        success: true,
+        details,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "Authentication test failed",
+        details,
+      };
+    }
+  }
+
+  /**
    * Health check for Google Analytics service
    */
   async healthCheck(): Promise<{
@@ -853,14 +970,24 @@ export class GoogleAnalyticsService {
     responseTime: number;
     authenticated: boolean;
     error?: string;
+    details?: {
+      authenticationTime?: number;
+      apiCallTime?: number;
+      quotaUsage?: number;
+    };
   }> {
     const startTime = Date.now();
+    const details: any = {};
 
     try {
+      // Test authentication
+      const authStartTime = Date.now();
       await this.ensureAuthentication();
+      details.authenticationTime = Date.now() - authStartTime;
 
-      // Test with a simple query
+      // Test with a simple query if property ID is configured
       if (this.config.propertyId) {
+        const apiStartTime = Date.now();
         const testData = await this.getAnalyticsData({
           propertyId: this.config.propertyId,
           startDate: "7daysAgo",
@@ -868,6 +995,8 @@ export class GoogleAnalyticsService {
           metrics: ["sessions"],
           pageSize: 1,
         });
+        details.apiCallTime = Date.now() - apiStartTime;
+        details.quotaUsage = testData.metadata?.quota_usage || 1;
 
         const responseTime = Date.now() - startTime;
 
@@ -879,6 +1008,7 @@ export class GoogleAnalyticsService {
             : "unhealthy",
           responseTime,
           authenticated: true,
+          details,
           ...(testData.error && { error: testData.error }),
         };
       } else {
@@ -886,7 +1016,9 @@ export class GoogleAnalyticsService {
           status: "degraded",
           responseTime: Date.now() - startTime,
           authenticated: true,
-          error: "No property ID configured",
+          error:
+            "No property ID configured - authentication successful but no data access",
+          details,
         };
       }
     } catch (error) {
@@ -895,6 +1027,7 @@ export class GoogleAnalyticsService {
         responseTime: Date.now() - startTime,
         authenticated: false,
         error: error instanceof Error ? error.message : "Health check failed",
+        details,
       };
     }
   }
