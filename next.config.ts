@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   // Ensure proper asset handling for Vercel
   trailingSlash: false,
 
+  // Force Next.js asset paths (not Vite)
+  assetPrefix: "",
+  basePath: "",
+
   // Image optimization
   images: {
     domains: ["app.contentlabtech.com"],
