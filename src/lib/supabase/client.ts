@@ -22,11 +22,11 @@ if (!config.isValid && process.env.NODE_ENV === "production") {
 // Browser security check
 validateBrowserSecurity();
 
-// Supabase client with new publishable key system
+// Supabase client configuration
 export const supabase = createClient<Database>(
   process.env["NEXT_PUBLIC_SUPABASE_URL"] || "https://placeholder.supabase.co",
   process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ||
-    "sb_publishable_placeholder_key",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
   {
     auth: {
       persistSession: true,
