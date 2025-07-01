@@ -39,52 +39,72 @@ const serpResponseSchema = z.object({
     country: z.string(),
     device: z.string(),
   }),
-  organicResults: z.array(z.object({
-    position: z.number(),
-    title: z.string(),
-    url: z.string(),
-    domain: z.string(),
-    snippet: z.string(),
-    displayedUrl: z.string().optional(),
-    date: z.string().optional(),
-    cached: z.boolean().default(false),
-    related: z.array(z.string()).optional(),
-    sitelinks: z.array(z.object({
+  organicResults: z.array(
+    z.object({
+      position: z.number(),
       title: z.string(),
       url: z.string(),
-    })).optional(),
-    richSnippet: z.object({
-      type: z.string().optional(),
-      rating: z.number().optional(),
-      reviews: z.number().optional(),
-      price: z.string().optional(),
-      availability: z.string().optional(),
-    }).optional(),
-  })),
-  featuredSnippet: z.object({
-    title: z.string(),
-    url: z.string(),
-    domain: z.string(),
-    snippet: z.string(),
-    type: z.enum(["paragraph", "list", "table", "video"]),
-  }).optional(),
-  peopleAlsoAsk: z.array(z.object({
-    question: z.string(),
-    snippet: z.string(),
-    url: z.string(),
-    domain: z.string(),
-  })).optional(),
-  relatedSearches: z.array(z.object({
-    query: z.string(),
-    url: z.string(),
-  })).optional(),
+      domain: z.string(),
+      snippet: z.string(),
+      displayedUrl: z.string().optional(),
+      date: z.string().optional(),
+      cached: z.boolean().default(false),
+      related: z.array(z.string()).optional(),
+      sitelinks: z
+        .array(
+          z.object({
+            title: z.string(),
+            url: z.string(),
+          })
+        )
+        .optional(),
+      richSnippet: z
+        .object({
+          type: z.string().optional(),
+          rating: z.number().optional(),
+          reviews: z.number().optional(),
+          price: z.string().optional(),
+          availability: z.string().optional(),
+        })
+        .optional(),
+    })
+  ),
+  featuredSnippet: z
+    .object({
+      title: z.string(),
+      url: z.string(),
+      domain: z.string(),
+      snippet: z.string(),
+      type: z.enum(["paragraph", "list", "table", "video"]),
+    })
+    .optional(),
+  peopleAlsoAsk: z
+    .array(
+      z.object({
+        question: z.string(),
+        snippet: z.string(),
+        url: z.string(),
+        domain: z.string(),
+      })
+    )
+    .optional(),
+  relatedSearches: z
+    .array(
+      z.object({
+        query: z.string(),
+        url: z.string(),
+      })
+    )
+    .optional(),
   totalResults: z.number(),
   timeTaken: z.number(),
-  pagination: z.object({
-    current: z.number(),
-    next: z.string().optional(),
-    pages: z.array(z.number()),
-  }).optional(),
+  pagination: z
+    .object({
+      current: z.number(),
+      next: z.string().optional(),
+      pages: z.array(z.number()),
+    })
+    .optional(),
   error: z.string().optional(),
   metadata: z.object({
     timestamp: z.string(),
@@ -107,17 +127,17 @@ type RankingAnalysis = z.infer<typeof rankingAnalysisSchema>;
 
 export class SerpApiService {
   private config: z.infer<typeof serpApiConfigSchema>;
-  private requestQueue: Array<{ 
-    resolve: (value: unknown) => void; 
-    reject: (reason?: unknown) => void; 
-    request: () => Promise<unknown> 
+  private requestQueue: Array<{
+    resolve: (value: any) => void;
+    reject: (reason?: any) => void;
+    request: () => Promise<any>;
   }> = [];
   private isProcessingQueue = false;
   private readonly maxConcurrentRequests = 5;
 
   constructor(config: Partial<z.infer<typeof serpApiConfigSchema>>) {
     this.config = serpApiConfigSchema.parse({
-      apiKey: process.env.SERP_API_KEY,
+      apiKey: process.env["SERP_API_KEY"],
       ...config,
     });
   }
@@ -155,23 +175,30 @@ export class SerpApiService {
           if (!response.ok) {
             if (response.status === 429) {
               // Rate limit hit
-              const retryAfter = parseInt(response.headers.get("Retry-After") || "60");
+              const retryAfter = parseInt(
+                response.headers.get("Retry-After") || "60"
+              );
               await this.delay(retryAfter * 1000);
               retries++;
               continue;
             }
-            throw new Error(`SERP API error: ${response.status} ${response.statusText}`);
+            throw new Error(
+              `SERP API error: ${response.status} ${response.statusText}`
+            );
           }
 
           const rawData = await response.json();
 
           // Transform and validate the response
-          const transformedData = this.transformSerpResponse(rawData, request, Date.now() - startTime);
+          const transformedData = this.transformSerpResponse(
+            rawData,
+            request,
+            Date.now() - startTime
+          );
           return serpResponseSchema.parse(transformedData);
-
         } catch (error) {
           retries++;
-          
+
           if (retries > this.config.retryAttempts) {
             return {
               success: false,
@@ -240,8 +267,8 @@ export class SerpApiService {
       const batchSize = 10;
       for (let i = 0; i < analysis.keywords.length; i += batchSize) {
         const keywordBatch = analysis.keywords.slice(i, i + batchSize);
-        
-        const batchPromises = keywordBatch.map(async (keyword) => {
+
+        const batchPromises = keywordBatch.map(async keyword => {
           const serpResult = await this.search({
             query: keyword,
             engine: "google",
@@ -249,6 +276,12 @@ export class SerpApiService {
             device: analysis.device,
             resultCount: 100,
             includeRelated: false,
+            language: "en",
+            country: "us",
+            includePeople: false,
+            includeImages: false,
+            includeVideos: false,
+            includeNews: false,
           });
 
           if (!serpResult.success) {
@@ -271,8 +304,10 @@ export class SerpApiService {
           const competitorsAbove = serpResult.organicResults
             .filter(result => {
               const domain = this.extractDomain(result.url);
-              return analysis.competitors.includes(domain) && 
-                     (!targetPosition || result.position < targetPosition.position);
+              return (
+                analysis.competitors.includes(domain) &&
+                (!targetPosition || result.position < targetPosition.position)
+              );
             })
             .map(result => ({
               domain: this.extractDomain(result.url),
@@ -281,8 +316,10 @@ export class SerpApiService {
             }));
 
           // Check for featured snippet
-          const hasFeaturedSnippet = serpResult.featuredSnippet && 
-                                   this.extractDomain(serpResult.featuredSnippet.url) === analysis.domain;
+          const hasFeaturedSnippet =
+            serpResult.featuredSnippet &&
+            this.extractDomain(serpResult.featuredSnippet.url) ===
+              analysis.domain;
 
           return {
             keyword,
@@ -295,7 +332,7 @@ export class SerpApiService {
         });
 
         const batchResults = await Promise.allSettled(batchPromises);
-        
+
         batchResults.forEach(result => {
           if (result.status === "fulfilled") {
             rankingResults.push(result.value);
@@ -310,14 +347,20 @@ export class SerpApiService {
 
       // Calculate summary statistics
       const rankingKeywords = rankingResults.filter(r => r.position !== null);
-      const positions = rankingKeywords.map(r => r.position).filter(p => p !== null);
-      
+      const positions = rankingKeywords
+        .map(r => r.position)
+        .filter(p => p !== null);
+
       const summary = {
         total_keywords: analysis.keywords.length,
         ranking_keywords: rankingKeywords.length,
-        avg_position: positions.length > 0 ? positions.reduce((a, b) => a + b, 0) / positions.length : 0,
+        avg_position:
+          positions.length > 0
+            ? positions.reduce((a, b) => a + b, 0) / positions.length
+            : 0,
         top_10_rankings: positions.filter(p => p <= 10).length,
-        featured_snippets: rankingResults.filter(r => r.featured_snippet).length,
+        featured_snippets: rankingResults.filter(r => r.featured_snippet)
+          .length,
       };
 
       return {
@@ -328,11 +371,11 @@ export class SerpApiService {
           summary,
         },
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Ranking analysis failed",
+        error:
+          error instanceof Error ? error.message : "Ranking analysis failed",
       };
     }
   }
@@ -340,12 +383,15 @@ export class SerpApiService {
   /**
    * Get keyword suggestions and search volume data
    */
-  async getKeywordSuggestions(seedKeyword: string, options: {
-    country?: string;
-    language?: string;
-    limit?: number;
-    includeQuestions?: boolean;
-  } = {}): Promise<{
+  async getKeywordSuggestions(
+    seedKeyword: string,
+    options: {
+      country?: string;
+      language?: string;
+      limit?: number;
+      includeQuestions?: boolean;
+    } = {}
+  ): Promise<{
     success: boolean;
     data?: {
       seed_keyword: string;
@@ -398,11 +444,11 @@ export class SerpApiService {
           suggestions,
         },
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Keyword suggestions failed",
+        error:
+          error instanceof Error ? error.message : "Keyword suggestions failed",
       };
     }
   }
@@ -436,16 +482,20 @@ export class SerpApiService {
         monitorId,
         message: `Ranking monitoring setup for ${config.keywords.length} keywords across ${config.domains.length} domains`,
       };
-
     } catch (error) {
       return {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to setup monitoring",
+        message:
+          error instanceof Error ? error.message : "Failed to setup monitoring",
       };
     }
   }
 
-  private transformSerpResponse(rawData: any, request: SerpRequest, processingTime: number): any {
+  private transformSerpResponse(
+    rawData: any,
+    request: SerpRequest,
+    processingTime: number
+  ): any {
     return {
       success: true,
       searchParameters: {
@@ -456,32 +506,40 @@ export class SerpApiService {
         country: request.country,
         device: request.device,
       },
-      organicResults: (rawData.organic_results || []).map((result: any, index: number) => ({
-        position: result.position || index + 1,
-        title: result.title || "",
-        url: result.link || "",
-        domain: this.extractDomain(result.link || ""),
-        snippet: result.snippet || "",
-        displayedUrl: result.displayed_link,
-        date: result.date,
-        cached: false,
-        related: result.related_pages_link ? [result.related_pages_link] : undefined,
-        sitelinks: result.sitelinks,
-        richSnippet: result.rich_snippet ? {
-          type: result.rich_snippet.top?.extensions?.type,
-          rating: result.rich_snippet.top?.extensions?.rating,
-          reviews: result.rich_snippet.top?.extensions?.reviews,
-          price: result.rich_snippet.top?.extensions?.price,
-          availability: result.rich_snippet.top?.extensions?.availability,
-        } : undefined,
-      })),
-      featuredSnippet: rawData.answer_box ? {
-        title: rawData.answer_box.title,
-        url: rawData.answer_box.link,
-        domain: this.extractDomain(rawData.answer_box.link || ""),
-        snippet: rawData.answer_box.snippet || rawData.answer_box.answer,
-        type: rawData.answer_box.type || "paragraph",
-      } : undefined,
+      organicResults: (rawData.organic_results || []).map(
+        (result: any, index: number) => ({
+          position: result.position || index + 1,
+          title: result.title || "",
+          url: result.link || "",
+          domain: this.extractDomain(result.link || ""),
+          snippet: result.snippet || "",
+          displayedUrl: result.displayed_link,
+          date: result.date,
+          cached: false,
+          related: result.related_pages_link
+            ? [result.related_pages_link]
+            : undefined,
+          sitelinks: result.sitelinks,
+          richSnippet: result.rich_snippet
+            ? {
+                type: result.rich_snippet.top?.extensions?.type,
+                rating: result.rich_snippet.top?.extensions?.rating,
+                reviews: result.rich_snippet.top?.extensions?.reviews,
+                price: result.rich_snippet.top?.extensions?.price,
+                availability: result.rich_snippet.top?.extensions?.availability,
+              }
+            : undefined,
+        })
+      ),
+      featuredSnippet: rawData.answer_box
+        ? {
+            title: rawData.answer_box.title,
+            url: rawData.answer_box.link,
+            domain: this.extractDomain(rawData.answer_box.link || ""),
+            snippet: rawData.answer_box.snippet || rawData.answer_box.answer,
+            type: rawData.answer_box.type || "paragraph",
+          }
+        : undefined,
       peopleAlsoAsk: rawData.related_questions?.map((q: any) => ({
         question: q.question,
         snippet: q.snippet,
@@ -494,11 +552,13 @@ export class SerpApiService {
       })),
       totalResults: rawData.search_information?.total_results || 0,
       timeTaken: rawData.search_information?.time_taken_displayed || 0,
-      pagination: rawData.pagination ? {
-        current: rawData.pagination.current,
-        next: rawData.pagination.next,
-        pages: rawData.pagination.pages || [],
-      } : undefined,
+      pagination: rawData.pagination
+        ? {
+            current: rawData.pagination.current,
+            next: rawData.pagination.next,
+            pages: rawData.pagination.pages || [],
+          }
+        : undefined,
       metadata: {
         timestamp: new Date().toISOString(),
         processingTime,
@@ -520,7 +580,11 @@ export class SerpApiService {
       return competition.toLowerCase() as "low" | "medium" | "high";
     }
     if (typeof competition === "number") {
-      return competition < 0.33 ? "low" : competition < 0.66 ? "medium" : "high";
+      return competition < 0.33
+        ? "low"
+        : competition < 0.66
+          ? "medium"
+          : "high";
     }
     return "medium";
   }
@@ -529,9 +593,11 @@ export class SerpApiService {
     // Simplified difficulty calculation based on competition and search volume
     const competition = idea.competition?.value || 0.5;
     const searchVolume = idea.search_volume || 100;
-    
+
     // Higher competition and higher search volume = higher difficulty
-    const difficulty = (competition * 0.7 + (Math.log(searchVolume) / Math.log(100000)) * 0.3) * 100;
+    const difficulty =
+      (competition * 0.7 + (Math.log(searchVolume) / Math.log(100000)) * 0.3) *
+      100;
     return Math.min(Math.max(Math.round(difficulty), 1), 100);
   }
 
@@ -551,7 +617,7 @@ export class SerpApiService {
 
     while (this.requestQueue.length > 0) {
       const batch = this.requestQueue.splice(0, this.maxConcurrentRequests);
-      
+
       const promises = batch.map(async ({ resolve, reject, request }) => {
         try {
           const result = await request();

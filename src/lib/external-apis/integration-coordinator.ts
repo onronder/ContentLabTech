@@ -3,9 +3,20 @@
  * Orchestrates data collection from multiple external APIs for competitive intelligence
  */
 
-import { brightDataService, type ScrapeRequest, type ScrapeResponse } from "./brightdata";
-import { serpApiService, type SerpRequest, type RankingAnalysis } from "./serp-api";
-import { googleAnalyticsService, type CompetitiveMetrics } from "./google-analytics";
+import {
+  brightDataService,
+  type ScrapeRequest,
+  type ScrapeResponse,
+} from "./brightdata";
+import {
+  serpApiService,
+  type SerpRequest,
+  type RankingAnalysis,
+} from "./serp-api";
+import {
+  googleAnalyticsService,
+  type CompetitiveMetrics,
+} from "./google-analytics";
 import type {
   CompetitiveAnalysisData,
   CompetitiveContentAnalysis,
@@ -49,7 +60,9 @@ export class IntegrationCoordinator {
   /**
    * Orchestrate comprehensive competitive analysis using all available APIs
    */
-  async performCompetitiveAnalysis(request: CompetitiveDataRequest): Promise<CompetitiveDataResponse> {
+  async performCompetitiveAnalysis(
+    request: CompetitiveDataRequest
+  ): Promise<CompetitiveDataResponse> {
     const startTime = Date.now();
     const dataSourcesUsed: string[] = [];
     const limitations: string[] = [];
@@ -60,45 +73,51 @@ export class IntegrationCoordinator {
       // Run analysis types in parallel where possible
       const analysisPromises: Promise<void>[] = [];
 
-      if (request.analysisTypes.includes("content") || request.analysisTypes.includes("comprehensive")) {
+      if (
+        request.analysisTypes.includes("content") ||
+        request.analysisTypes.includes("comprehensive")
+      ) {
         analysisPromises.push(
-          this.performContentAnalysis(request)
-            .then(result => {
-              if (result.success && result.data) {
-                analysisData.contentAnalysis = result.data;
-                dataSourcesUsed.push("BrightData");
-              } else {
-                limitations.push(`Content analysis failed: ${result.error}`);
-              }
-            })
+          this.performContentAnalysis(request).then(result => {
+            if (result.success && result.data) {
+              analysisData.contentAnalysis = result.data;
+              dataSourcesUsed.push("BrightData");
+            } else {
+              limitations.push(`Content analysis failed: ${result.error}`);
+            }
+          })
         );
       }
 
-      if (request.analysisTypes.includes("seo") || request.analysisTypes.includes("comprehensive")) {
+      if (
+        request.analysisTypes.includes("seo") ||
+        request.analysisTypes.includes("comprehensive")
+      ) {
         analysisPromises.push(
-          this.performSEOAnalysis(request)
-            .then(result => {
-              if (result.success && result.data) {
-                analysisData.seoAnalysis = result.data;
-                dataSourcesUsed.push("SERP API");
-              } else {
-                limitations.push(`SEO analysis failed: ${result.error}`);
-              }
-            })
+          this.performSEOAnalysis(request).then(result => {
+            if (result.success && result.data) {
+              analysisData.seoAnalysis = result.data;
+              dataSourcesUsed.push("SERP API");
+            } else {
+              limitations.push(`SEO analysis failed: ${result.error}`);
+            }
+          })
         );
       }
 
-      if (request.analysisTypes.includes("performance") || request.analysisTypes.includes("comprehensive")) {
+      if (
+        request.analysisTypes.includes("performance") ||
+        request.analysisTypes.includes("comprehensive")
+      ) {
         analysisPromises.push(
-          this.performPerformanceAnalysis(request)
-            .then(result => {
-              if (result.success && result.data) {
-                analysisData.performanceAnalysis = result.data;
-                dataSourcesUsed.push("Google Analytics", "BrightData");
-              } else {
-                limitations.push(`Performance analysis failed: ${result.error}`);
-              }
-            })
+          this.performPerformanceAnalysis(request).then(result => {
+            if (result.success && result.data) {
+              analysisData.performanceAnalysis = result.data;
+              dataSourcesUsed.push("Google Analytics", "BrightData");
+            } else {
+              limitations.push(`Performance analysis failed: ${result.error}`);
+            }
+          })
         );
       }
 
@@ -118,11 +137,13 @@ export class IntegrationCoordinator {
           limitations,
         },
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Analysis coordination failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Analysis coordination failed",
         metadata: {
           processingTime: Date.now() - startTime,
           dataSourcesUsed,
@@ -136,14 +157,19 @@ export class IntegrationCoordinator {
   /**
    * Perform comprehensive content analysis using BrightData
    */
-  private async performContentAnalysis(request: CompetitiveDataRequest): Promise<{
+  private async performContentAnalysis(
+    request: CompetitiveDataRequest
+  ): Promise<{
     success: boolean;
     data?: CompetitiveContentAnalysis;
     error?: string;
   }> {
     try {
       // Prepare scraping requests for all domains
-      const scrapeRequests: ScrapeRequest[] = [request.targetDomain, ...request.competitorDomains].map(domain => ({
+      const scrapeRequests: ScrapeRequest[] = [
+        request.targetDomain,
+        ...request.competitorDomains,
+      ].map(domain => ({
         url: `https://${domain}`,
         type: "content",
         options: {
@@ -159,8 +185,12 @@ export class IntegrationCoordinator {
 
       // Get additional pages for comprehensive analysis
       if (request.options.depth === "comprehensive") {
-        const additionalPages = await this.getAdditionalPages(request.targetDomain, request.competitorDomains);
-        const additionalScrapes = await brightDataService.batchScrape(additionalPages);
+        const additionalPages = await this.getAdditionalPages(
+          request.targetDomain,
+          request.competitorDomains
+        );
+        const additionalScrapes =
+          await brightDataService.batchScrape(additionalPages);
         scrapeResults.push(...additionalScrapes);
       }
 
@@ -168,18 +198,18 @@ export class IntegrationCoordinator {
       const contentAnalysis = await this.analyzeContent(
         scrapeResults,
         request.targetDomain,
-        request.competitorDomains[0] // Primary competitor
+        request.competitorDomains[0]! // Primary competitor
       );
 
       return {
         success: true,
         data: contentAnalysis,
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Content analysis failed",
+        error:
+          error instanceof Error ? error.message : "Content analysis failed",
       };
     }
   }
@@ -194,7 +224,9 @@ export class IntegrationCoordinator {
   }> {
     try {
       // Get keywords for analysis
-      const keywords = request.options.keywords || await this.getRelevantKeywords(request.targetDomain);
+      const keywords =
+        request.options.keywords ||
+        (await this.getRelevantKeywords(request.targetDomain));
 
       // Perform ranking analysis for primary competitor
       const rankingAnalysis: RankingAnalysis = {
@@ -204,7 +236,8 @@ export class IntegrationCoordinator {
         device: "desktop",
       };
 
-      const rankingResults = await serpApiService.analyzeRankings(rankingAnalysis);
+      const rankingResults =
+        await serpApiService.analyzeRankings(rankingAnalysis);
 
       if (!rankingResults.success || !rankingResults.data) {
         throw new Error(rankingResults.error || "Ranking analysis failed");
@@ -213,21 +246,23 @@ export class IntegrationCoordinator {
       // Get keyword suggestions for gap analysis
       const keywordGaps = await this.identifyKeywordGaps(
         request.targetDomain,
-        request.competitorDomains[0],
+        request.competitorDomains[0]!,
         keywords
       );
 
       // Analyze shared keywords
       const sharedKeywords = await this.analyzeSharedKeywords(
         request.targetDomain,
-        request.competitorDomains[0],
+        request.competitorDomains[0]!,
         keywords
       );
 
       // Build SEO analysis response
       const seoAnalysis: CompetitiveSEOAnalysis = {
         overallComparison: {
-          userScore: rankingResults.data.summary.avg_position ? 100 - rankingResults.data.summary.avg_position : 50,
+          userScore: rankingResults.data.summary.avg_position
+            ? 100 - rankingResults.data.summary.avg_position
+            : 50,
           competitorScore: 60, // Simulated competitor score
           gap: 0,
           rankingComparison: {
@@ -239,7 +274,9 @@ export class IntegrationCoordinator {
               user: rankingResults.data.summary.top_10_rankings,
               competitor: 8, // Simulated
             },
-            improvementOpportunities: this.generateRankingOpportunities(rankingResults.data.rankings),
+            improvementOpportunities: this.generateRankingOpportunities(
+              rankingResults.data.rankings
+            ),
           },
           visibilityMetrics: {
             organicTraffic: {
@@ -265,19 +302,29 @@ export class IntegrationCoordinator {
           keywordGaps,
           rankingOverlap: this.calculateRankingOverlap(sharedKeywords),
         },
-        technicalSEO: await this.analyzeTechnicalSEO(request.targetDomain, request.competitorDomains[0]),
-        contentOptimization: await this.analyzeContentOptimization(request.targetDomain, request.competitorDomains[0]),
-        linkProfile: await this.analyzeLinkProfile(request.targetDomain, request.competitorDomains[0]),
+        technicalSEO: await this.analyzeTechnicalSEO(
+          request.targetDomain,
+          request.competitorDomains[0]!
+        ),
+        contentOptimization: await this.analyzeContentOptimization(
+          request.targetDomain,
+          request.competitorDomains[0]!
+        ),
+        linkProfile: await this.analyzeLinkProfile(
+          request.targetDomain,
+          request.competitorDomains[0]!
+        ),
       };
 
       // Calculate gap
-      seoAnalysis.overallComparison.gap = seoAnalysis.overallComparison.userScore - seoAnalysis.overallComparison.competitorScore;
+      seoAnalysis.overallComparison.gap =
+        seoAnalysis.overallComparison.userScore -
+        seoAnalysis.overallComparison.competitorScore;
 
       return {
         success: true,
         data: seoAnalysis,
       };
-
     } catch (error) {
       return {
         success: false,
@@ -289,17 +336,20 @@ export class IntegrationCoordinator {
   /**
    * Perform performance analysis using Google Analytics and BrightData
    */
-  private async performPerformanceAnalysis(request: CompetitiveDataRequest): Promise<{
+  private async performPerformanceAnalysis(
+    request: CompetitiveDataRequest
+  ): Promise<{
     success: boolean;
     data?: CompetitivePerformanceAnalysis;
     error?: string;
   }> {
     try {
       // Get performance metrics from Google Analytics
-      const analyticsMetrics = await googleAnalyticsService.getPerformanceMetrics(
-        request.targetDomain,
-        request.options.timeframe
-      );
+      const analyticsMetrics =
+        await googleAnalyticsService.getPerformanceMetrics(
+          request.targetDomain,
+          request.options.timeframe
+        );
 
       // Get technical performance from BrightData
       const performanceData = await brightDataService.scrapeWebsite({
@@ -327,33 +377,84 @@ export class IntegrationCoordinator {
         speedComparison: {
           loadTime: {
             user: performanceData.data.performance?.loadTime || 3000,
-            competitor: competitorPerformanceData.data.performance?.loadTime || 2800,
-            gap: (performanceData.data.performance?.loadTime || 3000) - (competitorPerformanceData.data.performance?.loadTime || 2800),
-            advantage: (performanceData.data.performance?.loadTime || 3000) < (competitorPerformanceData.data.performance?.loadTime || 2800) ? "user" : "competitor",
+            competitor:
+              competitorPerformanceData.data.performance?.loadTime || 2800,
+            gap:
+              (performanceData.data.performance?.loadTime || 3000) -
+              (competitorPerformanceData.data.performance?.loadTime || 2800),
+            advantage:
+              (performanceData.data.performance?.loadTime || 3000) <
+              (competitorPerformanceData.data.performance?.loadTime || 2800)
+                ? "user"
+                : "competitor",
           },
           firstContentfulPaint: {
-            user: performanceData.data.performance?.firstContentfulPaint || 1800,
-            competitor: competitorPerformanceData.data.performance?.firstContentfulPaint || 1600,
-            gap: (performanceData.data.performance?.firstContentfulPaint || 1800) - (competitorPerformanceData.data.performance?.firstContentfulPaint || 1600),
-            advantage: (performanceData.data.performance?.firstContentfulPaint || 1800) < (competitorPerformanceData.data.performance?.firstContentfulPaint || 1600) ? "user" : "competitor",
+            user:
+              performanceData.data.performance?.firstContentfulPaint || 1800,
+            competitor:
+              competitorPerformanceData.data.performance
+                ?.firstContentfulPaint || 1600,
+            gap:
+              (performanceData.data.performance?.firstContentfulPaint || 1800) -
+              (competitorPerformanceData.data.performance
+                ?.firstContentfulPaint || 1600),
+            advantage:
+              (performanceData.data.performance?.firstContentfulPaint || 1800) <
+              (competitorPerformanceData.data.performance
+                ?.firstContentfulPaint || 1600)
+                ? "user"
+                : "competitor",
           },
           largestContentfulPaint: {
-            user: performanceData.data.performance?.largestContentfulPaint || 2500,
-            competitor: competitorPerformanceData.data.performance?.largestContentfulPaint || 2300,
-            gap: (performanceData.data.performance?.largestContentfulPaint || 2500) - (competitorPerformanceData.data.performance?.largestContentfulPaint || 2300),
-            advantage: (performanceData.data.performance?.largestContentfulPaint || 2500) < (competitorPerformanceData.data.performance?.largestContentfulPaint || 2300) ? "user" : "competitor",
+            user:
+              performanceData.data.performance?.largestContentfulPaint || 2500,
+            competitor:
+              competitorPerformanceData.data.performance
+                ?.largestContentfulPaint || 2300,
+            gap:
+              (performanceData.data.performance?.largestContentfulPaint ||
+                2500) -
+              (competitorPerformanceData.data.performance
+                ?.largestContentfulPaint || 2300),
+            advantage:
+              (performanceData.data.performance?.largestContentfulPaint ||
+                2500) <
+              (competitorPerformanceData.data.performance
+                ?.largestContentfulPaint || 2300)
+                ? "user"
+                : "competitor",
           },
           firstInputDelay: {
             user: performanceData.data.performance?.firstInputDelay || 100,
-            competitor: competitorPerformanceData.data.performance?.firstInputDelay || 80,
-            gap: (performanceData.data.performance?.firstInputDelay || 100) - (competitorPerformanceData.data.performance?.firstInputDelay || 80),
-            advantage: (performanceData.data.performance?.firstInputDelay || 100) < (competitorPerformanceData.data.performance?.firstInputDelay || 80) ? "user" : "competitor",
+            competitor:
+              competitorPerformanceData.data.performance?.firstInputDelay || 80,
+            gap:
+              (performanceData.data.performance?.firstInputDelay || 100) -
+              (competitorPerformanceData.data.performance?.firstInputDelay ||
+                80),
+            advantage:
+              (performanceData.data.performance?.firstInputDelay || 100) <
+              (competitorPerformanceData.data.performance?.firstInputDelay ||
+                80)
+                ? "user"
+                : "competitor",
           },
           cumulativeLayoutShift: {
-            user: performanceData.data.performance?.cumulativeLayoutShift || 0.1,
-            competitor: competitorPerformanceData.data.performance?.cumulativeLayoutShift || 0.08,
-            gap: (performanceData.data.performance?.cumulativeLayoutShift || 0.1) - (competitorPerformanceData.data.performance?.cumulativeLayoutShift || 0.08),
-            advantage: (performanceData.data.performance?.cumulativeLayoutShift || 0.1) < (competitorPerformanceData.data.performance?.cumulativeLayoutShift || 0.08) ? "user" : "competitor",
+            user:
+              performanceData.data.performance?.cumulativeLayoutShift || 0.1,
+            competitor:
+              competitorPerformanceData.data.performance
+                ?.cumulativeLayoutShift || 0.08,
+            gap:
+              (performanceData.data.performance?.cumulativeLayoutShift || 0.1) -
+              (competitorPerformanceData.data.performance
+                ?.cumulativeLayoutShift || 0.08),
+            advantage:
+              (performanceData.data.performance?.cumulativeLayoutShift || 0.1) <
+              (competitorPerformanceData.data.performance
+                ?.cumulativeLayoutShift || 0.08)
+                ? "user"
+                : "competitor",
           },
         },
         userExperience: {
@@ -408,18 +509,23 @@ export class IntegrationCoordinator {
             advantage: "competitor",
           },
         },
-        performanceOpportunities: this.generatePerformanceOpportunities(performanceData, competitorPerformanceData),
+        performanceOpportunities: this.generatePerformanceOpportunities(
+          performanceData,
+          competitorPerformanceData
+        ),
       };
 
       return {
         success: true,
         data: performanceAnalysis,
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Performance analysis failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Performance analysis failed",
       };
     }
   }
@@ -427,9 +533,18 @@ export class IntegrationCoordinator {
   /**
    * Get additional pages for comprehensive content analysis
    */
-  private async getAdditionalPages(targetDomain: string, competitorDomains: string[]): Promise<ScrapeRequest[]> {
+  private async getAdditionalPages(
+    targetDomain: string,
+    competitorDomains: string[]
+  ): Promise<ScrapeRequest[]> {
     const additionalPages: ScrapeRequest[] = [];
-    const commonPaths = ["/about", "/services", "/products", "/blog", "/contact"];
+    const commonPaths = [
+      "/about",
+      "/services",
+      "/products",
+      "/blog",
+      "/contact",
+    ];
 
     for (const domain of [targetDomain, ...competitorDomains]) {
       for (const path of commonPaths) {
@@ -457,27 +572,39 @@ export class IntegrationCoordinator {
     competitorDomain: string
   ): Promise<CompetitiveContentAnalysis> {
     // Separate target and competitor content
-    const targetContent = scrapeResults.filter(result => 
+    const targetContent = scrapeResults.filter(result =>
       result.data.url.includes(targetDomain)
     );
-    const competitorContent = scrapeResults.filter(result => 
+    const competitorContent = scrapeResults.filter(result =>
       result.data.url.includes(competitorDomain)
     );
 
     // Analyze content similarity
-    const contentSimilarity = this.calculateContentSimilarity(targetContent, competitorContent);
+    const contentSimilarity = this.calculateContentSimilarity(
+      targetContent,
+      competitorContent
+    );
 
     // Analyze content quality
-    const contentQuality = this.analyzeContentQuality(targetContent, competitorContent);
+    const contentQuality = this.analyzeContentQuality(
+      targetContent,
+      competitorContent
+    );
 
     // Analyze topics
     const topicAnalysis = this.analyzeTopics(targetContent, competitorContent);
 
     // Analyze content volume
-    const contentVolume = this.analyzeContentVolume(targetContent, competitorContent);
+    const contentVolume = this.analyzeContentVolume(
+      targetContent,
+      competitorContent
+    );
 
     // Generate content strategy insights
-    const contentStrategy = this.generateContentStrategy(topicAnalysis, contentQuality);
+    const contentStrategy = this.generateContentStrategy(
+      topicAnalysis,
+      contentQuality
+    );
 
     return {
       contentSimilarity,
@@ -491,7 +618,10 @@ export class IntegrationCoordinator {
   /**
    * Calculate content similarity between target and competitor
    */
-  private calculateContentSimilarity(targetContent: ScrapeResponse[], competitorContent: ScrapeResponse[]): any {
+  private calculateContentSimilarity(
+    targetContent: ScrapeResponse[],
+    competitorContent: ScrapeResponse[]
+  ): any {
     // Simplified content similarity calculation
     return {
       overall: 0.65,
@@ -510,27 +640,44 @@ export class IntegrationCoordinator {
   /**
    * Analyze content quality comparison
    */
-  private analyzeContentQuality(targetContent: ScrapeResponse[], competitorContent: ScrapeResponse[]): any {
+  private analyzeContentQuality(
+    targetContent: ScrapeResponse[],
+    competitorContent: ScrapeResponse[]
+  ): any {
     // Calculate average metrics for both sides
-    const targetAvgWordCount = targetContent.reduce((sum, content) => 
-      sum + (content.data.content_analysis?.wordCount || 0), 0) / targetContent.length;
-    
-    const competitorAvgWordCount = competitorContent.reduce((sum, content) => 
-      sum + (content.data.content_analysis?.wordCount || 0), 0) / competitorContent.length;
+    const targetAvgWordCount =
+      targetContent.reduce(
+        (sum, content) => sum + (content.data.content_analysis?.wordCount || 0),
+        0
+      ) / targetContent.length;
+
+    const competitorAvgWordCount =
+      competitorContent.reduce(
+        (sum, content) => sum + (content.data.content_analysis?.wordCount || 0),
+        0
+      ) / competitorContent.length;
 
     const userScore = Math.min(100, (targetAvgWordCount / 500) * 50 + 25);
-    const competitorScore = Math.min(100, (competitorAvgWordCount / 500) * 50 + 25);
+    const competitorScore = Math.min(
+      100,
+      (competitorAvgWordCount / 500) * 50 + 25
+    );
 
     return {
       userScore: Math.round(userScore),
       competitorScore: Math.round(competitorScore),
-      relativeDifference: Math.round(((userScore - competitorScore) / competitorScore) * 100),
+      relativeDifference: Math.round(
+        ((userScore - competitorScore) / competitorScore) * 100
+      ),
       qualityFactors: {
         depth: {
           userScore: Math.round(userScore * 0.9),
           competitorScore: Math.round(competitorScore * 0.9),
           gap: Math.round((userScore - competitorScore) * 0.9),
-          recommendation: userScore < competitorScore ? "Increase content depth and detail" : undefined,
+          recommendation:
+            userScore < competitorScore
+              ? "Increase content depth and detail"
+              : undefined,
         },
         readability: {
           userScore: 78,
@@ -556,22 +703,26 @@ export class IntegrationCoordinator {
   /**
    * Analyze topic coverage and gaps
    */
-  private analyzeTopics(targetContent: ScrapeResponse[], competitorContent: ScrapeResponse[]): any {
+  private analyzeTopics(
+    targetContent: ScrapeResponse[],
+    competitorContent: ScrapeResponse[]
+  ): any {
     // Extract topics from content analysis
     const targetTopics = this.extractTopics(targetContent);
     const competitorTopics = this.extractTopics(competitorContent);
 
     // Find shared and unique topics
-    const sharedTopics = targetTopics.filter(topic => 
+    const sharedTopics = targetTopics.filter(topic =>
       competitorTopics.some(compTopic => compTopic.name === topic.name)
     );
 
-    const uniqueUserTopics = targetTopics.filter(topic => 
-      !competitorTopics.some(compTopic => compTopic.name === topic.name)
+    const uniqueUserTopics = targetTopics.filter(
+      topic =>
+        !competitorTopics.some(compTopic => compTopic.name === topic.name)
     );
 
-    const uniqueCompetitorTopics = competitorTopics.filter(topic => 
-      !targetTopics.some(userTopic => userTopic.name === topic.name)
+    const uniqueCompetitorTopics = competitorTopics.filter(
+      topic => !targetTopics.some(userTopic => userTopic.name === topic.name)
     );
 
     // Generate topic gaps (opportunities)
@@ -604,8 +755,13 @@ export class IntegrationCoordinator {
         page.data.content_analysis.topics.forEach(topic => {
           const existingTopic = topics.find(t => t.name === topic.name);
           if (existingTopic) {
-            existingTopic.coverage = Math.max(existingTopic.coverage, topic.confidence);
-            existingTopic.keywords = [...new Set([...existingTopic.keywords, ...topic.keywords])];
+            existingTopic.coverage = Math.max(
+              existingTopic.coverage,
+              topic.confidence
+            );
+            existingTopic.keywords = [
+              ...new Set([...existingTopic.keywords, ...topic.keywords]),
+            ];
           } else {
             topics.push({
               id: `topic_${topics.length + 1}`,
@@ -626,7 +782,10 @@ export class IntegrationCoordinator {
   /**
    * Analyze content volume and publishing patterns
    */
-  private analyzeContentVolume(targetContent: ScrapeResponse[], competitorContent: ScrapeResponse[]): any {
+  private analyzeContentVolume(
+    targetContent: ScrapeResponse[],
+    competitorContent: ScrapeResponse[]
+  ): any {
     return {
       userContentCount: targetContent.length,
       competitorContentCount: competitorContent.length,
@@ -668,23 +827,45 @@ export class IntegrationCoordinator {
   /**
    * Generate content strategy recommendations
    */
-  private generateContentStrategy(topicAnalysis: any, contentQuality: any): any {
+  private generateContentStrategy(
+    topicAnalysis: any,
+    contentQuality: any
+  ): any {
     return {
       focusAreas: ["Content Quality", "Topic Coverage", "SEO Optimization"],
-      contentPillars: ["Industry Insights", "How-to Guides", "Case Studies", "Product Updates"],
+      contentPillars: [
+        "Industry Insights",
+        "How-to Guides",
+        "Case Studies",
+        "Product Updates",
+      ],
       targetAudience: {
-        segments: ["Marketing Professionals", "Business Owners", "Content Creators"],
+        segments: [
+          "Marketing Professionals",
+          "Business Owners",
+          "Content Creators",
+        ],
         demographics: {},
         interests: ["Digital Marketing", "Content Strategy", "SEO"],
-        behaviorPatterns: ["Research-oriented", "Solution-seeking", "Trend-following"],
+        behaviorPatterns: [
+          "Research-oriented",
+          "Solution-seeking",
+          "Trend-following",
+        ],
       },
-      messagingThemes: ["Innovation", "Results-driven", "User-centric", "Industry leadership"],
+      messagingThemes: [
+        "Innovation",
+        "Results-driven",
+        "User-centric",
+        "Industry leadership",
+      ],
       strategicRecommendations: [
         {
           type: "content" as const,
           priority: "high" as const,
           title: "Expand Topic Coverage",
-          description: "Create content for high-opportunity topics identified in competitor analysis",
+          description:
+            "Create content for high-opportunity topics identified in competitor analysis",
           expectedImpact: 75,
           implementationEffort: 60,
           timeframe: "3-6 months",
@@ -693,7 +874,8 @@ export class IntegrationCoordinator {
           type: "seo" as const,
           priority: "medium" as const,
           title: "Optimize Existing Content",
-          description: "Improve SEO optimization of current content to match competitor standards",
+          description:
+            "Improve SEO optimization of current content to match competitor standards",
           expectedImpact: 45,
           implementationEffort: 30,
           timeframe: "1-3 months",
@@ -705,10 +887,19 @@ export class IntegrationCoordinator {
   // Additional helper methods for SEO and performance analysis...
   private async getRelevantKeywords(domain: string): Promise<string[]> {
     // In a real implementation, this would extract keywords from the domain's content
-    return ["digital marketing", "content strategy", "SEO optimization", "competitive analysis"];
+    return [
+      "digital marketing",
+      "content strategy",
+      "SEO optimization",
+      "competitive analysis",
+    ];
   }
 
-  private async identifyKeywordGaps(targetDomain: string, competitorDomain: string, keywords: string[]): Promise<KeywordGap[]> {
+  private async identifyKeywordGaps(
+    targetDomain: string,
+    competitorDomain: string,
+    keywords: string[]
+  ): Promise<KeywordGap[]> {
     // Simulate keyword gap identification
     return keywords.slice(0, 5).map(keyword => ({
       keyword,
@@ -716,11 +907,16 @@ export class IntegrationCoordinator {
       searchVolume: Math.floor(Math.random() * 5000) + 1000,
       difficulty: Math.floor(Math.random() * 60) + 20,
       opportunityScore: Math.floor(Math.random() * 40) + 60,
-      priority: Math.random() > 0.7 ? "high" : Math.random() > 0.4 ? "medium" : "low",
+      priority:
+        Math.random() > 0.7 ? "high" : Math.random() > 0.4 ? "medium" : "low",
     }));
   }
 
-  private async analyzeSharedKeywords(targetDomain: string, competitorDomain: string, keywords: string[]): Promise<CompetitiveKeyword[]> {
+  private async analyzeSharedKeywords(
+    targetDomain: string,
+    competitorDomain: string,
+    keywords: string[]
+  ): Promise<CompetitiveKeyword[]> {
     // Simulate shared keyword analysis
     return keywords.slice(0, 10).map(keyword => ({
       keyword,
@@ -729,7 +925,12 @@ export class IntegrationCoordinator {
       searchVolume: Math.floor(Math.random() * 5000) + 1000,
       difficulty: Math.floor(Math.random() * 80) + 20,
       cpc: Math.random() * 5 + 0.5,
-      trend: Math.random() > 0.6 ? "rising" : Math.random() > 0.3 ? "stable" : "declining",
+      trend:
+        Math.random() > 0.6
+          ? "rising"
+          : Math.random() > 0.3
+            ? "stable"
+            : "declining",
     }));
   }
 
@@ -742,15 +943,23 @@ export class IntegrationCoordinator {
         currentRanking: ranking.position,
         competitorRanking: Math.floor(Math.random() * 10) + 1,
         improvementPotential: Math.floor(Math.random() * 50) + 30,
-        effort: Math.random() > 0.6 ? "low" : Math.random() > 0.3 ? "medium" : "high",
+        effort:
+          Math.random() > 0.6 ? "low" : Math.random() > 0.3 ? "medium" : "high",
       }));
   }
 
-  private calculateRankingOverlap(sharedKeywords: CompetitiveKeyword[]): number {
-    return Math.round((sharedKeywords.length / (sharedKeywords.length + 10)) * 100);
+  private calculateRankingOverlap(
+    sharedKeywords: CompetitiveKeyword[]
+  ): number {
+    return Math.round(
+      (sharedKeywords.length / (sharedKeywords.length + 10)) * 100
+    );
   }
 
-  private async analyzeTechnicalSEO(targetDomain: string, competitorDomain: string): Promise<any> {
+  private async analyzeTechnicalSEO(
+    targetDomain: string,
+    competitorDomain: string
+  ): Promise<any> {
     // Simulate technical SEO analysis
     return {
       siteSpeed: {
@@ -766,65 +975,151 @@ export class IntegrationCoordinator {
         advantage: "user" as const,
       },
       coreWebVitals: {
-        lcp: { user: 2.3, competitor: 2.1, gap: 0.2, advantage: "competitor" as const },
+        lcp: {
+          user: 2.3,
+          competitor: 2.1,
+          gap: 0.2,
+          advantage: "competitor" as const,
+        },
         fid: { user: 95, competitor: 88, gap: 7, advantage: "user" as const },
-        cls: { user: 0.08, competitor: 0.12, gap: -0.04, advantage: "user" as const },
-        overall: { user: 88, competitor: 85, gap: 3, advantage: "user" as const },
+        cls: {
+          user: 0.08,
+          competitor: 0.12,
+          gap: -0.04,
+          advantage: "user" as const,
+        },
+        overall: {
+          user: 88,
+          competitor: 85,
+          gap: 3,
+          advantage: "user" as const,
+        },
       },
       technicalIssues: {
         userIssues: [],
         competitorIssues: [],
-        comparativeAdvantages: ["Better mobile optimization", "Lower CLS score"],
+        comparativeAdvantages: [
+          "Better mobile optimization",
+          "Lower CLS score",
+        ],
       },
     };
   }
 
-  private async analyzeContentOptimization(targetDomain: string, competitorDomain: string): Promise<any> {
+  private async analyzeContentOptimization(
+    targetDomain: string,
+    competitorDomain: string
+  ): Promise<any> {
     return {
-      titleOptimization: { user: 78, competitor: 82, gap: -4, advantage: "competitor" as const },
-      metaDescriptions: { user: 85, competitor: 80, gap: 5, advantage: "user" as const },
-      headingStructure: { user: 88, competitor: 85, gap: 3, advantage: "user" as const },
-      internalLinking: { user: 72, competitor: 78, gap: -6, advantage: "competitor" as const },
-      schemaMarkup: { user: 65, competitor: 72, gap: -7, advantage: "competitor" as const },
+      titleOptimization: {
+        user: 78,
+        competitor: 82,
+        gap: -4,
+        advantage: "competitor" as const,
+      },
+      metaDescriptions: {
+        user: 85,
+        competitor: 80,
+        gap: 5,
+        advantage: "user" as const,
+      },
+      headingStructure: {
+        user: 88,
+        competitor: 85,
+        gap: 3,
+        advantage: "user" as const,
+      },
+      internalLinking: {
+        user: 72,
+        competitor: 78,
+        gap: -6,
+        advantage: "competitor" as const,
+      },
+      schemaMarkup: {
+        user: 65,
+        competitor: 72,
+        gap: -7,
+        advantage: "competitor" as const,
+      },
     };
   }
 
-  private async analyzeLinkProfile(targetDomain: string, competitorDomain: string): Promise<any> {
+  private async analyzeLinkProfile(
+    targetDomain: string,
+    competitorDomain: string
+  ): Promise<any> {
     return {
-      domainAuthority: { user: 45, competitor: 52, gap: -7, advantage: "competitor" as const },
+      domainAuthority: {
+        user: 45,
+        competitor: 52,
+        gap: -7,
+        advantage: "competitor" as const,
+      },
       backlinks: {
-        total: { user: 1250, competitor: 1580, gap: -330, advantage: "competitor" as const },
-        dofollow: { user: 890, competitor: 1120, gap: -230, advantage: "competitor" as const },
-        referringDomains: { user: 180, competitor: 225, gap: -45, advantage: "competitor" as const },
+        total: {
+          user: 1250,
+          competitor: 1580,
+          gap: -330,
+          advantage: "competitor" as const,
+        },
+        dofollow: {
+          user: 890,
+          competitor: 1120,
+          gap: -230,
+          advantage: "competitor" as const,
+        },
+        referringDomains: {
+          user: 180,
+          competitor: 225,
+          gap: -45,
+          advantage: "competitor" as const,
+        },
       },
       linkQuality: {
         userProfile: {
           averageDomainAuthority: 35,
           topLinkingSites: ["example1.com", "example2.com"],
-          linkTypes: { "article": 60, "directory": 25, "social": 15 },
-          anchorTextDistribution: { "branded": 40, "exact": 25, "partial": 35 },
+          linkTypes: { article: 60, directory: 25, social: 15 },
+          anchorTextDistribution: { branded: 40, exact: 25, partial: 35 },
         },
         competitorProfile: {
           averageDomainAuthority: 42,
           topLinkingSites: ["competitor1.com", "competitor2.com"],
-          linkTypes: { "article": 70, "directory": 20, "social": 10 },
-          anchorTextDistribution: { "branded": 35, "exact": 30, "partial": 35 },
+          linkTypes: { article: 70, directory: 20, social: 10 },
+          anchorTextDistribution: { branded: 35, exact: 30, partial: 35 },
         },
         qualityGap: -7,
       },
       linkOpportunities: [
-        { domain: "industry-blog.com", domainAuthority: 65, relevance: 85, difficulty: "medium", priority: 90 },
-        { domain: "news-site.com", domainAuthority: 78, relevance: 70, difficulty: "high", priority: 75 },
+        {
+          domain: "industry-blog.com",
+          domainAuthority: 65,
+          relevance: 85,
+          difficulty: "medium",
+          priority: 90,
+        },
+        {
+          domain: "news-site.com",
+          domainAuthority: 78,
+          relevance: 70,
+          difficulty: "high",
+          priority: 75,
+        },
       ],
     };
   }
 
-  private generatePerformanceOpportunities(targetData: ScrapeResponse, competitorData: ScrapeResponse): any[] {
+  private generatePerformanceOpportunities(
+    targetData: ScrapeResponse,
+    competitorData: ScrapeResponse
+  ): any[] {
     return [
       {
         metric: "Largest Contentful Paint",
-        currentValue: targetData.data.performance?.largestContentfulPaint || 2500,
-        competitorValue: competitorData.data.performance?.largestContentfulPaint || 2200,
+        currentValue:
+          targetData.data.performance?.largestContentfulPaint || 2500,
+        competitorValue:
+          competitorData.data.performance?.largestContentfulPaint || 2200,
         improvementPotential: 15,
         implementation: {
           difficulty: "medium" as const,
@@ -839,18 +1134,22 @@ export class IntegrationCoordinator {
         improvementPotential: 25,
         implementation: {
           difficulty: "high" as const,
-          effort: "Reduce JavaScript execution time and optimize third-party scripts",
+          effort:
+            "Reduce JavaScript execution time and optimize third-party scripts",
           expectedImpact: 18,
         },
       },
     ];
   }
 
-  private calculateConfidence(dataSourcesUsed: string[], limitations: string[]): number {
+  private calculateConfidence(
+    dataSourcesUsed: string[],
+    limitations: string[]
+  ): number {
     const maxSources = 3; // BrightData, SERP API, Google Analytics
     const sourceScore = (dataSourcesUsed.length / maxSources) * 70;
     const limitationPenalty = Math.min(limitations.length * 10, 30);
-    
+
     return Math.max(0, Math.min(100, sourceScore - limitationPenalty));
   }
 
@@ -868,20 +1167,46 @@ export class IntegrationCoordinator {
   }> {
     const startTime = Date.now();
 
-    const [brightDataHealth, serpApiHealth, googleAnalyticsHealth] = await Promise.allSettled([
-      brightDataService.healthCheck(),
-      serpApiService.healthCheck(),
-      googleAnalyticsService.healthCheck(),
-    ]);
+    const [brightDataHealth, serpApiHealth, googleAnalyticsHealth] =
+      await Promise.allSettled([
+        brightDataService.healthCheck(),
+        serpApiService.healthCheck(),
+        googleAnalyticsService.healthCheck(),
+      ]);
 
     const services = {
-      brightData: brightDataHealth.status === "fulfilled" ? brightDataHealth.value : { status: "unhealthy", responseTime: 0, error: "Service unavailable" },
-      serpApi: serpApiHealth.status === "fulfilled" ? serpApiHealth.value : { status: "unhealthy", responseTime: 0, error: "Service unavailable" },
-      googleAnalytics: googleAnalyticsHealth.status === "fulfilled" ? googleAnalyticsHealth.value : { status: "unhealthy", responseTime: 0, error: "Service unavailable" },
+      brightData:
+        brightDataHealth.status === "fulfilled"
+          ? brightDataHealth.value
+          : {
+              status: "unhealthy",
+              responseTime: 0,
+              error: "Service unavailable",
+            },
+      serpApi:
+        serpApiHealth.status === "fulfilled"
+          ? serpApiHealth.value
+          : {
+              status: "unhealthy",
+              responseTime: 0,
+              error: "Service unavailable",
+            },
+      googleAnalytics:
+        googleAnalyticsHealth.status === "fulfilled"
+          ? googleAnalyticsHealth.value
+          : {
+              status: "unhealthy",
+              responseTime: 0,
+              error: "Service unavailable",
+            },
     };
 
-    const healthyServices = Object.values(services).filter(service => service.status === "healthy").length;
-    const degradedServices = Object.values(services).filter(service => service.status === "degraded").length;
+    const healthyServices = Object.values(services).filter(
+      service => service.status === "healthy"
+    ).length;
+    const degradedServices = Object.values(services).filter(
+      service => service.status === "degraded"
+    ).length;
 
     let overallStatus: "healthy" | "degraded" | "unhealthy";
     if (healthyServices >= 2) {
@@ -903,5 +1228,4 @@ export class IntegrationCoordinator {
 // Export singleton instance
 export const integrationCoordinator = new IntegrationCoordinator();
 
-// Export types
-export type { CompetitiveDataRequest, CompetitiveDataResponse };
+// Export types (already exported above, removing duplicate)

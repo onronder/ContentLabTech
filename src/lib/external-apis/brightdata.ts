@@ -17,17 +17,21 @@ const brightDataConfigSchema = z.object({
 const _scrapeRequestSchema = z.object({
   url: z.string().url(),
   type: z.enum(["content", "seo", "performance", "social"]),
-  options: z.object({
-    includeImages: z.boolean().default(false),
-    includeStyles: z.boolean().default(false),
-    includeScripts: z.boolean().default(false),
-    waitForSelector: z.string().optional(),
-    userAgent: z.string().optional(),
-    viewport: z.object({
-      width: z.number().default(1920),
-      height: z.number().default(1080),
-    }).optional(),
-  }).default({}),
+  options: z
+    .object({
+      includeImages: z.boolean().default(false),
+      includeStyles: z.boolean().default(false),
+      includeScripts: z.boolean().default(false),
+      waitForSelector: z.string().optional(),
+      userAgent: z.string().optional(),
+      viewport: z
+        .object({
+          width: z.number().default(1920),
+          height: z.number().default(1080),
+        })
+        .optional(),
+    })
+    .default({}),
 });
 
 const scrapeResponseSchema = z.object({
@@ -43,42 +47,54 @@ const scrapeResponseSchema = z.object({
       twitterTags: z.record(z.string()).optional(),
       structuredData: z.array(z.record(z.unknown())).optional(),
     }),
-    performance: z.object({
-      loadTime: z.number(),
-      domContentLoaded: z.number(),
-      firstContentfulPaint: z.number(),
-      largestContentfulPaint: z.number(),
-      cumulativeLayoutShift: z.number(),
-      firstInputDelay: z.number(),
-    }).optional(),
-    seo: z.object({
-      headings: z.record(z.array(z.string())),
-      internalLinks: z.array(z.string()),
-      externalLinks: z.array(z.string()),
-      images: z.array(z.object({
-        src: z.string(),
-        alt: z.string().optional(),
-        width: z.number().optional(),
-        height: z.number().optional(),
-      })),
-      canonicalUrl: z.string().optional(),
-      robotsTag: z.string().optional(),
-    }).optional(),
-    content_analysis: z.object({
-      wordCount: z.number(),
-      readingTime: z.number(),
-      sentiment: z.object({
-        score: z.number(),
-        label: z.enum(["positive", "negative", "neutral"]),
-        confidence: z.number(),
-      }).optional(),
-      topics: z.array(z.object({
-        name: z.string(),
-        confidence: z.number(),
-        keywords: z.array(z.string()),
-      })),
-      readabilityScore: z.number().optional(),
-    }).optional(),
+    performance: z
+      .object({
+        loadTime: z.number(),
+        domContentLoaded: z.number(),
+        firstContentfulPaint: z.number(),
+        largestContentfulPaint: z.number(),
+        cumulativeLayoutShift: z.number(),
+        firstInputDelay: z.number(),
+      })
+      .optional(),
+    seo: z
+      .object({
+        headings: z.record(z.array(z.string())),
+        internalLinks: z.array(z.string()),
+        externalLinks: z.array(z.string()),
+        images: z.array(
+          z.object({
+            src: z.string(),
+            alt: z.string().optional(),
+            width: z.number().optional(),
+            height: z.number().optional(),
+          })
+        ),
+        canonicalUrl: z.string().optional(),
+        robotsTag: z.string().optional(),
+      })
+      .optional(),
+    content_analysis: z
+      .object({
+        wordCount: z.number(),
+        readingTime: z.number(),
+        sentiment: z
+          .object({
+            score: z.number(),
+            label: z.enum(["positive", "negative", "neutral"]),
+            confidence: z.number(),
+          })
+          .optional(),
+        topics: z.array(
+          z.object({
+            name: z.string(),
+            confidence: z.number(),
+            keywords: z.array(z.string()),
+          })
+        ),
+        readabilityScore: z.number().optional(),
+      })
+      .optional(),
   }),
   error: z.string().optional(),
   metadata: z.object({
@@ -88,7 +104,7 @@ const scrapeResponseSchema = z.object({
   }),
 });
 
-type ScrapeRequest = z.infer<typeof scrapeRequestSchema>;
+type ScrapeRequest = z.infer<typeof _scrapeRequestSchema>;
 type ScrapeResponse = z.infer<typeof scrapeResponseSchema>;
 
 export class BrightDataService {
@@ -97,7 +113,7 @@ export class BrightDataService {
 
   constructor(config: Partial<z.infer<typeof brightDataConfigSchema>>) {
     this.config = brightDataConfigSchema.parse({
-      apiToken: process.env.BRIGHTDATA_API_TOKEN,
+      apiToken: process.env["BRIGHTDATA_API_TOKEN"],
       ...config,
     });
   }
@@ -117,7 +133,7 @@ export class BrightDataService {
         const response = await this.makeRequest("/scrape", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${this.config.apiToken}`,
+            Authorization: `Bearer ${this.config.apiToken}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -139,7 +155,9 @@ export class BrightDataService {
             retries++;
             continue;
           }
-          throw new Error(`BrightData API error: ${response.status} ${response.statusText}`);
+          throw new Error(
+            `BrightData API error: ${response.status} ${response.statusText}`
+          );
         }
 
         const rawData = await response.json();
@@ -159,7 +177,7 @@ export class BrightDataService {
         return result;
       } catch (error) {
         retries++;
-        
+
         if (retries > this.config.retryAttempts) {
           return {
             success: false,
@@ -195,9 +213,9 @@ export class BrightDataService {
     for (let i = 0; i < requests.length; i += batchSize) {
       const batch = requests.slice(i, i + batchSize);
       const batchPromises = batch.map(request => this.scrapeWebsite(request));
-      
+
       const batchResults = await Promise.allSettled(batchPromises);
-      
+
       batchResults.forEach((result, index) => {
         if (result.status === "fulfilled") {
           results.push(result.value);
@@ -206,11 +224,14 @@ export class BrightDataService {
           results.push({
             success: false,
             data: {
-              url: batch[index].url,
+              url: batch[index]!.url,
               content: "",
               metadata: {},
             },
-            error: result.reason instanceof Error ? result.reason.message : "Batch processing failed",
+            error:
+              result.reason instanceof Error
+                ? result.reason.message
+                : "Batch processing failed",
             metadata: {
               timestamp: new Date().toISOString(),
               processingTime: 0,
@@ -232,11 +253,14 @@ export class BrightDataService {
   /**
    * Monitor website changes over time
    */
-  async monitorWebsite(url: string, options: {
-    frequency: "hourly" | "daily" | "weekly";
-    changeThreshold: number;
-    notifications: boolean;
-  }): Promise<{
+  async monitorWebsite(
+    url: string,
+    options: {
+      frequency: "hourly" | "daily" | "weekly";
+      changeThreshold: number;
+      notifications: boolean;
+    }
+  ): Promise<{
     success: boolean;
     monitorId: string;
     message: string;
@@ -245,7 +269,7 @@ export class BrightDataService {
       const response = await this.makeRequest("/monitor", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${this.config.apiToken}`,
+          Authorization: `Bearer ${this.config.apiToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -263,7 +287,7 @@ export class BrightDataService {
       }
 
       const data = await response.json();
-      
+
       return {
         success: true,
         monitorId: data.monitorId,
@@ -273,7 +297,8 @@ export class BrightDataService {
       return {
         success: false,
         monitorId: "",
-        message: error instanceof Error ? error.message : "Failed to setup monitoring",
+        message:
+          error instanceof Error ? error.message : "Failed to setup monitoring",
       };
     }
   }
@@ -281,7 +306,10 @@ export class BrightDataService {
   /**
    * Get competitor content trends and patterns
    */
-  async getContentTrends(domain: string, _timeframe: "7d" | "30d" | "90d"): Promise<{
+  async getContentTrends(
+    domain: string,
+    _timeframe: "7d" | "30d" | "90d"
+  ): Promise<{
     success: boolean;
     data?: {
       publishingFrequency: {
@@ -312,13 +340,15 @@ export class BrightDataService {
       const response = await this.makeRequest(`/trends/${domain}`, {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${this.config.apiToken}`,
+          Authorization: `Bearer ${this.config.apiToken}`,
         },
         signal: AbortSignal.timeout(this.config.timeout),
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch content trends: ${response.statusText}`);
+        throw new Error(
+          `Failed to fetch content trends: ${response.statusText}`
+        );
       }
 
       const data = await response.json();
@@ -335,12 +365,18 @@ export class BrightDataService {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to fetch content trends",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch content trends",
       };
     }
   }
 
-  private async makeRequest(endpoint: string, options: RequestInit): Promise<Response> {
+  private async makeRequest(
+    endpoint: string,
+    options: RequestInit
+  ): Promise<Response> {
     const url = `${this.config.baseUrl}${endpoint}`;
     return fetch(url, options);
   }
@@ -348,11 +384,11 @@ export class BrightDataService {
   private async checkRateLimit(url: string): Promise<void> {
     const domain = new URL(url).hostname;
     const lastRequest = this.rateLimitQueue.get(domain);
-    
+
     if (lastRequest) {
       const timeSinceLastRequest = Date.now() - lastRequest;
       const minInterval = 1000; // 1 second between requests per domain
-      
+
       if (timeSinceLastRequest < minInterval) {
         await this.delay(minInterval - timeSinceLastRequest);
       }
@@ -382,7 +418,7 @@ export class BrightDataService {
       const response = await this.makeRequest("/health", {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${this.config.apiToken}`,
+          Authorization: `Bearer ${this.config.apiToken}`,
         },
         signal: AbortSignal.timeout(5000),
       });

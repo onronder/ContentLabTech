@@ -55,9 +55,7 @@ import {
   Minus,
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
-import type {
-  CompetitivePerformanceAnalysis as _CompetitivePerformanceAnalysis,
-} from "@/lib/competitive/types";
+import type { CompetitivePerformanceAnalysis as _CompetitivePerformanceAnalysis } from "@/lib/competitive/types";
 
 interface PerformanceBenchmarkingDashboardProps {
   projectId?: string;
@@ -85,7 +83,7 @@ interface CoreWebVitalData {
 
 const PERFORMANCE_COLORS = {
   good: "#10b981",
-  needsImprovement: "#f59e0b", 
+  needsImprovement: "#f59e0b",
   poor: "#ef4444",
   user: "#3b82f6",
   competitor: "#8b5cf6",
@@ -103,7 +101,8 @@ const formatScore = (score: number): string => {
 export const PerformanceBenchmarkingDashboard: React.FC<
   PerformanceBenchmarkingDashboardProps
 > = ({ projectId, competitorId }) => {
-  const { data, loading, error, refresh } = useCompetitiveIntelligence(projectId);
+  const { data, loading, error, refresh } =
+    useCompetitiveIntelligence(projectId);
   const [selectedCompetitor, setSelectedCompetitor] = useState(competitorId);
   const [timeframe, setTimeframe] = useState("30d");
   const [refreshing, setRefreshing] = useState(false);
@@ -113,7 +112,7 @@ export const PerformanceBenchmarkingDashboard: React.FC<
     if (!data || !selectedCompetitor) return null;
 
     const analysisResult = data.analysisResults.find(
-      (result) => result.competitorId === selectedCompetitor
+      result => result.competitorId === selectedCompetitor
     );
 
     return analysisResult?.data?.performanceAnalysis || null;
@@ -131,32 +130,48 @@ export const PerformanceBenchmarkingDashboard: React.FC<
         user: speed.largestContentfulPaint.user,
         competitor: speed.largestContentfulPaint.competitor,
         threshold: 2500, // Good LCP threshold
-        status: speed.largestContentfulPaint.user <= 2500 ? "good" : 
-                speed.largestContentfulPaint.user <= 4000 ? "needs-improvement" : "poor",
+        status:
+          speed.largestContentfulPaint.user <= 2500
+            ? "good"
+            : speed.largestContentfulPaint.user <= 4000
+              ? "needs-improvement"
+              : "poor",
       },
       {
         metric: "First Input Delay",
         user: speed.firstInputDelay.user,
         competitor: speed.firstInputDelay.competitor,
         threshold: 100, // Good FID threshold
-        status: speed.firstInputDelay.user <= 100 ? "good" : 
-                speed.firstInputDelay.user <= 300 ? "needs-improvement" : "poor",
+        status:
+          speed.firstInputDelay.user <= 100
+            ? "good"
+            : speed.firstInputDelay.user <= 300
+              ? "needs-improvement"
+              : "poor",
       },
       {
         metric: "Cumulative Layout Shift",
         user: speed.cumulativeLayoutShift.user,
         competitor: speed.cumulativeLayoutShift.competitor,
         threshold: 0.1, // Good CLS threshold
-        status: speed.cumulativeLayoutShift.user <= 0.1 ? "good" : 
-                speed.cumulativeLayoutShift.user <= 0.25 ? "needs-improvement" : "poor",
+        status:
+          speed.cumulativeLayoutShift.user <= 0.1
+            ? "good"
+            : speed.cumulativeLayoutShift.user <= 0.25
+              ? "needs-improvement"
+              : "poor",
       },
       {
         metric: "First Contentful Paint",
         user: speed.firstContentfulPaint.user,
         competitor: speed.firstContentfulPaint.competitor,
         threshold: 1800, // Good FCP threshold
-        status: speed.firstContentfulPaint.user <= 1800 ? "good" : 
-                speed.firstContentfulPaint.user <= 3000 ? "needs-improvement" : "poor",
+        status:
+          speed.firstContentfulPaint.user <= 1800
+            ? "good"
+            : speed.firstContentfulPaint.user <= 3000
+              ? "needs-improvement"
+              : "poor",
       },
     ];
   }, [performanceAnalysis]);
@@ -165,7 +180,8 @@ export const PerformanceBenchmarkingDashboard: React.FC<
   const performanceMetrics = useMemo((): PerformanceMetricCard[] => {
     if (!performanceAnalysis) return [];
 
-    const { speedComparison, userExperience, mobilePerformance } = performanceAnalysis;
+    const { speedComparison, userExperience, mobilePerformance } =
+      performanceAnalysis;
 
     return [
       {
@@ -175,8 +191,13 @@ export const PerformanceBenchmarkingDashboard: React.FC<
         unit: "ms",
         icon: Clock,
         color: "text-blue-600",
-        trend: speedComparison.loadTime.user < speedComparison.loadTime.competitor ? "better" : 
-               speedComparison.loadTime.user > speedComparison.loadTime.competitor ? "worse" : "equal",
+        trend:
+          speedComparison.loadTime.user < speedComparison.loadTime.competitor
+            ? "better"
+            : speedComparison.loadTime.user >
+                speedComparison.loadTime.competitor
+              ? "worse"
+              : "equal",
         description: "Average page load time",
       },
       {
@@ -186,19 +207,31 @@ export const PerformanceBenchmarkingDashboard: React.FC<
         unit: "/100",
         icon: Smartphone,
         color: "text-green-600",
-        trend: mobilePerformance.mobileSpeed.user > mobilePerformance.mobileSpeed.competitor ? "better" : 
-               mobilePerformance.mobileSpeed.user < mobilePerformance.mobileSpeed.competitor ? "worse" : "equal",
+        trend:
+          mobilePerformance.mobileSpeed.user >
+          mobilePerformance.mobileSpeed.competitor
+            ? "better"
+            : mobilePerformance.mobileSpeed.user <
+                mobilePerformance.mobileSpeed.competitor
+              ? "worse"
+              : "equal",
         description: "Mobile performance score",
       },
       {
-        title: "Desktop Performance", 
+        title: "Desktop Performance",
         userValue: userExperience.overallScore.user,
         competitorValue: userExperience.overallScore.competitor,
         unit: "/100",
         icon: Monitor,
         color: "text-purple-600",
-        trend: userExperience.overallScore.user > userExperience.overallScore.competitor ? "better" : 
-               userExperience.overallScore.user < userExperience.overallScore.competitor ? "worse" : "equal",
+        trend:
+          userExperience.overallScore.user >
+          userExperience.overallScore.competitor
+            ? "better"
+            : userExperience.overallScore.user <
+                userExperience.overallScore.competitor
+              ? "worse"
+              : "equal",
         description: "Desktop user experience score",
       },
       {
@@ -208,8 +241,14 @@ export const PerformanceBenchmarkingDashboard: React.FC<
         unit: "/100",
         icon: Eye,
         color: "text-orange-600",
-        trend: userExperience.accessibility.user > userExperience.accessibility.competitor ? "better" : 
-               userExperience.accessibility.user < userExperience.accessibility.competitor ? "worse" : "equal",
+        trend:
+          userExperience.accessibility.user >
+          userExperience.accessibility.competitor
+            ? "better"
+            : userExperience.accessibility.user <
+                userExperience.accessibility.competitor
+              ? "worse"
+              : "equal",
         description: "Accessibility compliance score",
       },
     ];
@@ -228,13 +267,16 @@ export const PerformanceBenchmarkingDashboard: React.FC<
   const comparativeData = useMemo(() => {
     if (!performanceAnalysis) return [];
 
-    const { speedComparison, userExperience, mobilePerformance } = performanceAnalysis;
+    const { speedComparison, userExperience, mobilePerformance } =
+      performanceAnalysis;
 
     return [
       {
         category: "Speed",
         user: Math.round((5000 - speedComparison.loadTime.user) / 50), // Convert to 0-100 scale
-        competitor: Math.round((5000 - speedComparison.loadTime.competitor) / 50),
+        competitor: Math.round(
+          (5000 - speedComparison.loadTime.competitor) / 50
+        ),
       },
       {
         category: "Mobile",
@@ -279,8 +321,8 @@ export const PerformanceBenchmarkingDashboard: React.FC<
       opportunities: performanceOpportunities,
     };
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { 
-      type: "application/json" 
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: "application/json",
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -290,7 +332,13 @@ export const PerformanceBenchmarkingDashboard: React.FC<
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [performanceAnalysis, selectedCompetitor, performanceMetrics, coreWebVitalsData, performanceOpportunities]);
+  }, [
+    performanceAnalysis,
+    selectedCompetitor,
+    performanceMetrics,
+    coreWebVitalsData,
+    performanceOpportunities,
+  ]);
 
   if (loading) {
     return (
@@ -298,7 +346,9 @@ export const PerformanceBenchmarkingDashboard: React.FC<
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">Performance Benchmarking</h2>
-            <p className="text-muted-foreground">Loading performance analysis...</p>
+            <p className="text-muted-foreground">
+              Loading performance analysis...
+            </p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-4">
@@ -326,9 +376,9 @@ export const PerformanceBenchmarkingDashboard: React.FC<
     );
   }
 
-  const selectedCompetitorName = data?.competitors.find(
-    (c) => c.id === selectedCompetitor
-  )?.name || "Unknown Competitor";
+  const selectedCompetitorName =
+    data?.competitors.find(c => c.id === selectedCompetitor)?.name ||
+    "Unknown Competitor";
 
   return (
     <div className="space-y-6">
@@ -354,12 +404,15 @@ export const PerformanceBenchmarkingDashboard: React.FC<
               <SelectItem value="90d">90 Days</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={selectedCompetitor} onValueChange={setSelectedCompetitor}>
+          <Select
+            value={selectedCompetitor || ""}
+            onValueChange={setSelectedCompetitor}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select competitor" />
             </SelectTrigger>
             <SelectContent>
-              {data?.competitors.map((competitor) => (
+              {data?.competitors.map(competitor => (
                 <SelectItem key={competitor.id} value={competitor.id}>
                   {competitor.name}
                 </SelectItem>
@@ -371,7 +424,9 @@ export const PerformanceBenchmarkingDashboard: React.FC<
             disabled={refreshing}
             variant="outline"
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             {refreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
@@ -408,10 +463,11 @@ export const PerformanceBenchmarkingDashboard: React.FC<
                           <p className="text-muted-foreground text-sm font-medium">
                             {metric.title}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="mt-1 flex items-center gap-2">
                             <p className="text-2xl font-bold">
-                              {metric.unit === "ms" ? formatDuration(metric.userValue) : 
-                               `${formatScore(metric.userValue)}${metric.unit}`}
+                              {metric.unit === "ms"
+                                ? formatDuration(metric.userValue)
+                                : `${formatScore(metric.userValue)}${metric.unit}`}
                             </p>
                             {metric.trend === "better" && (
                               <ArrowUp className="h-4 w-4 text-green-600" />
@@ -424,8 +480,11 @@ export const PerformanceBenchmarkingDashboard: React.FC<
                             )}
                           </div>
                           <p className="text-muted-foreground mt-1 text-xs">
-                            vs {metric.unit === "ms" ? formatDuration(metric.competitorValue) : 
-                                `${formatScore(metric.competitorValue)}${metric.unit}`} (competitor)
+                            vs{" "}
+                            {metric.unit === "ms"
+                              ? formatDuration(metric.competitorValue)
+                              : `${formatScore(metric.competitorValue)}${metric.unit}`}{" "}
+                            (competitor)
                           </p>
                           <p className="text-muted-foreground text-xs">
                             {metric.description}
@@ -444,24 +503,36 @@ export const PerformanceBenchmarkingDashboard: React.FC<
               <CardHeader>
                 <CardTitle>Performance Comparison</CardTitle>
                 <CardDescription>
-                  Side-by-side performance metrics comparison with {selectedCompetitorName}
+                  Side-by-side performance metrics comparison with{" "}
+                  {selectedCompetitorName}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={comparativeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart
+                      data={comparativeData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="category" />
                       <YAxis domain={[0, 100]} />
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value, name) => [
-                          `${value}/100`, 
-                          name === "user" ? "Your Site" : "Competitor"
+                          `${value}/100`,
+                          name === "user" ? "Your Site" : "Competitor",
                         ]}
                       />
-                      <Bar dataKey="user" fill={PERFORMANCE_COLORS.user} name="user" />
-                      <Bar dataKey="competitor" fill={PERFORMANCE_COLORS.competitor} name="competitor" />
+                      <Bar
+                        dataKey="user"
+                        fill={PERFORMANCE_COLORS.user}
+                        name="user"
+                      />
+                      <Bar
+                        dataKey="competitor"
+                        fill={PERFORMANCE_COLORS.competitor}
+                        name="competitor"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -483,19 +554,19 @@ export const PerformanceBenchmarkingDashboard: React.FC<
                       <PolarGrid />
                       <PolarAngleAxis dataKey="category" />
                       <PolarRadiusAxis angle={90} domain={[0, 100]} />
-                      <Radar 
-                        name="Your Site" 
-                        dataKey="user" 
-                        stroke={PERFORMANCE_COLORS.user} 
-                        fill={PERFORMANCE_COLORS.user} 
-                        fillOpacity={0.2} 
+                      <Radar
+                        name="Your Site"
+                        dataKey="user"
+                        stroke={PERFORMANCE_COLORS.user}
+                        fill={PERFORMANCE_COLORS.user}
+                        fillOpacity={0.2}
                       />
-                      <Radar 
-                        name="Competitor" 
-                        dataKey="competitor" 
-                        stroke={PERFORMANCE_COLORS.competitor} 
-                        fill={PERFORMANCE_COLORS.competitor} 
-                        fillOpacity={0.2} 
+                      <Radar
+                        name="Competitor"
+                        dataKey="competitor"
+                        stroke={PERFORMANCE_COLORS.competitor}
+                        fill={PERFORMANCE_COLORS.competitor}
+                        fillOpacity={0.2}
                       />
                       <Tooltip />
                     </RadarChart>
@@ -520,56 +591,80 @@ export const PerformanceBenchmarkingDashboard: React.FC<
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <h4 className="font-medium">{vital.metric}</h4>
-                          <Badge 
+                          <Badge
                             variant={
-                              vital.status === "good" ? "default" :
-                              vital.status === "needs-improvement" ? "secondary" : "destructive"
+                              vital.status === "good"
+                                ? "default"
+                                : vital.status === "needs-improvement"
+                                  ? "secondary"
+                                  : "destructive"
                             }
                           >
-                            {vital.status === "good" ? "Good" :
-                             vital.status === "needs-improvement" ? "Needs Improvement" : "Poor"}
+                            {vital.status === "good"
+                              ? "Good"
+                              : vital.status === "needs-improvement"
+                                ? "Needs Improvement"
+                                : "Poor"}
                           </Badge>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Threshold: {vital.metric.includes("Layout") ? vital.threshold : formatDuration(vital.threshold)}
+                        <div className="text-muted-foreground text-sm">
+                          Threshold:{" "}
+                          {vital.metric.includes("Layout")
+                            ? vital.threshold
+                            : formatDuration(vital.threshold)}
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Your Site</span>
                             <span className="font-medium">
-                              {vital.metric.includes("Layout") ? vital.user.toFixed(3) : formatDuration(vital.user)}
+                              {vital.metric.includes("Layout")
+                                ? vital.user.toFixed(3)
+                                : formatDuration(vital.user)}
                             </span>
                           </div>
                           <div className="relative">
-                            <Progress 
-                              value={Math.min((vital.user / (vital.threshold * 2)) * 100, 100)} 
+                            <Progress
+                              value={Math.min(
+                                (vital.user / (vital.threshold * 2)) * 100,
+                                100
+                              )}
                               className="h-3"
                             />
-                            <div 
+                            <div
                               className="absolute top-0 h-3 w-0.5 bg-gray-800"
-                              style={{ left: `${Math.min((vital.threshold / (vital.threshold * 2)) * 100, 100)}%` }}
+                              style={{
+                                left: `${Math.min((vital.threshold / (vital.threshold * 2)) * 100, 100)}%`,
+                              }}
                             />
                           </div>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <div className="flex justify-between text-sm">
                             <span>Competitor</span>
                             <span className="font-medium">
-                              {vital.metric.includes("Layout") ? vital.competitor.toFixed(3) : formatDuration(vital.competitor)}
+                              {vital.metric.includes("Layout")
+                                ? vital.competitor.toFixed(3)
+                                : formatDuration(vital.competitor)}
                             </span>
                           </div>
                           <div className="relative">
-                            <Progress 
-                              value={Math.min((vital.competitor / (vital.threshold * 2)) * 100, 100)} 
+                            <Progress
+                              value={Math.min(
+                                (vital.competitor / (vital.threshold * 2)) *
+                                  100,
+                                100
+                              )}
                               className="h-3"
                             />
-                            <div 
+                            <div
                               className="absolute top-0 h-3 w-0.5 bg-gray-800"
-                              style={{ left: `${Math.min((vital.threshold / (vital.threshold * 2)) * 100, 100)}%` }}
+                              style={{
+                                left: `${Math.min((vital.threshold / (vital.threshold * 2)) * 100, 100)}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -598,49 +693,67 @@ export const PerformanceBenchmarkingDashboard: React.FC<
                         <span className="text-sm">Mobile Speed</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
-                            {performanceAnalysis.mobilePerformance.mobileSpeed.user}/100
+                            {
+                              performanceAnalysis.mobilePerformance.mobileSpeed
+                                .user
+                            }
+                            /100
                           </span>
-                          <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
+                          <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                            <div
                               className="h-full bg-blue-500"
-                              style={{ width: `${performanceAnalysis.mobilePerformance.mobileSpeed.user}%` }}
+                              style={{
+                                width: `${performanceAnalysis.mobilePerformance.mobileSpeed.user}%`,
+                              }}
                             />
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Mobile UX</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
-                            {performanceAnalysis.mobilePerformance.mobileUX.user}/100
+                            {
+                              performanceAnalysis.mobilePerformance.mobileUX
+                                .user
+                            }
+                            /100
                           </span>
-                          <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
+                          <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                            <div
                               className="h-full bg-green-500"
-                              style={{ width: `${performanceAnalysis.mobilePerformance.mobileUX.user}%` }}
+                              style={{
+                                width: `${performanceAnalysis.mobilePerformance.mobileUX.user}%`,
+                              }}
                             />
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Responsiveness</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
-                            {performanceAnalysis.mobilePerformance.responsiveness.user}/100
+                            {
+                              performanceAnalysis.mobilePerformance
+                                .responsiveness.user
+                            }
+                            /100
                           </span>
-                          <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
+                          <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                            <div
                               className="h-full bg-purple-500"
-                              style={{ width: `${performanceAnalysis.mobilePerformance.responsiveness.user}%` }}
+                              style={{
+                                width: `${performanceAnalysis.mobilePerformance.responsiveness.user}%`,
+                              }}
                             />
                           </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <h4 className="font-medium">Competitor Mobile Scores</h4>
                     <div className="space-y-3">
@@ -648,42 +761,60 @@ export const PerformanceBenchmarkingDashboard: React.FC<
                         <span className="text-sm">Mobile Speed</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
-                            {performanceAnalysis.mobilePerformance.mobileSpeed.competitor}/100
+                            {
+                              performanceAnalysis.mobilePerformance.mobileSpeed
+                                .competitor
+                            }
+                            /100
                           </span>
-                          <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
+                          <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                            <div
                               className="h-full bg-blue-400"
-                              style={{ width: `${performanceAnalysis.mobilePerformance.mobileSpeed.competitor}%` }}
+                              style={{
+                                width: `${performanceAnalysis.mobilePerformance.mobileSpeed.competitor}%`,
+                              }}
                             />
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Mobile UX</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
-                            {performanceAnalysis.mobilePerformance.mobileUX.competitor}/100
+                            {
+                              performanceAnalysis.mobilePerformance.mobileUX
+                                .competitor
+                            }
+                            /100
                           </span>
-                          <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
+                          <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                            <div
                               className="h-full bg-green-400"
-                              style={{ width: `${performanceAnalysis.mobilePerformance.mobileUX.competitor}%` }}
+                              style={{
+                                width: `${performanceAnalysis.mobilePerformance.mobileUX.competitor}%`,
+                              }}
                             />
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Responsiveness</span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">
-                            {performanceAnalysis.mobilePerformance.responsiveness.competitor}/100
+                            {
+                              performanceAnalysis.mobilePerformance
+                                .responsiveness.competitor
+                            }
+                            /100
                           </span>
-                          <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                            <div 
+                          <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                            <div
                               className="h-full bg-purple-400"
-                              style={{ width: `${performanceAnalysis.mobilePerformance.responsiveness.competitor}%` }}
+                              style={{
+                                width: `${performanceAnalysis.mobilePerformance.responsiveness.competitor}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -700,7 +831,9 @@ export const PerformanceBenchmarkingDashboard: React.FC<
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Performance Optimization Opportunities</CardTitle>
+                    <CardTitle>
+                      Performance Optimization Opportunities
+                    </CardTitle>
                     <CardDescription>
                       Prioritized recommendations for performance improvements
                     </CardDescription>
@@ -717,54 +850,74 @@ export const PerformanceBenchmarkingDashboard: React.FC<
                     <div key={index} className="rounded-lg border p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h4 className="font-medium">{opportunity.metric}</h4>
-                            <Badge variant={
-                              opportunity.implementation.difficulty === "low" ? "default" :
-                              opportunity.implementation.difficulty === "medium" ? "secondary" : "destructive"
-                            }>
+                          <div className="mb-2 flex items-center gap-2">
+                            <h4 className="font-medium">
+                              {opportunity.metric}
+                            </h4>
+                            <Badge
+                              variant={
+                                opportunity.implementation.difficulty === "low"
+                                  ? "default"
+                                  : opportunity.implementation.difficulty ===
+                                      "medium"
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                            >
                               {opportunity.implementation.difficulty} difficulty
                             </Badge>
                           </div>
-                          
+
                           <div className="grid grid-cols-3 gap-4 text-sm">
                             <div>
-                              <span className="text-muted-foreground">Current: </span>
-                              <span className="font-medium">{opportunity.currentValue}</span>
+                              <span className="text-muted-foreground">
+                                Current:{" "}
+                              </span>
+                              <span className="font-medium">
+                                {opportunity.currentValue}
+                              </span>
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Competitor: </span>
-                              <span className="font-medium">{opportunity.competitorValue}</span>
+                              <span className="text-muted-foreground">
+                                Competitor:{" "}
+                              </span>
+                              <span className="font-medium">
+                                {opportunity.competitorValue}
+                              </span>
                             </div>
                             <div>
-                              <span className="text-muted-foreground">Potential: </span>
+                              <span className="text-muted-foreground">
+                                Potential:{" "}
+                              </span>
                               <span className="font-medium text-green-600">
                                 +{opportunity.improvementPotential}%
                               </span>
                             </div>
                           </div>
-                          
-                          <p className="mt-2 text-sm text-muted-foreground">
+
+                          <p className="text-muted-foreground mt-2 text-sm">
                             {opportunity.implementation.effort}
                           </p>
                         </div>
-                        
+
                         <div className="text-right">
                           <div className="text-lg font-bold text-green-600">
                             {opportunity.implementation.expectedImpact}%
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-muted-foreground text-xs">
                             Expected Impact
                           </div>
                         </div>
                       </div>
                     </div>
                   ))}
-                  
+
                   {performanceOpportunities.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <CheckCircle className="mx-auto h-12 w-12 text-green-600 mb-4" />
-                      <p className="text-lg font-medium">Excellent Performance!</p>
+                    <div className="text-muted-foreground py-8 text-center">
+                      <CheckCircle className="mx-auto mb-4 h-12 w-12 text-green-600" />
+                      <p className="text-lg font-medium">
+                        Excellent Performance!
+                      </p>
                       <p>No major optimization opportunities identified.</p>
                     </div>
                   )}

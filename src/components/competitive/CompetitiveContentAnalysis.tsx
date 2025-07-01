@@ -59,9 +59,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
-import type {
-  CompetitiveContentAnalysis,
-} from "@/lib/competitive/types";
+import type { CompetitiveContentAnalysis as CompetitiveContentAnalysisData } from "@/lib/competitive/types";
 
 interface CompetitiveContentAnalysisProps {
   projectId?: string;
@@ -97,12 +95,20 @@ const CONTENT_COLORS = {
   info: "#06b6d4",
 };
 
-const TOPIC_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#06b6d4"];
+const TOPIC_COLORS = [
+  "#3b82f6",
+  "#8b5cf6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#06b6d4",
+];
 
 export const CompetitiveContentAnalysis: React.FC<
   CompetitiveContentAnalysisProps
 > = ({ projectId, competitorId }) => {
-  const { data, loading, error, refresh } = useCompetitiveIntelligence(projectId);
+  const { data, loading, error, refresh } =
+    useCompetitiveIntelligence(projectId);
   const [selectedCompetitor, setSelectedCompetitor] = useState(competitorId);
   const [topicFilter, setTopicFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -115,7 +121,7 @@ export const CompetitiveContentAnalysis: React.FC<
     if (!data || !selectedCompetitor) return null;
 
     const analysisResult = data.analysisResults.find(
-      (result) => result.competitorId === selectedCompetitor
+      result => result.competitorId === selectedCompetitor
     );
 
     return analysisResult?.data?.contentAnalysis || null;
@@ -132,8 +138,12 @@ export const CompetitiveContentAnalysis: React.FC<
         difficulty: gap.difficulty,
         searchVolume: gap.searchVolume,
         strategicRelevance: gap.strategicRelevance,
-        priority: gap.opportunityScore >= 70 ? "high" : 
-                 gap.opportunityScore >= 40 ? "medium" : "low",
+        priority:
+          gap.opportunityScore >= 70
+            ? "high"
+            : gap.opportunityScore >= 40
+              ? "medium"
+              : "low",
         recommendation: gap.recommendation,
         keywords: gap.topic.keywords,
       })
@@ -141,22 +151,27 @@ export const CompetitiveContentAnalysis: React.FC<
 
     // Apply filters
     if (topicFilter) {
-      processedData = processedData.filter((row) =>
-        row.topic.toLowerCase().includes(topicFilter.toLowerCase()) ||
-        row.keywords.some(k => k.toLowerCase().includes(topicFilter.toLowerCase()))
+      processedData = processedData.filter(
+        row =>
+          row.topic.toLowerCase().includes(topicFilter.toLowerCase()) ||
+          row.keywords.some(k =>
+            k.toLowerCase().includes(topicFilter.toLowerCase())
+          )
       );
     }
 
     if (priorityFilter !== "all") {
-      processedData = processedData.filter((row) => row.priority === priorityFilter);
+      processedData = processedData.filter(
+        row => row.priority === priorityFilter
+      );
     }
 
     // Apply sorting
     processedData.sort((a, b) => {
       const aValue = a[sortBy as keyof ContentGapTableRow] as number;
       const bValue = b[sortBy as keyof ContentGapTableRow] as number;
-      
-      if (sortOrder === "desc") {
+
+      if (_sortOrder === "desc") {
         return bValue - aValue;
       } else {
         return aValue - bValue;
@@ -171,15 +186,19 @@ export const CompetitiveContentAnalysis: React.FC<
     if (!contentAnalysis?.contentQuality) return [];
 
     const quality = contentAnalysis.contentQuality;
-    
+
     return [
       {
         name: "Overall Quality Score",
         userValue: quality.userScore,
         competitorValue: quality.competitorScore,
         unit: "/100",
-        trend: quality.userScore > quality.competitorScore ? "better" : 
-               quality.userScore < quality.competitorScore ? "worse" : "equal",
+        trend:
+          quality.userScore > quality.competitorScore
+            ? "better"
+            : quality.userScore < quality.competitorScore
+              ? "worse"
+              : "equal",
         gap: quality.relativeDifference,
       },
       {
@@ -187,8 +206,12 @@ export const CompetitiveContentAnalysis: React.FC<
         userValue: quality.qualityFactors.depth.userScore,
         competitorValue: quality.qualityFactors.depth.competitorScore,
         unit: "/100",
-        trend: quality.qualityFactors.depth.gap > 0 ? "better" : 
-               quality.qualityFactors.depth.gap < 0 ? "worse" : "equal",
+        trend:
+          quality.qualityFactors.depth.gap > 0
+            ? "better"
+            : quality.qualityFactors.depth.gap < 0
+              ? "worse"
+              : "equal",
         gap: quality.qualityFactors.depth.gap,
       },
       {
@@ -196,8 +219,12 @@ export const CompetitiveContentAnalysis: React.FC<
         userValue: quality.qualityFactors.readability.userScore,
         competitorValue: quality.qualityFactors.readability.competitorScore,
         unit: "/100",
-        trend: quality.qualityFactors.readability.gap > 0 ? "better" : 
-               quality.qualityFactors.readability.gap < 0 ? "worse" : "equal",
+        trend:
+          quality.qualityFactors.readability.gap > 0
+            ? "better"
+            : quality.qualityFactors.readability.gap < 0
+              ? "worse"
+              : "equal",
         gap: quality.qualityFactors.readability.gap,
       },
       {
@@ -205,8 +232,12 @@ export const CompetitiveContentAnalysis: React.FC<
         userValue: quality.qualityFactors.seoOptimization.userScore,
         competitorValue: quality.qualityFactors.seoOptimization.competitorScore,
         unit: "/100",
-        trend: quality.qualityFactors.seoOptimization.gap > 0 ? "better" : 
-               quality.qualityFactors.seoOptimization.gap < 0 ? "worse" : "equal",
+        trend:
+          quality.qualityFactors.seoOptimization.gap > 0
+            ? "better"
+            : quality.qualityFactors.seoOptimization.gap < 0
+              ? "worse"
+              : "equal",
         gap: quality.qualityFactors.seoOptimization.gap,
       },
       {
@@ -214,8 +245,12 @@ export const CompetitiveContentAnalysis: React.FC<
         userValue: quality.qualityFactors.engagement.userScore,
         competitorValue: quality.qualityFactors.engagement.competitorScore,
         unit: "/100",
-        trend: quality.qualityFactors.engagement.gap > 0 ? "better" : 
-               quality.qualityFactors.engagement.gap < 0 ? "worse" : "equal",
+        trend:
+          quality.qualityFactors.engagement.gap > 0
+            ? "better"
+            : quality.qualityFactors.engagement.gap < 0
+              ? "worse"
+              : "equal",
         gap: quality.qualityFactors.engagement.gap,
       },
     ];
@@ -226,7 +261,7 @@ export const CompetitiveContentAnalysis: React.FC<
     if (!contentAnalysis?.topicAnalysis) return [];
 
     const topicAnalysis = contentAnalysis.topicAnalysis;
-    
+
     return [
       {
         name: "Shared Topics",
@@ -266,7 +301,7 @@ export const CompetitiveContentAnalysis: React.FC<
     if (!contentAnalysis?.contentVolume) return [];
 
     const volume = contentAnalysis.contentVolume;
-    
+
     return [
       {
         category: "Total Content",
@@ -293,25 +328,54 @@ export const CompetitiveContentAnalysis: React.FC<
 
   // Process content type distribution
   const contentTypeData = useMemo(() => {
-    if (!contentAnalysis?.contentVolume?.contentTypes) return { user: [], competitor: [] };
+    if (!contentAnalysis?.contentVolume?.contentTypes)
+      return { user: [], competitor: [] };
 
     const types = contentAnalysis.contentVolume.contentTypes;
-    
+
     const userTypes = [
       { name: "Articles", value: types.user.articles, color: TOPIC_COLORS[0] },
       { name: "Videos", value: types.user.videos, color: TOPIC_COLORS[1] },
-      { name: "Infographics", value: types.user.infographics, color: TOPIC_COLORS[2] },
+      {
+        name: "Infographics",
+        value: types.user.infographics,
+        color: TOPIC_COLORS[2],
+      },
       { name: "Podcasts", value: types.user.podcasts, color: TOPIC_COLORS[3] },
-      { name: "Whitepapers", value: types.user.whitepapers, color: TOPIC_COLORS[4] },
+      {
+        name: "Whitepapers",
+        value: types.user.whitepapers,
+        color: TOPIC_COLORS[4],
+      },
       { name: "Other", value: types.user.other, color: TOPIC_COLORS[5] },
     ];
 
     const competitorTypes = [
-      { name: "Articles", value: types.competitor.articles, color: TOPIC_COLORS[0] },
-      { name: "Videos", value: types.competitor.videos, color: TOPIC_COLORS[1] },
-      { name: "Infographics", value: types.competitor.infographics, color: TOPIC_COLORS[2] },
-      { name: "Podcasts", value: types.competitor.podcasts, color: TOPIC_COLORS[3] },
-      { name: "Whitepapers", value: types.competitor.whitepapers, color: TOPIC_COLORS[4] },
+      {
+        name: "Articles",
+        value: types.competitor.articles,
+        color: TOPIC_COLORS[0],
+      },
+      {
+        name: "Videos",
+        value: types.competitor.videos,
+        color: TOPIC_COLORS[1],
+      },
+      {
+        name: "Infographics",
+        value: types.competitor.infographics,
+        color: TOPIC_COLORS[2],
+      },
+      {
+        name: "Podcasts",
+        value: types.competitor.podcasts,
+        color: TOPIC_COLORS[3],
+      },
+      {
+        name: "Whitepapers",
+        value: types.competitor.whitepapers,
+        color: TOPIC_COLORS[4],
+      },
       { name: "Other", value: types.competitor.other, color: TOPIC_COLORS[5] },
     ];
 
@@ -323,7 +387,7 @@ export const CompetitiveContentAnalysis: React.FC<
     if (!contentAnalysis?.contentSimilarity) return null;
 
     const similarity = contentAnalysis.contentSimilarity;
-    
+
     return [
       { name: "Topics", score: similarity.breakdown.topics * 100 },
       { name: "Keywords", score: similarity.breakdown.keywords * 100 },
@@ -345,7 +409,15 @@ export const CompetitiveContentAnalysis: React.FC<
     if (!contentGapData.length) return;
 
     const csvContent = [
-      ["Topic", "Opportunity Score", "Difficulty", "Search Volume", "Strategic Relevance", "Priority", "Keywords"],
+      [
+        "Topic",
+        "Opportunity Score",
+        "Difficulty",
+        "Search Volume",
+        "Strategic Relevance",
+        "Priority",
+        "Keywords",
+      ],
       ...contentGapData.map(row => [
         row.topic,
         row.opportunityScore.toString(),
@@ -354,8 +426,10 @@ export const CompetitiveContentAnalysis: React.FC<
         row.strategicRelevance.toString(),
         row.priority,
         row.keywords.join("; "),
-      ])
-    ].map(row => row.join(",")).join("\n");
+      ]),
+    ]
+      .map(row => row.join(","))
+      .join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -402,9 +476,9 @@ export const CompetitiveContentAnalysis: React.FC<
     );
   }
 
-  const selectedCompetitorName = data?.competitors.find(
-    (c) => c.id === selectedCompetitor
-  )?.name || "Unknown Competitor";
+  const selectedCompetitorName =
+    data?.competitors.find(c => c.id === selectedCompetitor)?.name ||
+    "Unknown Competitor";
 
   return (
     <div className="space-y-6">
@@ -420,12 +494,15 @@ export const CompetitiveContentAnalysis: React.FC<
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedCompetitor} onValueChange={setSelectedCompetitor}>
+          <Select
+            value={selectedCompetitor || ""}
+            onValueChange={setSelectedCompetitor}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select competitor" />
             </SelectTrigger>
             <SelectContent>
-              {data?.competitors.map((competitor) => (
+              {data?.competitors.map(competitor => (
                 <SelectItem key={competitor.id} value={competitor.id}>
                   {competitor.name}
                 </SelectItem>
@@ -437,7 +514,9 @@ export const CompetitiveContentAnalysis: React.FC<
             disabled={refreshing}
             variant="outline"
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             {refreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
@@ -469,13 +548,17 @@ export const CompetitiveContentAnalysis: React.FC<
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">
+                      <p className="text-muted-foreground text-sm font-medium">
                         Content Similarity
                       </p>
                       <p className="text-2xl font-bold">
-                        {Math.round((contentAnalysis.contentSimilarity?.overall || 0) * 100)}%
+                        {Math.round(
+                          (contentAnalysis.contentSimilarity?.overall || 0) *
+                            100
+                        )}
+                        %
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-muted-foreground mt-1 text-xs">
                         Overall content overlap
                       </p>
                     </div>
@@ -488,14 +571,16 @@ export const CompetitiveContentAnalysis: React.FC<
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">
+                      <p className="text-muted-foreground text-sm font-medium">
                         Quality Score
                       </p>
                       <p className="text-2xl font-bold">
                         {contentAnalysis.contentQuality?.userScore || 0}/100
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        vs {contentAnalysis.contentQuality?.competitorScore || 0} (competitor)
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        vs{" "}
+                        {contentAnalysis.contentQuality?.competitorScore || 0}{" "}
+                        (competitor)
                       </p>
                     </div>
                     <Star className="h-8 w-8 text-yellow-600" />
@@ -507,14 +592,17 @@ export const CompetitiveContentAnalysis: React.FC<
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">
+                      <p className="text-muted-foreground text-sm font-medium">
                         Content Volume
                       </p>
                       <p className="text-2xl font-bold">
                         {contentAnalysis.contentVolume?.userContentCount || 0}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        vs {contentAnalysis.contentVolume?.competitorContentCount || 0} (competitor)
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        vs{" "}
+                        {contentAnalysis.contentVolume
+                          ?.competitorContentCount || 0}{" "}
+                        (competitor)
                       </p>
                     </div>
                     <BookOpen className="h-8 w-8 text-blue-600" />
@@ -528,7 +616,8 @@ export const CompetitiveContentAnalysis: React.FC<
               <CardHeader>
                 <CardTitle>Topic Coverage Distribution</CardTitle>
                 <CardDescription>
-                  Breakdown of topic coverage compared to {selectedCompetitorName}
+                  Breakdown of topic coverage compared to{" "}
+                  {selectedCompetitorName}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -555,13 +644,17 @@ export const CompetitiveContentAnalysis: React.FC<
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   {topicDistributionData.map((item, index) => (
                     <div key={index} className="flex items-center gap-2">
-                      <div 
+                      <div
                         className="h-3 w-3 rounded-full"
                         style={{ backgroundColor: item.color }}
                       />
                       <div>
-                        <span className="text-sm font-medium">{item.name}: {item.value}</span>
-                        <p className="text-xs text-muted-foreground">{item.description}</p>
+                        <span className="text-sm font-medium">
+                          {item.name}: {item.value}
+                        </span>
+                        <p className="text-muted-foreground text-xs">
+                          {item.description}
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -580,13 +673,24 @@ export const CompetitiveContentAnalysis: React.FC<
               <CardContent>
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={contentVolumeData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <BarChart
+                      data={contentVolumeData}
+                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="category" />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="user" fill={CONTENT_COLORS.primary} name="Your Content" />
-                      <Bar dataKey="competitor" fill={CONTENT_COLORS.secondary} name="Competitor" />
+                      <Bar
+                        dataKey="user"
+                        fill={CONTENT_COLORS.primary}
+                        name="Your Content"
+                      />
+                      <Bar
+                        dataKey="competitor"
+                        fill={CONTENT_COLORS.secondary}
+                        name="Competitor"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -599,7 +703,8 @@ export const CompetitiveContentAnalysis: React.FC<
               <CardHeader>
                 <CardTitle>Content Quality Comparison</CardTitle>
                 <CardDescription>
-                  Detailed quality metrics comparison with {selectedCompetitorName}
+                  Detailed quality metrics comparison with{" "}
+                  {selectedCompetitorName}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -616,24 +721,34 @@ export const CompetitiveContentAnalysis: React.FC<
                             <AlertTriangle className="h-4 w-4 text-red-600" />
                           )}
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                          Gap: {metric.gap > 0 ? "+" : ""}{metric.gap}%
+                        <div className="text-muted-foreground text-sm">
+                          Gap: {metric.gap > 0 ? "+" : ""}
+                          {metric.gap}%
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <div className="flex justify-between text-sm">
                             <span>Your Score</span>
-                            <span>{metric.userValue}{metric.unit}</span>
+                            <span>
+                              {metric.userValue}
+                              {metric.unit}
+                            </span>
                           </div>
                           <Progress value={metric.userValue} className="h-2" />
                         </div>
                         <div>
                           <div className="flex justify-between text-sm">
                             <span>Competitor Score</span>
-                            <span>{metric.competitorValue}{metric.unit}</span>
+                            <span>
+                              {metric.competitorValue}
+                              {metric.unit}
+                            </span>
                           </div>
-                          <Progress value={metric.competitorValue} className="h-2" />
+                          <Progress
+                            value={metric.competitorValue}
+                            className="h-2"
+                          />
                         </div>
                       </div>
                     </div>
@@ -668,18 +783,25 @@ export const CompetitiveContentAnalysis: React.FC<
                     </ResponsiveContainer>
                   </div>
                   <div className="mt-4 space-y-2">
-                    {contentTypeData.user.filter(item => item.value > 0).map((item, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <span className="text-sm">{item.name}</span>
+                    {contentTypeData.user
+                      .filter(item => item.value > 0)
+                      .map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span className="text-sm">{item.name}</span>
+                          </div>
+                          <span className="text-sm font-medium">
+                            {item.value}
+                          </span>
                         </div>
-                        <span className="text-sm font-medium">{item.value}</span>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </CardContent>
               </Card>
@@ -708,18 +830,25 @@ export const CompetitiveContentAnalysis: React.FC<
                     </ResponsiveContainer>
                   </div>
                   <div className="mt-4 space-y-2">
-                    {contentTypeData.competitor.filter(item => item.value > 0).map((item, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="h-3 w-3 rounded-full"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <span className="text-sm">{item.name}</span>
+                    {contentTypeData.competitor
+                      .filter(item => item.value > 0)
+                      .map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: item.color }}
+                            />
+                            <span className="text-sm">{item.name}</span>
+                          </div>
+                          <span className="text-sm font-medium">
+                            {item.value}
+                          </span>
                         </div>
-                        <span className="text-sm font-medium">{item.value}</span>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </CardContent>
               </Card>
@@ -733,17 +862,23 @@ export const CompetitiveContentAnalysis: React.FC<
                 <CardHeader>
                   <CardTitle>Content Similarity Analysis</CardTitle>
                   <CardDescription>
-                    Detailed breakdown of content overlap with {selectedCompetitorName}
+                    Detailed breakdown of content overlap with{" "}
+                    {selectedCompetitorName}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={contentSimilarityData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                      <BarChart
+                        data={contentSimilarityData}
+                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis domain={[0, 100]} />
-                        <Tooltip formatter={(value) => [`${value}%`, "Similarity"]} />
+                        <Tooltip
+                          formatter={value => [`${value}%`, "Similarity"]}
+                        />
                         <Bar dataKey="score" fill={CONTENT_COLORS.primary} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -761,31 +896,38 @@ export const CompetitiveContentAnalysis: React.FC<
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {contentAnalysis.topicAnalysis?.sharedTopics && contentAnalysis.topicAnalysis.sharedTopics.length > 0 ? (
+                {contentAnalysis.topicAnalysis?.sharedTopics &&
+                contentAnalysis.topicAnalysis.sharedTopics.length > 0 ? (
                   <div className="space-y-3">
-                    {contentAnalysis.topicAnalysis.sharedTopics.slice(0, 10).map((topic, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div>
-                          <div className="font-medium">{topic.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Keywords: {topic.keywords.slice(0, 3).join(", ")}
-                            {topic.keywords.length > 3 && ` +${topic.keywords.length - 3} more`}
+                    {contentAnalysis.topicAnalysis.sharedTopics
+                      .slice(0, 10)
+                      .map((topic, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between rounded-lg border p-3"
+                        >
+                          <div>
+                            <div className="font-medium">{topic.name}</div>
+                            <div className="text-muted-foreground text-sm">
+                              Keywords: {topic.keywords.slice(0, 3).join(", ")}
+                              {topic.keywords.length > 3 &&
+                                ` +${topic.keywords.length - 3} more`}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium">
+                              Coverage: {Math.round(topic.coverage * 100)}%
+                            </div>
+                            <div className="text-muted-foreground text-sm">
+                              Performance: {Math.round(topic.performance)}/100
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium">
-                            Coverage: {Math.round(topic.coverage * 100)}%
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            Performance: {Math.round(topic.performance)}/100
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <BookOpen className="mx-auto h-12 w-12 mb-4" />
+                  <div className="text-muted-foreground py-8 text-center">
+                    <BookOpen className="mx-auto mb-4 h-12 w-12" />
                     <p>No shared topics found</p>
                   </div>
                 )}
@@ -804,19 +946,22 @@ export const CompetitiveContentAnalysis: React.FC<
               </CardHeader>
               <CardContent>
                 <div className="mb-4 flex flex-wrap gap-4">
-                  <div className="flex-1 min-w-64">
+                  <div className="min-w-64 flex-1">
                     <Label htmlFor="topic-search">Search Topics</Label>
                     <Input
                       id="topic-search"
                       placeholder="Filter topics or keywords..."
                       value={topicFilter}
-                      onChange={(e) => setTopicFilter(e.target.value)}
+                      onChange={e => setTopicFilter(e.target.value)}
                       className="mt-1"
                     />
                   </div>
                   <div>
                     <Label htmlFor="priority-filter">Priority</Label>
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <Select
+                      value={priorityFilter}
+                      onValueChange={setPriorityFilter}
+                    >
                       <SelectTrigger className="mt-1 w-32">
                         <SelectValue />
                       </SelectTrigger>
@@ -835,10 +980,16 @@ export const CompetitiveContentAnalysis: React.FC<
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="opportunityScore">Opportunity Score</SelectItem>
-                        <SelectItem value="searchVolume">Search Volume</SelectItem>
+                        <SelectItem value="opportunityScore">
+                          Opportunity Score
+                        </SelectItem>
+                        <SelectItem value="searchVolume">
+                          Search Volume
+                        </SelectItem>
                         <SelectItem value="difficulty">Difficulty</SelectItem>
-                        <SelectItem value="strategicRelevance">Strategic Relevance</SelectItem>
+                        <SelectItem value="strategicRelevance">
+                          Strategic Relevance
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -868,27 +1019,30 @@ export const CompetitiveContentAnalysis: React.FC<
                           <TableCell>
                             <div>
                               <div className="font-medium">{row.topic}</div>
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-muted-foreground text-xs">
                                 {row.keywords.slice(0, 2).join(", ")}
-                                {row.keywords.length > 2 && ` +${row.keywords.length - 2}`}
+                                {row.keywords.length > 2 &&
+                                  ` +${row.keywords.length - 2}`}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
+                              <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                                <div
                                   className="h-full bg-blue-500"
                                   style={{ width: `${row.opportunityScore}%` }}
                                 />
                               </div>
-                              <span className="text-sm">{row.opportunityScore}%</span>
+                              <span className="text-sm">
+                                {row.opportunityScore}%
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
+                              <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                                <div
                                   className="h-full bg-gradient-to-r from-green-500 to-red-500"
                                   style={{ width: `${row.difficulty}%` }}
                                 />
@@ -896,23 +1050,32 @@ export const CompetitiveContentAnalysis: React.FC<
                               <span className="text-sm">{row.difficulty}%</span>
                             </div>
                           </TableCell>
-                          <TableCell>{row.searchVolume.toLocaleString()}</TableCell>
+                          <TableCell>
+                            {row.searchVolume.toLocaleString()}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
+                              <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                                <div
                                   className="h-full bg-purple-500"
-                                  style={{ width: `${row.strategicRelevance}%` }}
+                                  style={{
+                                    width: `${row.strategicRelevance}%`,
+                                  }}
                                 />
                               </div>
-                              <span className="text-sm">{row.strategicRelevance}%</span>
+                              <span className="text-sm">
+                                {row.strategicRelevance}%
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge 
+                            <Badge
                               variant={
-                                row.priority === "high" ? "destructive" :
-                                row.priority === "medium" ? "default" : "secondary"
+                                row.priority === "high"
+                                  ? "destructive"
+                                  : row.priority === "medium"
+                                    ? "default"
+                                    : "secondary"
                               }
                             >
                               {row.priority}
@@ -926,8 +1089,9 @@ export const CompetitiveContentAnalysis: React.FC<
 
                 {contentGapData.length > 20 && (
                   <div className="mt-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Showing 20 of {contentGapData.length} content gaps. Export for full data.
+                    <p className="text-muted-foreground text-sm">
+                      Showing 20 of {contentGapData.length} content gaps. Export
+                      for full data.
                     </p>
                   </div>
                 )}
@@ -948,11 +1112,17 @@ export const CompetitiveContentAnalysis: React.FC<
                   {/* Focus Areas */}
                   {contentAnalysis.contentStrategy?.focusAreas && (
                     <div>
-                      <h4 className="font-medium mb-3">Recommended Focus Areas</h4>
+                      <h4 className="mb-3 font-medium">
+                        Recommended Focus Areas
+                      </h4>
                       <div className="flex flex-wrap gap-2">
-                        {contentAnalysis.contentStrategy.focusAreas.map((area, index) => (
-                          <Badge key={index} variant="outline">{area}</Badge>
-                        ))}
+                        {contentAnalysis.contentStrategy.focusAreas.map(
+                          (area, index) => (
+                            <Badge key={index} variant="outline">
+                              {area}
+                            </Badge>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
@@ -960,54 +1130,69 @@ export const CompetitiveContentAnalysis: React.FC<
                   {/* Content Pillars */}
                   {contentAnalysis.contentStrategy?.contentPillars && (
                     <div>
-                      <h4 className="font-medium mb-3">Content Pillars</h4>
+                      <h4 className="mb-3 font-medium">Content Pillars</h4>
                       <div className="flex flex-wrap gap-2">
-                        {contentAnalysis.contentStrategy.contentPillars.map((pillar, index) => (
-                          <Badge key={index} variant="secondary">{pillar}</Badge>
-                        ))}
+                        {contentAnalysis.contentStrategy.contentPillars.map(
+                          (pillar, index) => (
+                            <Badge key={index} variant="secondary">
+                              {pillar}
+                            </Badge>
+                          )
+                        )}
                       </div>
                     </div>
                   )}
 
                   {/* Strategic Recommendations */}
-                  {contentAnalysis.contentStrategy?.strategicRecommendations && (
+                  {contentAnalysis.contentStrategy
+                    ?.strategicRecommendations && (
                     <div>
-                      <h4 className="font-medium mb-4">Strategic Recommendations</h4>
+                      <h4 className="mb-4 font-medium">
+                        Strategic Recommendations
+                      </h4>
                       <div className="space-y-4">
-                        {contentAnalysis.contentStrategy.strategicRecommendations.slice(0, 5).map((rec, index) => (
-                          <div key={index} className="rounded-lg border p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Badge 
-                                    variant={
-                                      rec.priority === "high" ? "destructive" :
-                                      rec.priority === "medium" ? "default" : "secondary"
-                                    }
-                                  >
-                                    {rec.priority} priority
-                                  </Badge>
-                                  <Badge variant="outline">{rec.type}</Badge>
+                        {contentAnalysis.contentStrategy.strategicRecommendations
+                          .slice(0, 5)
+                          .map((rec, index) => (
+                            <div key={index} className="rounded-lg border p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="mb-2 flex items-center gap-2">
+                                    <Badge
+                                      variant={
+                                        rec.priority === "high"
+                                          ? "destructive"
+                                          : rec.priority === "medium"
+                                            ? "default"
+                                            : "secondary"
+                                      }
+                                    >
+                                      {rec.priority} priority
+                                    </Badge>
+                                    <Badge variant="outline">{rec.type}</Badge>
+                                  </div>
+                                  <h5 className="font-medium">{rec.title}</h5>
+                                  <p className="text-muted-foreground mt-1 text-sm">
+                                    {rec.description}
+                                  </p>
+                                  <div className="mt-3 text-sm">
+                                    <span className="font-medium">
+                                      Timeline:
+                                    </span>{" "}
+                                    {rec.timeframe}
+                                  </div>
                                 </div>
-                                <h5 className="font-medium">{rec.title}</h5>
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {rec.description}
-                                </p>
-                                <div className="mt-3 text-sm">
-                                  <span className="font-medium">Timeline:</span> {rec.timeframe}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-lg font-bold text-green-600">
-                                  {rec.expectedImpact}%
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  Expected Impact
+                                <div className="text-right">
+                                  <div className="text-lg font-bold text-green-600">
+                                    {rec.expectedImpact}%
+                                  </div>
+                                  <div className="text-muted-foreground text-xs">
+                                    Expected Impact
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
                       </div>
                     </div>
                   )}

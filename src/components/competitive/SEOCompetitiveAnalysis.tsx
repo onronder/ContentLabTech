@@ -35,13 +35,7 @@ import {
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import {
   Search,
   Target,
@@ -95,12 +89,12 @@ const COLORS = {
   info: "#6366f1",
 };
 
-
 export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
   projectId,
   competitorId,
 }) => {
-  const { data, loading, error, refresh } = useCompetitiveIntelligence(projectId);
+  const { data, loading, error, refresh } =
+    useCompetitiveIntelligence(projectId);
   const [selectedCompetitor, setSelectedCompetitor] = useState(competitorId);
   const [keywordFilter, setKeywordFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
@@ -113,7 +107,7 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
     if (!data || !selectedCompetitor) return null;
 
     const analysisResult = data.analysisResults.find(
-      (result) => result.competitorId === selectedCompetitor
+      result => result.competitorId === selectedCompetitor
     );
 
     return analysisResult?.data?.seoAnalysis || null;
@@ -133,26 +127,28 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
         opportunityScore: gap.opportunityScore,
         priority: gap.priority,
         trend: "stable", // Default trend
-        cpc: undefined,
+        cpc: 0,
       })
     );
 
     // Apply filters
     if (keywordFilter) {
-      processedData = processedData.filter((row) =>
+      processedData = processedData.filter(row =>
         row.keyword.toLowerCase().includes(keywordFilter.toLowerCase())
       );
     }
 
     if (priorityFilter !== "all") {
-      processedData = processedData.filter((row) => row.priority === priorityFilter);
+      processedData = processedData.filter(
+        row => row.priority === priorityFilter
+      );
     }
 
     // Apply sorting
     processedData.sort((a, b) => {
       const aValue = a[sortBy as keyof KeywordGapTableRow] as number;
       const bValue = b[sortBy as keyof KeywordGapTableRow] as number;
-      
+
       if (sortOrder === "desc") {
         return bValue - aValue;
       } else {
@@ -168,14 +164,19 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
     if (!competitiveAnalysis?.technicalSEO) return [];
 
     const technical = competitiveAnalysis.technicalSEO;
-    
+
     const metrics: TechnicalSEOMetric[] = [
       {
         name: "Site Speed",
         userScore: technical.siteSpeed.user,
         competitorScore: technical.siteSpeed.competitor,
         difference: technical.siteSpeed.gap,
-        status: technical.siteSpeed.gap > 0 ? "better" : technical.siteSpeed.gap < 0 ? "worse" : "equal",
+        status:
+          technical.siteSpeed.gap > 0
+            ? "better"
+            : technical.siteSpeed.gap < 0
+              ? "worse"
+              : "equal",
         impact: "high",
       },
       {
@@ -183,7 +184,12 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
         userScore: technical.mobileOptimization.user,
         competitorScore: technical.mobileOptimization.competitor,
         difference: technical.mobileOptimization.gap,
-        status: technical.mobileOptimization.gap > 0 ? "better" : technical.mobileOptimization.gap < 0 ? "worse" : "equal",
+        status:
+          technical.mobileOptimization.gap > 0
+            ? "better"
+            : technical.mobileOptimization.gap < 0
+              ? "worse"
+              : "equal",
         impact: "high",
       },
       {
@@ -191,7 +197,12 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
         userScore: technical.coreWebVitals.overall.user,
         competitorScore: technical.coreWebVitals.overall.competitor,
         difference: technical.coreWebVitals.overall.gap,
-        status: technical.coreWebVitals.overall.gap > 0 ? "better" : technical.coreWebVitals.overall.gap < 0 ? "worse" : "equal",
+        status:
+          technical.coreWebVitals.overall.gap > 0
+            ? "better"
+            : technical.coreWebVitals.overall.gap < 0
+              ? "worse"
+              : "equal",
         impact: "high",
       },
     ];
@@ -204,7 +215,7 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
     if (!competitiveAnalysis?.overallComparison) return null;
 
     const overview = competitiveAnalysis.overallComparison;
-    
+
     return {
       userScore: overview.userScore,
       competitorScore: overview.competitorScore,
@@ -219,7 +230,7 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
     if (!competitiveAnalysis?.keywordAnalysis) return [];
 
     const keywordAnalysis = competitiveAnalysis.keywordAnalysis;
-    
+
     return [
       {
         name: "Shared Keywords",
@@ -257,7 +268,14 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
     if (!keywordGapData.length) return;
 
     const csvContent = [
-      ["Keyword", "Competitor Ranking", "Search Volume", "Difficulty", "Opportunity Score", "Priority"],
+      [
+        "Keyword",
+        "Competitor Ranking",
+        "Search Volume",
+        "Difficulty",
+        "Opportunity Score",
+        "Priority",
+      ],
       ...keywordGapData.map(row => [
         row.keyword,
         row.competitorRanking.toString(),
@@ -265,8 +283,10 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
         row.difficulty.toString(),
         row.opportunityScore.toString(),
         row.priority,
-      ])
-    ].map(row => row.join(",")).join("\n");
+      ]),
+    ]
+      .map(row => row.join(","))
+      .join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -285,7 +305,9 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold">SEO Competitive Analysis</h2>
-            <p className="text-muted-foreground">Loading SEO competitive intelligence...</p>
+            <p className="text-muted-foreground">
+              Loading SEO competitive intelligence...
+            </p>
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -313,9 +335,9 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
     );
   }
 
-  const selectedCompetitorName = data?.competitors.find(
-    (c) => c.id === selectedCompetitor
-  )?.name || "Unknown Competitor";
+  const selectedCompetitorName =
+    data?.competitors.find(c => c.id === selectedCompetitor)?.name ||
+    "Unknown Competitor";
 
   return (
     <div className="space-y-6">
@@ -331,12 +353,15 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Select value={selectedCompetitor} onValueChange={setSelectedCompetitor}>
+          <Select
+            value={selectedCompetitor || ""}
+            onValueChange={setSelectedCompetitor}
+          >
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Select competitor" />
             </SelectTrigger>
             <SelectContent>
-              {data?.competitors.map((competitor) => (
+              {data?.competitors.map(competitor => (
                 <SelectItem key={competitor.id} value={competitor.id}>
                   {competitor.name}
                 </SelectItem>
@@ -348,7 +373,9 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
             disabled={refreshing}
             variant="outline"
           >
-            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+            />
             {refreshing ? "Refreshing..." : "Refresh"}
           </Button>
         </div>
@@ -380,16 +407,20 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-muted-foreground text-sm font-medium">
                           Your SEO Score
                         </p>
-                        <p className="text-2xl font-bold">{seoOverviewData.userScore}</p>
+                        <p className="text-2xl font-bold">
+                          {seoOverviewData.userScore}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-muted-foreground text-sm font-medium">
                           Competitor Score
                         </p>
-                        <p className="text-2xl font-bold">{seoOverviewData.competitorScore}</p>
+                        <p className="text-2xl font-bold">
+                          {seoOverviewData.competitorScore}
+                        </p>
                       </div>
                     </div>
                     <div className="mt-4 flex items-center gap-2">
@@ -400,11 +431,17 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                       ) : (
                         <Minus className="h-4 w-4 text-gray-600" />
                       )}
-                      <span className={`text-sm font-medium ${
-                        seoOverviewData.gap > 0 ? "text-green-600" : 
-                        seoOverviewData.gap < 0 ? "text-red-600" : "text-gray-600"
-                      }`}>
-                        {seoOverviewData.gap > 0 ? "+" : ""}{seoOverviewData.gap} point difference
+                      <span
+                        className={`text-sm font-medium ${
+                          seoOverviewData.gap > 0
+                            ? "text-green-600"
+                            : seoOverviewData.gap < 0
+                              ? "text-red-600"
+                              : "text-gray-600"
+                        }`}
+                      >
+                        {seoOverviewData.gap > 0 ? "+" : ""}
+                        {seoOverviewData.gap} point difference
                       </span>
                     </div>
                   </CardContent>
@@ -414,7 +451,7 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-muted-foreground text-sm font-medium">
                           Organic Traffic
                         </p>
                         <p className="text-2xl font-bold">
@@ -424,8 +461,10 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                       <Eye className="h-8 w-8 text-blue-600" />
                     </div>
                     <div className="mt-2">
-                      <p className="text-xs text-muted-foreground">
-                        vs {seoOverviewData.visibilityMetrics.organicTraffic.competitor.toLocaleString()} (competitor)
+                      <p className="text-muted-foreground text-xs">
+                        vs{" "}
+                        {seoOverviewData.visibilityMetrics.organicTraffic.competitor.toLocaleString()}{" "}
+                        (competitor)
                       </p>
                     </div>
                   </CardContent>
@@ -435,18 +474,27 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">
+                        <p className="text-muted-foreground text-sm font-medium">
                           Keyword Visibility
                         </p>
                         <p className="text-2xl font-bold">
-                          {seoOverviewData.visibilityMetrics.keywordVisibility.user}%
+                          {
+                            seoOverviewData.visibilityMetrics.keywordVisibility
+                              .user
+                          }
+                          %
                         </p>
                       </div>
                       <Target className="h-8 w-8 text-green-600" />
                     </div>
                     <div className="mt-2">
-                      <p className="text-xs text-muted-foreground">
-                        vs {seoOverviewData.visibilityMetrics.keywordVisibility.competitor}% (competitor)
+                      <p className="text-muted-foreground text-xs">
+                        vs{" "}
+                        {
+                          seoOverviewData.visibilityMetrics.keywordVisibility
+                            .competitor
+                        }
+                        % (competitor)
                       </p>
                     </div>
                   </CardContent>
@@ -486,11 +534,13 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                 <div className="mt-4 grid grid-cols-2 gap-4">
                   {keywordOverlapData.map((item, index) => (
                     <div key={index} className="flex items-center gap-2">
-                      <div 
+                      <div
                         className="h-3 w-3 rounded-full"
                         style={{ backgroundColor: item.color }}
                       />
-                      <span className="text-sm">{item.name}: {item.value}</span>
+                      <span className="text-sm">
+                        {item.name}: {item.value}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -509,19 +559,22 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
               </CardHeader>
               <CardContent>
                 <div className="mb-4 flex flex-wrap gap-4">
-                  <div className="flex-1 min-w-64">
+                  <div className="min-w-64 flex-1">
                     <Label htmlFor="keyword-search">Search Keywords</Label>
                     <Input
                       id="keyword-search"
                       placeholder="Filter keywords..."
                       value={keywordFilter}
-                      onChange={(e) => setKeywordFilter(e.target.value)}
+                      onChange={e => setKeywordFilter(e.target.value)}
                       className="mt-1"
                     />
                   </div>
                   <div>
                     <Label htmlFor="priority-filter">Priority</Label>
-                    <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <Select
+                      value={priorityFilter}
+                      onValueChange={setPriorityFilter}
+                    >
                       <SelectTrigger className="mt-1 w-32">
                         <SelectValue />
                       </SelectTrigger>
@@ -540,19 +593,31 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="opportunityScore">Opportunity Score</SelectItem>
-                        <SelectItem value="searchVolume">Search Volume</SelectItem>
+                        <SelectItem value="opportunityScore">
+                          Opportunity Score
+                        </SelectItem>
+                        <SelectItem value="searchVolume">
+                          Search Volume
+                        </SelectItem>
                         <SelectItem value="difficulty">Difficulty</SelectItem>
-                        <SelectItem value="competitorRanking">Competitor Ranking</SelectItem>
+                        <SelectItem value="competitorRanking">
+                          Competitor Ranking
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="flex items-end gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
+                      onClick={() =>
+                        setSortOrder(sortOrder === "desc" ? "asc" : "desc")
+                      }
                     >
-                      {sortOrder === "desc" ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+                      {sortOrder === "desc" ? (
+                        <ArrowDown className="h-4 w-4" />
+                      ) : (
+                        <ArrowUp className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button onClick={handleExportData} variant="outline">
                       <Download className="mr-2 h-4 w-4" />
@@ -576,15 +641,21 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                     <TableBody>
                       {keywordGapData.slice(0, 50).map((row, index) => (
                         <TableRow key={index}>
-                          <TableCell className="font-medium">{row.keyword}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">#{row.competitorRanking}</Badge>
+                          <TableCell className="font-medium">
+                            {row.keyword}
                           </TableCell>
-                          <TableCell>{row.searchVolume.toLocaleString()}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              #{row.competitorRanking}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {row.searchVolume.toLocaleString()}
+                          </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
+                              <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                                <div
                                   className="h-full bg-gradient-to-r from-green-500 to-red-500"
                                   style={{ width: `${row.difficulty}%` }}
                                 />
@@ -594,20 +665,25 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className="h-2 w-16 bg-gray-200 rounded-full overflow-hidden">
-                                <div 
+                              <div className="h-2 w-16 overflow-hidden rounded-full bg-gray-200">
+                                <div
                                   className="h-full bg-blue-500"
                                   style={{ width: `${row.opportunityScore}%` }}
                                 />
                               </div>
-                              <span className="text-sm">{row.opportunityScore}%</span>
+                              <span className="text-sm">
+                                {row.opportunityScore}%
+                              </span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge 
+                            <Badge
                               variant={
-                                row.priority === "high" ? "destructive" :
-                                row.priority === "medium" ? "default" : "secondary"
+                                row.priority === "high"
+                                  ? "destructive"
+                                  : row.priority === "medium"
+                                    ? "default"
+                                    : "secondary"
                               }
                             >
                               {row.priority}
@@ -621,8 +697,9 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
 
                 {keywordGapData.length > 50 && (
                   <div className="mt-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      Showing 50 of {keywordGapData.length} keywords. Export for full data.
+                    <p className="text-muted-foreground text-sm">
+                      Showing 50 of {keywordGapData.length} keywords. Export for
+                      full data.
                     </p>
                   </div>
                 )}
@@ -655,7 +732,7 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                             <Minus className="h-4 w-4 text-gray-600" />
                           )}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-muted-foreground text-sm">
                           {metric.userScore} vs {metric.competitorScore}
                         </div>
                       </div>
@@ -672,7 +749,10 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                             <span>Competitor Score</span>
                             <span>{metric.competitorScore}</span>
                           </div>
-                          <Progress value={metric.competitorScore} className="h-2" />
+                          <Progress
+                            value={metric.competitorScore}
+                            className="h-2"
+                          />
                         </div>
                       </div>
                     </div>
@@ -698,10 +778,19 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                         <div className="space-y-2">
                           <h4 className="font-medium">Average Position</h4>
                           <div className="text-2xl font-bold">
-                            #{seoOverviewData.rankingComparison.averagePosition.user}
+                            #
+                            {
+                              seoOverviewData.rankingComparison.averagePosition
+                                .user
+                            }
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            vs #{seoOverviewData.rankingComparison.averagePosition.competitor} (competitor)
+                          <p className="text-muted-foreground text-sm">
+                            vs #
+                            {
+                              seoOverviewData.rankingComparison.averagePosition
+                                .competitor
+                            }{" "}
+                            (competitor)
                           </p>
                         </div>
                         <div className="space-y-2">
@@ -709,36 +798,57 @@ export const SEOCompetitiveAnalysis: React.FC<SEOCompetitiveAnalysisProps> = ({
                           <div className="text-2xl font-bold">
                             {seoOverviewData.rankingComparison.topRankings.user}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            vs {seoOverviewData.rankingComparison.topRankings.competitor} (competitor)
+                          <p className="text-muted-foreground text-sm">
+                            vs{" "}
+                            {
+                              seoOverviewData.rankingComparison.topRankings
+                                .competitor
+                            }{" "}
+                            (competitor)
                           </p>
                         </div>
                       </div>
 
                       <div>
-                        <h4 className="font-medium mb-4">Ranking Improvement Opportunities</h4>
+                        <h4 className="mb-4 font-medium">
+                          Ranking Improvement Opportunities
+                        </h4>
                         <div className="space-y-3">
-                          {seoOverviewData.rankingComparison.improvementOpportunities.slice(0, 5).map((opportunity, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 rounded-lg border">
-                              <div>
-                                <div className="font-medium">{opportunity.keyword}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  Current: #{opportunity.currentRanking} | Competitor: #{opportunity.competitorRanking}
+                          {seoOverviewData.rankingComparison.improvementOpportunities
+                            .slice(0, 5)
+                            .map((opportunity, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-between rounded-lg border p-3"
+                              >
+                                <div>
+                                  <div className="font-medium">
+                                    {opportunity.keyword}
+                                  </div>
+                                  <div className="text-muted-foreground text-sm">
+                                    Current: #{opportunity.currentRanking} |
+                                    Competitor: #{opportunity.competitorRanking}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-sm font-medium">
+                                    {opportunity.improvementPotential}%
+                                    potential
+                                  </div>
+                                  <Badge
+                                    variant={
+                                      opportunity.effort === "low"
+                                        ? "default"
+                                        : opportunity.effort === "medium"
+                                          ? "secondary"
+                                          : "destructive"
+                                    }
+                                  >
+                                    {opportunity.effort} effort
+                                  </Badge>
                                 </div>
                               </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium">
-                                  {opportunity.improvementPotential}% potential
-                                </div>
-                                <Badge variant={
-                                  opportunity.effort === "low" ? "default" :
-                                  opportunity.effort === "medium" ? "secondary" : "destructive"
-                                }>
-                                  {opportunity.effort} effort
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
+                            ))}
                         </div>
                       </div>
                     </>

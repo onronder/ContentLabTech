@@ -10,7 +10,10 @@ const googleAnalyticsConfigSchema = z.object({
   serviceAccountKey: z.string(),
   viewId: z.string().optional(),
   propertyId: z.string().optional(),
-  baseUrl: z.string().url().default("https://analyticsreporting.googleapis.com/v4"),
+  baseUrl: z
+    .string()
+    .url()
+    .default("https://analyticsreporting.googleapis.com/v4"),
   timeout: z.number().default(30000),
 });
 
@@ -21,15 +24,29 @@ const analyticsRequestSchema = z.object({
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   metrics: z.array(z.string()),
   dimensions: z.array(z.string()).optional(),
-  filters: z.array(z.object({
-    field: z.string(),
-    operator: z.enum(["EXACT", "BEGINS_WITH", "ENDS_WITH", "CONTAINS", "REGEX"]),
-    value: z.string(),
-  })).optional(),
-  orderBy: z.array(z.object({
-    field: z.string(),
-    sortOrder: z.enum(["ASCENDING", "DESCENDING"]).default("DESCENDING"),
-  })).optional(),
+  filters: z
+    .array(
+      z.object({
+        field: z.string(),
+        operator: z.enum([
+          "EXACT",
+          "BEGINS_WITH",
+          "ENDS_WITH",
+          "CONTAINS",
+          "REGEX",
+        ]),
+        value: z.string(),
+      })
+    )
+    .optional(),
+  orderBy: z
+    .array(
+      z.object({
+        field: z.string(),
+        sortOrder: z.enum(["ASCENDING", "DESCENDING"]).default("DESCENDING"),
+      })
+    )
+    .optional(),
   pageSize: z.number().min(1).max(100000).default(1000),
 });
 
@@ -42,10 +59,12 @@ const analyticsResponseSchema = z.object({
       endDate: z.string(),
     }),
     totals: z.record(z.number()),
-    rows: z.array(z.object({
-      dimensions: z.array(z.string()).optional(),
-      metrics: z.record(z.number()),
-    })),
+    rows: z.array(
+      z.object({
+        dimensions: z.array(z.string()).optional(),
+        metrics: z.record(z.number()),
+      })
+    ),
     rowCount: z.number(),
     samplingSpaceSizes: z.array(z.string()).optional(),
     sampledSpace: z.array(z.string()).optional(),
@@ -62,18 +81,20 @@ const competitiveMetricsSchema = z.object({
   targetDomain: z.string(),
   competitorDomains: z.array(z.string()),
   timeframe: z.enum(["7d", "30d", "90d", "1y"]),
-  metrics: z.array(z.enum([
-    "sessions",
-    "users",
-    "pageviews",
-    "bounce_rate",
-    "session_duration",
-    "pages_per_session",
-    "conversion_rate",
-    "goal_completions",
-    "revenue",
-    "ecommerce_conversion_rate",
-  ])),
+  metrics: z.array(
+    z.enum([
+      "sessions",
+      "users",
+      "pageviews",
+      "bounce_rate",
+      "session_duration",
+      "pages_per_session",
+      "conversion_rate",
+      "goal_completions",
+      "revenue",
+      "ecommerce_conversion_rate",
+    ])
+  ),
 });
 
 type AnalyticsRequest = z.infer<typeof analyticsRequestSchema>;
@@ -83,11 +104,11 @@ type CompetitiveMetrics = z.infer<typeof competitiveMetricsSchema>;
 export class GoogleAnalyticsService {
   private config: z.infer<typeof googleAnalyticsConfigSchema>;
   private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
+  private tokenExpiry = 0;
 
   constructor(config: Partial<z.infer<typeof googleAnalyticsConfigSchema>>) {
     this.config = googleAnalyticsConfigSchema.parse({
-      serviceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY || "",
+      serviceAccountKey: process.env["GOOGLE_SERVICE_ACCOUNT_KEY"] || "",
       ...config,
     });
   }
@@ -95,7 +116,9 @@ export class GoogleAnalyticsService {
   /**
    * Get analytics data for a specific property
    */
-  async getAnalyticsData(request: AnalyticsRequest): Promise<AnalyticsResponse> {
+  async getAnalyticsData(
+    request: AnalyticsRequest
+  ): Promise<AnalyticsResponse> {
     const startTime = Date.now();
 
     try {
@@ -111,19 +134,27 @@ export class GoogleAnalyticsService {
                 endDate: request.endDate,
               },
             ],
-            metrics: request.metrics.map(metric => ({ expression: `ga:${metric}` })),
-            dimensions: request.dimensions?.map(dimension => ({ name: `ga:${dimension}` })),
-            dimensionFilterClauses: request.filters ? [
-              {
-                filters: request.filters.map(filter => ({
-                  dimensionName: `ga:${filter.field}`,
-                  operator: filter.operator,
-                  expressions: [filter.value],
-                })),
-              },
-            ] : undefined,
+            metrics: request.metrics.map(metric => ({
+              expression: `ga:${metric}`,
+            })),
+            dimensions: request.dimensions?.map(dimension => ({
+              name: `ga:${dimension}`,
+            })),
+            dimensionFilterClauses: request.filters
+              ? [
+                  {
+                    filters: request.filters.map(filter => ({
+                      dimensionName: `ga:${filter.field}`,
+                      operator: filter.operator,
+                      expressions: [filter.value],
+                    })),
+                  },
+                ]
+              : undefined,
             orderBys: request.orderBy?.map(order => ({
-              fieldName: order.field.startsWith("ga:") ? order.field : `ga:${order.field}`,
+              fieldName: order.field.startsWith("ga:")
+                ? order.field
+                : `ga:${order.field}`,
               sortOrder: order.sortOrder,
             })),
             pageSize: request.pageSize,
@@ -134,7 +165,7 @@ export class GoogleAnalyticsService {
       const response = await fetch(`${this.config.baseUrl}/reports:batchGet`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${this.accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify(requestBody),
@@ -142,7 +173,9 @@ export class GoogleAnalyticsService {
       });
 
       if (!response.ok) {
-        throw new Error(`Google Analytics API error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Google Analytics API error: ${response.status} ${response.statusText}`
+        );
       }
 
       const rawData = await response.json();
@@ -158,7 +191,11 @@ export class GoogleAnalyticsService {
             endDate: request.endDate,
           },
           totals: this.extractTotals(report.data.totals, request.metrics),
-          rows: this.extractRows(report.data.rows, request.metrics, request.dimensions),
+          rows: this.extractRows(
+            report.data.rows,
+            request.metrics,
+            request.dimensions
+          ),
           rowCount: report.data.rowCount || 0,
           samplingSpaceSizes: report.data.samplesReadCounts,
           sampledSpace: report.data.samplingSpaceSizes,
@@ -171,7 +208,6 @@ export class GoogleAnalyticsService {
       };
 
       return analyticsResponseSchema.parse(transformedData);
-
     } catch (error) {
       return {
         success: false,
@@ -205,19 +241,25 @@ export class GoogleAnalyticsService {
       target_domain: string;
       competitors: Array<{
         domain: string;
-        metrics: Record<string, {
-          value: number;
-          change: number;
-          rank: number;
-        }>;
+        metrics: Record<
+          string,
+          {
+            value: number;
+            change: number;
+            rank: number;
+          }
+        >;
         overall_score: number;
       }>;
-      benchmarks: Record<string, {
-        average: number;
-        median: number;
-        top_quartile: number;
-        bottom_quartile: number;
-      }>;
+      benchmarks: Record<
+        string,
+        {
+          average: number;
+          median: number;
+          top_quartile: number;
+          bottom_quartile: number;
+        }
+      >;
       insights: Array<{
         type: "strength" | "weakness" | "opportunity";
         metric: string;
@@ -228,16 +270,17 @@ export class GoogleAnalyticsService {
     error?: string;
   }> {
     try {
-      const endDate = new Date().toISOString().split("T")[0];
+      const endDate = new Date().toISOString().split("T")[0]!;
       const startDate = this.calculateStartDate(endDate, comparison.timeframe);
 
       // Get analytics data for target domain
       const targetData = await this.getAnalyticsData({
-        propertyId: this.config.propertyId!,
+        propertyId: this.config.propertyId || "default-property",
         startDate,
         endDate,
         metrics: comparison.metrics,
         dimensions: ["hostname"],
+        pageSize: 1000,
         filters: [
           {
             field: "hostname",
@@ -251,10 +294,19 @@ export class GoogleAnalyticsService {
       const benchmarks = this.getIndustryBenchmarks(comparison.metrics);
 
       // Simulate competitor data (in real implementation, this would come from Google Analytics Intelligence API or third-party services)
-      const competitors = await this.getCompetitorMetrics(comparison.competitorDomains, comparison.metrics, startDate, endDate);
+      const competitors = await this.getCompetitorMetrics(
+        comparison.competitorDomains,
+        comparison.metrics,
+        startDate,
+        endDate!
+      );
 
       // Generate insights
-      const insights = this.generatePerformanceInsights(targetData, competitors, benchmarks);
+      const insights = this.generatePerformanceInsights(
+        targetData,
+        competitors,
+        benchmarks
+      );
 
       return {
         success: true,
@@ -266,11 +318,13 @@ export class GoogleAnalyticsService {
           insights,
         },
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Performance comparison failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Performance comparison failed",
       };
     }
   }
@@ -278,7 +332,10 @@ export class GoogleAnalyticsService {
   /**
    * Get website performance metrics
    */
-  async getPerformanceMetrics(domain: string, timeframe: "7d" | "30d" | "90d"): Promise<{
+  async getPerformanceMetrics(
+    domain: string,
+    timeframe: "7d" | "30d" | "90d"
+  ): Promise<{
     success: boolean;
     data?: {
       domain: string;
@@ -340,59 +397,85 @@ export class GoogleAnalyticsService {
     error?: string;
   }> {
     try {
-      const endDate = new Date().toISOString().split("T")[0];
+      const endDate = new Date().toISOString().split("T")[0]!;
       const startDate = this.calculateStartDate(endDate, timeframe);
 
       // Core metrics
       const coreMetrics = await this.getAnalyticsData({
-        propertyId: this.config.propertyId!,
+        propertyId: this.config.propertyId || "default-property",
         startDate,
         endDate,
-        metrics: ["sessions", "users", "pageviews", "bounceRate", "avgSessionDuration", "pageviewsPerSession"],
-        filters: domain ? [{ field: "hostname", operator: "EXACT", value: domain }] : undefined,
+        metrics: [
+          "sessions",
+          "users",
+          "pageviews",
+          "bounceRate",
+          "avgSessionDuration",
+          "pageviewsPerSession",
+        ],
+        pageSize: 1000,
+        filters: domain
+          ? [{ field: "hostname", operator: "EXACT", value: domain }]
+          : undefined,
       });
 
       // Engagement metrics
       const engagementMetrics = await this.getAnalyticsData({
-        propertyId: this.config.propertyId!,
+        propertyId: this.config.propertyId || "default-property",
         startDate,
         endDate,
         metrics: ["newUsers", "users"],
         dimensions: ["userType"],
-        filters: domain ? [{ field: "hostname", operator: "EXACT", value: domain }] : undefined,
+        pageSize: 1000,
+        filters: domain
+          ? [{ field: "hostname", operator: "EXACT", value: domain }]
+          : undefined,
       });
 
       // Acquisition metrics
       const acquisitionMetrics = await this.getAnalyticsData({
-        propertyId: this.config.propertyId!,
+        propertyId: this.config.propertyId || "default-property",
         startDate,
         endDate,
         metrics: ["sessions", "users", "goalConversionRateAll"],
         dimensions: ["channelGrouping"],
-        filters: domain ? [{ field: "hostname", operator: "EXACT", value: domain }] : undefined,
+        pageSize: 1000,
+        filters: domain
+          ? [{ field: "hostname", operator: "EXACT", value: domain }]
+          : undefined,
         orderBy: [{ field: "sessions", sortOrder: "DESCENDING" }],
       });
 
       // Content metrics
       const contentMetrics = await this.getAnalyticsData({
-        propertyId: this.config.propertyId!,
+        propertyId: this.config.propertyId || "default-property",
         startDate,
         endDate,
-        metrics: ["pageviews", "uniquePageviews", "avgTimeOnPage", "bounceRate"],
+        metrics: [
+          "pageviews",
+          "uniquePageviews",
+          "avgTimeOnPage",
+          "bounceRate",
+        ],
         dimensions: ["pagePath"],
-        filters: domain ? [{ field: "hostname", operator: "EXACT", value: domain }] : undefined,
+        filters: domain
+          ? [{ field: "hostname", operator: "EXACT", value: domain }]
+          : undefined,
         orderBy: [{ field: "pageviews", sortOrder: "DESCENDING" }],
         pageSize: 20,
       });
 
       // Daily trends
       const trendsMetrics = await this.getAnalyticsData({
-        propertyId: this.config.propertyId!,
+        propertyId: this.config.propertyId || "default-property",
         startDate,
         endDate,
         metrics: ["sessions", "users", "bounceRate"],
         dimensions: ["date"],
-        filters: domain ? [{ field: "hostname", operator: "EXACT", value: domain }] : undefined,
+        pageSize: 1000,
+        filters: domain
+          ? [{ field: "hostname", operator: "EXACT", value: domain }]
+          : undefined,
         orderBy: [{ field: "date", sortOrder: "ASCENDING" }],
       });
 
@@ -400,15 +483,19 @@ export class GoogleAnalyticsService {
         domain,
         timeframe,
         core_metrics: {
-          sessions: coreMetrics.data.totals.sessions || 0,
-          users: coreMetrics.data.totals.users || 0,
-          pageviews: coreMetrics.data.totals.pageviews || 0,
-          bounce_rate: coreMetrics.data.totals.bounceRate || 0,
-          avg_session_duration: coreMetrics.data.totals.avgSessionDuration || 0,
-          pages_per_session: coreMetrics.data.totals.pageviewsPerSession || 0,
+          sessions: coreMetrics.data.totals["sessions"] || 0,
+          users: coreMetrics.data.totals["users"] || 0,
+          pageviews: coreMetrics.data.totals["pageviews"] || 0,
+          bounce_rate: coreMetrics.data.totals["bounceRate"] || 0,
+          avg_session_duration:
+            coreMetrics.data.totals["avgSessionDuration"] || 0,
+          pages_per_session:
+            coreMetrics.data.totals["pageviewsPerSession"] || 0,
         },
         engagement_metrics: {
-          new_vs_returning: this.processNewVsReturning(engagementMetrics.data.rows),
+          new_vs_returning: this.processNewVsReturning(
+            engagementMetrics.data.rows
+          ),
           user_engagement: {
             engaged_sessions: 0, // Would need GA4 for this metric
             engagement_rate: 0,
@@ -418,19 +505,19 @@ export class GoogleAnalyticsService {
         acquisition_metrics: {
           channels: acquisitionMetrics.data.rows.map(row => ({
             channel: row.dimensions?.[0] || "Direct",
-            sessions: row.metrics.sessions || 0,
-            users: row.metrics.users || 0,
-            conversion_rate: row.metrics.goalConversionRateAll || 0,
+            sessions: row.metrics["sessions"] || 0,
+            users: row.metrics["users"] || 0,
+            conversion_rate: row.metrics["goalConversionRateAll"] || 0,
           })),
           top_referrers: [], // Would need separate query
         },
         content_metrics: {
           top_pages: contentMetrics.data.rows.map(row => ({
             page_path: row.dimensions?.[0] || "/",
-            pageviews: row.metrics.pageviews || 0,
-            unique_pageviews: row.metrics.uniquePageviews || 0,
-            avg_time_on_page: row.metrics.avgTimeOnPage || 0,
-            bounce_rate: row.metrics.bounceRate || 0,
+            pageviews: row.metrics["pageviews"] || 0,
+            unique_pageviews: row.metrics["uniquePageviews"] || 0,
+            avg_time_on_page: row.metrics["avgTimeOnPage"] || 0,
+            bounce_rate: row.metrics["bounceRate"] || 0,
           })),
           site_search: {
             search_sessions: 0,
@@ -441,9 +528,9 @@ export class GoogleAnalyticsService {
         },
         trends: trendsMetrics.data.rows.map(row => ({
           date: row.dimensions?.[0] || "",
-          sessions: row.metrics.sessions || 0,
-          users: row.metrics.users || 0,
-          bounce_rate: row.metrics.bounceRate || 0,
+          sessions: row.metrics["sessions"] || 0,
+          users: row.metrics["users"] || 0,
+          bounce_rate: row.metrics["bounceRate"] || 0,
         })),
       };
 
@@ -451,11 +538,13 @@ export class GoogleAnalyticsService {
         success: true,
         data: transformedData,
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Performance metrics retrieval failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Performance metrics retrieval failed",
       };
     }
   }
@@ -489,8 +578,8 @@ export class GoogleAnalyticsService {
     try {
       // This is a simplified implementation
       // Real implementation would use Google Analytics Funnel reports or custom segments
-      
-      const endDate = new Date().toISOString().split("T")[0];
+
+      const endDate = new Date().toISOString().split("T")[0]!;
       const startDate = this.calculateStartDate(endDate, config.timeframe);
 
       // Simulate funnel analysis
@@ -498,7 +587,7 @@ export class GoogleAnalyticsService {
         funnel_steps: config.funnelSteps.map((step, index) => {
           const dropOffRate = index * 15 + Math.random() * 10; // Simulated drop-off
           const conversionRate = 100 - dropOffRate;
-          
+
           return {
             step_name: step.name,
             users: Math.floor(1000 * (conversionRate / 100)), // Simulated users
@@ -512,19 +601,24 @@ export class GoogleAnalyticsService {
       };
 
       // Calculate overall conversion rate
-      const lastStep = funnelData.funnel_steps[funnelData.funnel_steps.length - 1];
-      funnelData.overall_conversion_rate = lastStep.conversion_rate;
-      funnelData.completed_conversions = lastStep.users;
+      const lastStep =
+        funnelData.funnel_steps[funnelData.funnel_steps.length - 1];
+      if (lastStep) {
+        funnelData.overall_conversion_rate = lastStep.conversion_rate;
+        funnelData.completed_conversions = lastStep.users;
+      }
 
       return {
         success: true,
         data: funnelData,
       };
-
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Conversion funnel analysis failed",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Conversion funnel analysis failed",
       };
     }
   }
@@ -537,10 +631,10 @@ export class GoogleAnalyticsService {
     try {
       // Parse service account key
       const serviceAccount = JSON.parse(this.config.serviceAccountKey);
-      
+
       // Create JWT token for Google APIs
       const jwt = await this.createJWTToken(serviceAccount);
-      
+
       // Exchange JWT for access token
       const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
         method: "POST",
@@ -559,17 +653,18 @@ export class GoogleAnalyticsService {
 
       const tokenData = await tokenResponse.json();
       this.accessToken = tokenData.access_token;
-      this.tokenExpiry = Date.now() + (tokenData.expires_in * 1000) - 60000; // Subtract 1 minute for safety
-
+      this.tokenExpiry = Date.now() + tokenData.expires_in * 1000 - 60000; // Subtract 1 minute for safety
     } catch (error) {
-      throw new Error(`Authentication failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      throw new Error(
+        `Authentication failed: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
 
   private async createJWTToken(serviceAccount: any): Promise<string> {
     // This is a simplified JWT creation
     // In a real implementation, you'd use a proper JWT library like 'jsonwebtoken'
-    
+
     const header = {
       alg: "RS256",
       typ: "JWT",
@@ -589,19 +684,26 @@ export class GoogleAnalyticsService {
     return "placeholder-jwt-token";
   }
 
-  private extractTotals(totals: any[], metrics: string[]): Record<string, number> {
+  private extractTotals(
+    totals: any[],
+    metrics: string[]
+  ): Record<string, number> {
     const result: Record<string, number> = {};
-    
+
     if (totals && totals[0] && totals[0].values) {
       metrics.forEach((metric, index) => {
         result[metric] = parseFloat(totals[0].values[index]) || 0;
       });
     }
-    
+
     return result;
   }
 
-  private extractRows(rows: any[], metrics: string[], dimensions?: string[]): Array<{
+  private extractRows(
+    rows: any[],
+    metrics: string[],
+    dimensions?: string[]
+  ): Array<{
     dimensions?: string[];
     metrics: Record<string, number>;
   }> {
@@ -625,53 +727,92 @@ export class GoogleAnalyticsService {
 
   private calculateStartDate(endDate: string, timeframe: string): string {
     const end = new Date(endDate);
-    const days = timeframe === "7d" ? 7 : timeframe === "30d" ? 30 : timeframe === "90d" ? 90 : 365;
-    const start = new Date(end.getTime() - (days * 24 * 60 * 60 * 1000));
-    return start.toISOString().split("T")[0];
+    const days =
+      timeframe === "7d"
+        ? 7
+        : timeframe === "30d"
+          ? 30
+          : timeframe === "90d"
+            ? 90
+            : 365;
+    const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+    return start.toISOString().split("T")[0]!;
   }
 
   private getIndustryBenchmarks(metrics: string[]): Record<string, any> {
     // Simulated industry benchmarks
     const benchmarks: Record<string, any> = {};
-    
+
     metrics.forEach(metric => {
       switch (metric) {
         case "bounce_rate":
-          benchmarks[metric] = { average: 45, median: 42, top_quartile: 35, bottom_quartile: 60 };
+          benchmarks[metric] = {
+            average: 45,
+            median: 42,
+            top_quartile: 35,
+            bottom_quartile: 60,
+          };
           break;
         case "session_duration":
-          benchmarks[metric] = { average: 150, median: 120, top_quartile: 200, bottom_quartile: 80 };
+          benchmarks[metric] = {
+            average: 150,
+            median: 120,
+            top_quartile: 200,
+            bottom_quartile: 80,
+          };
           break;
         case "pages_per_session":
-          benchmarks[metric] = { average: 2.5, median: 2.2, top_quartile: 3.5, bottom_quartile: 1.8 };
+          benchmarks[metric] = {
+            average: 2.5,
+            median: 2.2,
+            top_quartile: 3.5,
+            bottom_quartile: 1.8,
+          };
           break;
         default:
-          benchmarks[metric] = { average: 100, median: 95, top_quartile: 150, bottom_quartile: 60 };
+          benchmarks[metric] = {
+            average: 100,
+            median: 95,
+            top_quartile: 150,
+            bottom_quartile: 60,
+          };
       }
     });
 
     return benchmarks;
   }
 
-  private async getCompetitorMetrics(domains: string[], metrics: string[], startDate: string, endDate: string): Promise<any[]> {
+  private async getCompetitorMetrics(
+    domains: string[],
+    metrics: string[],
+    startDate: string,
+    endDate: string
+  ): Promise<any[]> {
     // Simulated competitor metrics
     // In a real implementation, this would require access to competitor Google Analytics or third-party services
-    
+
     return domains.map(domain => ({
       domain,
-      metrics: metrics.reduce((acc, metric) => {
-        acc[metric] = {
-          value: Math.floor(Math.random() * 1000) + 100,
-          change: (Math.random() - 0.5) * 50,
-          rank: Math.floor(Math.random() * domains.length) + 1,
-        };
-        return acc;
-      }, {} as Record<string, any>),
+      metrics: metrics.reduce(
+        (acc, metric) => {
+          acc[metric] = {
+            value: Math.floor(Math.random() * 1000) + 100,
+            change: (Math.random() - 0.5) * 50,
+            rank: Math.floor(Math.random() * domains.length) + 1,
+          };
+          return acc;
+        },
+        {} as Record<string, any>
+      ),
       overall_score: Math.floor(Math.random() * 40) + 60,
     }));
   }
 
-  private generatePerformanceInsights(targetData: any, competitors: any[], benchmarks: any): any[] {
+  private generatePerformanceInsights(
+    targetData: any,
+    competitors: any[],
+    benchmarks: any
+  ): any[] {
     // Simplified insight generation
     const insights = [];
 
@@ -680,20 +821,24 @@ export class GoogleAnalyticsService {
       type: "opportunity",
       metric: "bounce_rate",
       description: "Your bounce rate is higher than industry average",
-      recommendation: "Improve page load speed and content relevance to reduce bounce rate",
+      recommendation:
+        "Improve page load speed and content relevance to reduce bounce rate",
     });
 
     return insights;
   }
 
-  private processNewVsReturning(rows: any[]): { new_users: number; returning_users: number } {
+  private processNewVsReturning(rows: any[]): {
+    new_users: number;
+    returning_users: number;
+  } {
     const result = { new_users: 0, returning_users: 0 };
-    
+
     rows.forEach(row => {
       if (row.dimensions?.[0] === "New Visitor") {
-        result.new_users = row.metrics.users || 0;
+        result.new_users = row.metrics["users"] || 0;
       } else if (row.dimensions?.[0] === "Returning Visitor") {
-        result.returning_users = row.metrics.users || 0;
+        result.returning_users = row.metrics["users"] || 0;
       }
     });
 
@@ -721,15 +866,20 @@ export class GoogleAnalyticsService {
           startDate: "7daysAgo",
           endDate: "today",
           metrics: ["sessions"],
+          pageSize: 1,
         });
 
         const responseTime = Date.now() - startTime;
 
         return {
-          status: testData.success ? (responseTime < 3000 ? "healthy" : "degraded") : "unhealthy",
+          status: testData.success
+            ? responseTime < 3000
+              ? "healthy"
+              : "degraded"
+            : "unhealthy",
           responseTime,
           authenticated: true,
-          error: testData.error,
+          ...(testData.error && { error: testData.error }),
         };
       } else {
         return {
@@ -739,7 +889,6 @@ export class GoogleAnalyticsService {
           error: "No property ID configured",
         };
       }
-
     } catch (error) {
       return {
         status: "unhealthy",
