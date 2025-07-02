@@ -1,0 +1,456 @@
+/**
+ * Content Manager Component
+ * Comprehensive content management interface with AI-powered analysis
+ */
+
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth/context";
+import {
+  Plus,
+  Search,
+  FileText,
+  Sparkles,
+  BarChart3,
+  AlertTriangle,
+  PenTool,
+  TrendingUp,
+  Lightbulb,
+  Target,
+} from "lucide-react";
+
+// Components
+import { ContentCard } from "./ContentCard";
+import { CreateContentModal } from "./CreateContentModal";
+import { ContentFilters } from "./ContentFilters";
+import { ContentStats } from "./ContentStats";
+
+interface ContentItem {
+  id: string;
+  project_id: string;
+  title: string;
+  content: string;
+  url?: string;
+  content_type: "article" | "blog_post" | "landing_page" | "product_page" | "category_page" | "other";
+  status: "draft" | "published" | "archived" | "deleted";
+  seo_score?: number;
+  readability_score?: number;
+  word_count?: number;
+  meta_title?: string;
+  meta_description?: string;
+  focus_keywords?: string[];
+  published_at?: string;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+  project: {
+    id: string;
+    name: string;
+    description: string;
+  };
+  stats: {
+    views: number;
+    engagement: number;
+    conversions: number;
+    lastAnalyzed: string;
+  };
+}
+
+interface ContentFilters {
+  projectId?: string;
+  status?: string;
+  contentType?: string;
+  search?: string;
+  limit: number;
+  offset: number;
+}
+
+type ViewMode = "grid" | "list" | "analytics";
+
+export const ContentManager = () => {
+  const { currentTeam } = useAuth();
+  const [content, setContent] = useState<ContentItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [filters, setFilters] = useState<ContentFilters>({
+    limit: 12,
+    offset: 0,
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [totalContent, setTotalContent] = useState(0);
+
+  // Load content when team or filters change
+  useEffect(() => {
+    if (currentTeam?.id) {
+      loadContent();
+    }
+  }, [currentTeam?.id, filters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== filters.search) {
+        setFilters(prev => ({
+          ...prev,
+          search: searchTerm || undefined,
+          offset: 0,
+        }));
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm, filters.search]);
+
+  const loadContent = async () => {
+    if (!currentTeam?.id) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams({
+        teamId: currentTeam.id,
+        limit: filters.limit.toString(),
+        offset: filters.offset.toString(),
+      });
+
+      if (filters.status) params.append("status", filters.status);
+      if (filters.contentType) params.append("contentType", filters.contentType);
+      if (filters.projectId) params.append("projectId", filters.projectId);
+      if (filters.search) params.append("search", filters.search);
+
+      const response = await fetch(`/api/content?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to load content");
+      }
+
+      const data = await response.json();
+      setContent(data.content || []);
+      setTotalContent(data.total || 0);
+    } catch (err) {
+      console.error("Failed to load content:", err);
+      setError(err instanceof Error ? err.message : "Failed to load content");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleContentCreated = (newContent: ContentItem) => {
+    setContent(prev => [newContent, ...prev]);
+    setTotalContent(prev => prev + 1);
+    setShowCreateModal(false);
+  };
+
+  const handleContentUpdated = (updatedContent: ContentItem) => {
+    setContent(prev =>
+      prev.map(c => (c.id === updatedContent.id ? updatedContent : c))
+    );
+  };
+
+  const handleContentDeleted = (contentId: string) => {
+    setContent(prev => prev.filter(c => c.id !== contentId));
+    setTotalContent(prev => prev - 1);
+  };
+
+  const handleLoadMore = () => {
+    setFilters(prev => ({
+      ...prev,
+      offset: prev.offset + prev.limit,
+    }));
+  };
+
+  if (loading && content.length === 0) {
+    return (
+      <div className="space-y-8">
+        {/* Loading Header */}
+        <div className="space-y-4">
+          <div className="h-8 w-1/3 animate-pulse rounded-md bg-gray-200" />
+          <div className="h-4 w-1/2 animate-pulse rounded-md bg-gray-200" />
+        </div>
+
+        {/* Loading Controls */}
+        <div className="flex items-center justify-between">
+          <div className="h-10 w-80 animate-pulse rounded-lg bg-gray-200" />
+          <div className="h-10 w-32 animate-pulse rounded-lg bg-gray-200" />
+        </div>
+
+        {/* Loading Grid */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="h-64 animate-pulse rounded-xl bg-gray-200"
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="mb-2 flex items-center space-x-3">
+            <div className="rounded-lg bg-green-50 p-2">
+              <FileText className="h-6 w-6 text-green-600" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Content</h1>
+              <p className="text-lg text-gray-600">
+                Create, analyze, and optimize your content with AI
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <Badge
+            variant="outline"
+            className="border-green-200 bg-green-50 text-green-700"
+          >
+            <Sparkles className="mr-1 h-3 w-3" />
+            AI-Powered Analysis
+          </Badge>
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Content
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Overview */}
+      <ContentStats content={content} loading={loading} />
+
+      {/* Controls */}
+      <div className="flex items-center justify-between space-x-4">
+        <div className="flex items-center space-x-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              placeholder="Search content..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-80 pl-10"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <Select
+            value={filters.status || "all"}
+            onValueChange={value =>
+              setFilters(prev => ({
+                ...prev,
+                status: value === "all" ? undefined : value,
+                offset: 0,
+              }))
+            }
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Content Type Filter */}
+          <Select
+            value={filters.contentType || "all"}
+            onValueChange={value =>
+              setFilters(prev => ({
+                ...prev,
+                contentType: value === "all" ? undefined : value,
+                offset: 0,
+              }))
+            }
+          >
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Types" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="article">Article</SelectItem>
+              <SelectItem value="blog_post">Blog Post</SelectItem>
+              <SelectItem value="landing_page">Landing Page</SelectItem>
+              <SelectItem value="product_page">Product Page</SelectItem>
+              <SelectItem value="category_page">Category Page</SelectItem>
+              <SelectItem value="other">Other</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* View Mode */}
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={viewMode === "grid" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("grid")}
+          >
+            <div className="grid h-4 w-4 grid-cols-2 gap-0.5">
+              <div className="bg-current rounded-sm" />
+              <div className="bg-current rounded-sm" />
+              <div className="bg-current rounded-sm" />
+              <div className="bg-current rounded-sm" />
+            </div>
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+          >
+            <div className="space-y-1">
+              <div className="h-0.5 w-4 bg-current" />
+              <div className="h-0.5 w-4 bg-current" />
+              <div className="h-0.5 w-4 bg-current" />
+            </div>
+          </Button>
+          <Button
+            variant={viewMode === "analytics" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setViewMode("analytics")}
+          >
+            <BarChart3 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-red-100 p-3">
+            <AlertTriangle className="h-6 w-6 text-red-600" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold text-red-900">
+            Failed to load content
+          </h3>
+          <p className="mb-4 text-red-700">{error}</p>
+          <Button onClick={loadContent} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      ) : content.length === 0 && !loading ? (
+        <EmptyState onCreateContent={() => setShowCreateModal(true)} />
+      ) : (
+        <div className="space-y-6">
+          {/* Content Grid/List */}
+          {viewMode === "grid" && (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {content.map(item => (
+                <ContentCard
+                  key={item.id}
+                  content={item}
+                  onUpdate={handleContentUpdated}
+                  onDelete={handleContentDeleted}
+                />
+              ))}
+            </div>
+          )}
+
+          {viewMode === "list" && (
+            <div className="space-y-4">
+              {content.map(item => (
+                <ContentCard
+                  key={item.id}
+                  content={item}
+                  variant="list"
+                  onUpdate={handleContentUpdated}
+                  onDelete={handleContentDeleted}
+                />
+              ))}
+            </div>
+          )}
+
+          {viewMode === "analytics" && (
+            <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <div className="mb-4 flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Content Analytics
+                </h3>
+              </div>
+              <div className="text-center text-gray-500">
+                <TrendingUp className="mx-auto mb-2 h-8 w-8" />
+                <p>Advanced content analytics coming soon</p>
+              </div>
+            </div>
+          )}
+
+          {/* Load More */}
+          {content.length < totalContent && (
+            <div className="text-center">
+              <Button
+                onClick={handleLoadMore}
+                variant="outline"
+                disabled={loading}
+              >
+                {loading ? "Loading..." : "Load More Content"}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Create Content Modal */}
+      <CreateContentModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onContentCreated={handleContentCreated}
+      />
+    </div>
+  );
+};
+
+// Empty State Component
+const EmptyState = ({ onCreateContent }: { onCreateContent: () => void }) => (
+  <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
+    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 p-4">
+      <FileText className="h-8 w-8 text-green-600" />
+    </div>
+    <h3 className="mb-2 text-xl font-semibold text-gray-900">
+      No content yet
+    </h3>
+    <p className="mb-6 text-gray-600">
+      Start creating high-performing content with AI-powered analysis and optimization.
+      Get insights on SEO, readability, and competitive positioning.
+    </p>
+    <div className="space-y-4">
+      <Button onClick={onCreateContent} size="lg">
+        <Plus className="mr-2 h-5 w-5" />
+        Create Your First Content
+      </Button>
+      <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
+        <div className="flex items-center space-x-2">
+          <PenTool className="h-4 w-4" />
+          <span>AI Content Editor</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Lightbulb className="h-4 w-4" />
+          <span>SEO Optimization</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Target className="h-4 w-4" />
+          <span>Performance Tracking</span>
+        </div>
+      </div>
+    </div>
+  </div>
+);
