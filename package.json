@@ -17,7 +17,12 @@
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "prepare": "husky"
+    "prepare": "husky",
+    "clean": "rm -rf .next out dist node_modules/.cache",
+    "build:clean": "npm run clean && npm run build",
+    "build:analyze": "ANALYZE=true npm run build",
+    "postbuild": "echo 'Build completed successfully'",
+    "verify-build": "npm run lint && npm run type-check && npm run build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
