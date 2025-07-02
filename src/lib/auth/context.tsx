@@ -16,6 +16,12 @@ import { User, Session, AuthError } from "@supabase/supabase-js";
 
 import { supabase } from "@/lib/supabase/client";
 import type { Team, TeamMember } from "@/lib/supabase/client";
+import {
+  getFromLocalStorage,
+  setToLocalStorage,
+  removeFromLocalStorage,
+  getWindowOrigin,
+} from "@/lib/utils/browser";
 
 // Team with user role information
 export type TeamWithUserRole = Team & {
@@ -131,7 +137,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setTeams([]);
           setCurrentTeam(null);
           setCurrentTeamRole(null);
-          localStorage.removeItem("currentTeamId");
+          removeFromLocalStorage("currentTeamId");
         }
       }
     });
@@ -171,7 +177,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setTeams(teamsWithRole);
 
       // Set current team from localStorage or default to first team
-      const savedTeamId = localStorage.getItem("currentTeamId");
+      const savedTeamId = getFromLocalStorage("currentTeamId");
       const teamToSet = savedTeamId
         ? teamsWithRole.find(t => t.id === savedTeamId) || teamsWithRole[0]
         : teamsWithRole[0];
@@ -179,7 +185,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (teamToSet) {
         setCurrentTeam(teamToSet);
         setCurrentTeamRole(teamToSet.userRole);
-        localStorage.setItem("currentTeamId", teamToSet.id);
+        setToLocalStorage("currentTeamId", teamToSet.id);
       }
     } catch (error) {
       console.error("Error loading teams:", error);
@@ -242,7 +248,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${getWindowOrigin()}/auth/callback`,
       },
     });
 
@@ -257,7 +263,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setTeams([]);
       setCurrentTeam(null);
       setCurrentTeamRole(null);
-      localStorage.removeItem("currentTeamId");
+      removeFromLocalStorage("currentTeamId");
     }
 
     return { error };
@@ -265,7 +271,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo: `${getWindowOrigin()}/auth/reset-password`,
     });
 
     return { error };
@@ -278,7 +284,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     setCurrentTeam(team);
     setCurrentTeamRole(team.userRole);
-    localStorage.setItem("currentTeamId", teamId);
+    setToLocalStorage("currentTeamId", teamId);
     return true;
   };
 
