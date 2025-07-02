@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@tensorflow/tfjs": "https://cdn.skypack.dev/@tensorflow/tfjs@4.10.0",
+    "@tensorflow/tfjs-node": "https://cdn.skypack.dev/@tensorflow/tfjs-node@4.10.0"
+  }
+}

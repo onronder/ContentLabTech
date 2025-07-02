@@ -308,30 +308,416 @@ export class ContentAnalysisProcessor
     keywordDensity: number;
     contentGaps: string[];
     topicCoverage: number;
+    semanticSimilarity: number;
+    eatScore: number;
+    competitiveBenchmark: number;
+    topicDepthAnalysis: {
+      coverage: number;
+      completeness: number;
+      expertiseLevel: number;
+      topicClusters: string[];
+    };
   }> {
     try {
-      const aiResult = await analyzeContent({
-        title: content.title,
-        content: content.content,
-        ...(content.metaDescription && {
-          metaDescription: content.metaDescription,
-        }),
-        focusKeywords: targetKeywords,
-        contentType: "article",
-      });
+      // Enhanced semantic analysis with multiple AI models
+      const [aiResult, semanticAnalysis, eatAnalysis, topicAnalysis] =
+        await Promise.all([
+          this.performBasicContentAnalysis(content, targetKeywords),
+          this.performSemanticSimilarityAnalysis(content, targetKeywords),
+          this.performEATAnalysis(content),
+          this.performTopicDepthAnalysis(content, targetKeywords),
+        ]);
 
-      // Map ContentOptimizationResult to expected format
-      return this.mapContentOptimizationResult(aiResult, content);
+      // Combine all analyses into comprehensive result
+      return {
+        ...this.mapContentOptimizationResult(aiResult, content),
+        semanticSimilarity: semanticAnalysis.similarityScore,
+        eatScore: eatAnalysis.overallScore,
+        competitiveBenchmark: await this.calculateCompetitiveBenchmark(
+          content,
+          targetKeywords
+        ),
+        topicDepthAnalysis: topicAnalysis,
+      };
     } catch (error) {
-      console.error("OpenAI content analysis failed:", error);
-      // Return fallback analysis with correct structure
+      console.error("Enhanced content analysis failed:", error);
+      // Return enhanced fallback analysis
       return {
         wordCount: content.content.split(/\s+/).length,
         headingStructure: content.headings.length,
         keywordDensity: 2.5,
         contentGaps: ["Technical Implementation", "Advanced Strategies"],
         topicCoverage: 75,
+        semanticSimilarity: 65,
+        eatScore: 70,
+        competitiveBenchmark: 68,
+        topicDepthAnalysis: {
+          coverage: 75,
+          completeness: 70,
+          expertiseLevel: 65,
+          topicClusters: ["Core Topics", "Supporting Concepts"],
+        },
       };
+    }
+  }
+
+  /**
+   * Perform basic content analysis using OpenAI
+   */
+  private async performBasicContentAnalysis(
+    content: {
+      title: string;
+      content: string;
+      metaDescription?: string;
+    },
+    targetKeywords: string[]
+  ): Promise<ContentOptimizationResult> {
+    return await analyzeContent({
+      title: content.title,
+      content: content.content,
+      ...(content.metaDescription && {
+        metaDescription: content.metaDescription,
+      }),
+      focusKeywords: targetKeywords,
+      contentType: "article",
+    });
+  }
+
+  /**
+   * Advanced semantic similarity analysis using OpenAI embeddings
+   */
+  private async performSemanticSimilarityAnalysis(
+    content: {
+      title: string;
+      content: string;
+    },
+    targetKeywords: string[]
+  ): Promise<{
+    similarityScore: number;
+    semanticClusters: string[];
+    contextRelevance: number;
+  }> {
+    try {
+      const openaiApiKey = process.env["OPENAI_API_KEY"];
+      if (!openaiApiKey) {
+        throw new Error("OpenAI API key not configured");
+      }
+
+      // Create embeddings for content and target keywords
+      const contentText = `${content.title} ${content.content}`;
+      const keywordText = targetKeywords.join(" ");
+
+      const embeddingResponse = await fetch(
+        "https://api.openai.com/v1/embeddings",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "text-embedding-3-small",
+            input: [contentText, keywordText],
+          }),
+        }
+      );
+
+      if (!embeddingResponse.ok) {
+        throw new Error(`OpenAI API error: ${embeddingResponse.status}`);
+      }
+
+      const embeddingData = await embeddingResponse.json();
+      const [contentEmbedding, keywordEmbedding] = embeddingData.data;
+
+      // Calculate cosine similarity
+      const similarity = this.calculateCosineSimilarity(
+        contentEmbedding.embedding,
+        keywordEmbedding.embedding
+      );
+
+      // Extract semantic clusters using advanced NLP
+      const semanticClusters = await this.extractSemanticClusters(
+        content.content
+      );
+
+      // Calculate context relevance
+      const contextRelevance = this.calculateContextRelevance(
+        content,
+        targetKeywords
+      );
+
+      return {
+        similarityScore: Math.round(similarity * 100),
+        semanticClusters,
+        contextRelevance: Math.round(contextRelevance * 100),
+      };
+    } catch (error) {
+      console.error("Semantic similarity analysis failed:", error);
+      return {
+        similarityScore: 70,
+        semanticClusters: ["Core Content", "Supporting Ideas"],
+        contextRelevance: 65,
+      };
+    }
+  }
+
+  /**
+   * E-A-T (Expertise, Authoritativeness, Trustworthiness) Analysis
+   */
+  private async performEATAnalysis(content: {
+    title: string;
+    content: string;
+    headings: { level: number; text: string }[];
+  }): Promise<{
+    overallScore: number;
+    expertise: number;
+    authoritativeness: number;
+    trustworthiness: number;
+    signals: {
+      citations: number;
+      authorMentions: number;
+      expertLanguage: number;
+      factualAccuracy: number;
+    };
+  }> {
+    try {
+      const openaiApiKey = process.env["OPENAI_API_KEY"];
+      if (!openaiApiKey) {
+        throw new Error("OpenAI API key not configured");
+      }
+
+      // Use OpenAI to analyze E-A-T signals
+      const eatPrompt = `Analyze the following content for E-A-T (Expertise, Authoritativeness, Trustworthiness) signals:
+
+Title: ${content.title}
+Content: ${content.content.substring(0, 3000)}...
+
+Rate each dimension (0-100) and provide reasoning:
+1. Expertise - Technical accuracy, depth of knowledge, professional terminology
+2. Authoritativeness - Citations, references, credible sources mentioned
+3. Trustworthiness - Fact-checking, transparency, unbiased presentation
+
+Return JSON format:
+{
+  "expertise": number,
+  "authoritativeness": number,
+  "trustworthiness": number,
+  "signals": {
+    "citations": number,
+    "authorMentions": number,
+    "expertLanguage": number,
+    "factualAccuracy": number
+  },
+  "reasoning": string
+}`;
+
+      const eatResponse = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an expert content evaluator specializing in E-A-T analysis for SEO and content quality assessment.",
+              },
+              {
+                role: "user",
+                content: eatPrompt,
+              },
+            ],
+            temperature: 0.1,
+          }),
+        }
+      );
+
+      if (!eatResponse.ok) {
+        throw new Error(`OpenAI API error: ${eatResponse.status}`);
+      }
+
+      const eatData = await eatResponse.json();
+      const eatResult = JSON.parse(eatData.choices[0].message.content);
+
+      const overallScore = Math.round(
+        (eatResult.expertise +
+          eatResult.authoritativeness +
+          eatResult.trustworthiness) /
+          3
+      );
+
+      return {
+        overallScore,
+        expertise: eatResult.expertise,
+        authoritativeness: eatResult.authoritativeness,
+        trustworthiness: eatResult.trustworthiness,
+        signals: eatResult.signals,
+      };
+    } catch (error) {
+      console.error("E-A-T analysis failed:", error);
+      // Fallback E-A-T analysis based on content patterns
+      return this.fallbackEATAnalysis(content);
+    }
+  }
+
+  /**
+   * Advanced topic coverage depth analysis
+   */
+  private async performTopicDepthAnalysis(
+    content: {
+      title: string;
+      content: string;
+      headings: { level: number; text: string }[];
+    },
+    targetKeywords: string[]
+  ): Promise<{
+    coverage: number;
+    completeness: number;
+    expertiseLevel: number;
+    topicClusters: string[];
+  }> {
+    try {
+      const openaiApiKey = process.env["OPENAI_API_KEY"];
+      if (!openaiApiKey) {
+        throw new Error("OpenAI API key not configured");
+      }
+
+      const topicPrompt = `Analyze the topic coverage and depth for the following content:
+
+Title: ${content.title}
+Target Keywords: ${targetKeywords.join(", ")}
+Content: ${content.content.substring(0, 4000)}...
+Headings: ${content.headings.map(h => `H${h.level}: ${h.text}`).join(", ")}
+
+Evaluate:
+1. Topic Coverage (0-100): How comprehensively does the content cover the target topics?
+2. Completeness (0-100): Are all important subtopics and related concepts addressed?
+3. Expertise Level (0-100): How deep and technically accurate is the information?
+4. Topic Clusters: Identify 3-5 main topic clusters covered
+
+Return JSON:
+{
+  "coverage": number,
+  "completeness": number,
+  "expertiseLevel": number,
+  "topicClusters": string[],
+  "gaps": string[],
+  "strengths": string[]
+}`;
+
+      const topicResponse = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an expert content strategist specializing in topic modeling and content depth analysis.",
+              },
+              {
+                role: "user",
+                content: topicPrompt,
+              },
+            ],
+            temperature: 0.1,
+          }),
+        }
+      );
+
+      if (!topicResponse.ok) {
+        throw new Error(`OpenAI API error: ${topicResponse.status}`);
+      }
+
+      const topicData = await topicResponse.json();
+      const topicResult = JSON.parse(topicData.choices[0].message.content);
+
+      return {
+        coverage: topicResult.coverage,
+        completeness: topicResult.completeness,
+        expertiseLevel: topicResult.expertiseLevel,
+        topicClusters: topicResult.topicClusters,
+      };
+    } catch (error) {
+      console.error("Topic depth analysis failed:", error);
+      return this.fallbackTopicAnalysis(content, targetKeywords);
+    }
+  }
+
+  /**
+   * Calculate competitive benchmark score
+   */
+  private async calculateCompetitiveBenchmark(
+    content: {
+      title: string;
+      content: string;
+    },
+    targetKeywords: string[]
+  ): Promise<number> {
+    try {
+      // Get competitor content data from database
+      const { data: competitorData } = await this.supabase
+        .from("competitive_analysis_results")
+        .select("data")
+        .limit(10);
+
+      if (!competitorData || competitorData.length === 0) {
+        return 70; // Default benchmark if no competitor data
+      }
+
+      // Calculate content metrics
+      const contentLength = content.content.split(/\s+/).length;
+      const titleLength = content.title.length;
+      const keywordDensity = this.calculateKeywordDensity(
+        content.content,
+        targetKeywords
+      );
+
+      // Compare against competitor averages
+      const competitorAverages =
+        this.calculateCompetitorAverages(competitorData);
+
+      let benchmarkScore = 0;
+
+      // Length comparison (25% weight)
+      const lengthScore = Math.min(
+        100,
+        (contentLength / competitorAverages.avgContentLength) * 100
+      );
+      benchmarkScore += lengthScore * 0.25;
+
+      // Title optimization (15% weight)
+      const titleScore = titleLength >= 30 && titleLength <= 60 ? 100 : 70;
+      benchmarkScore += titleScore * 0.15;
+
+      // Keyword density (30% weight)
+      const densityScore =
+        keywordDensity >= 1 && keywordDensity <= 3
+          ? 100
+          : keywordDensity >= 0.5 && keywordDensity <= 5
+            ? 80
+            : 60;
+      benchmarkScore += densityScore * 0.3;
+
+      // Content structure (30% weight)
+      const structureScore = 85; // Would be calculated from actual structure analysis
+      benchmarkScore += structureScore * 0.3;
+
+      return Math.round(Math.min(100, benchmarkScore));
+    } catch (error) {
+      console.error("Competitive benchmark calculation failed:", error);
+      return 68; // Fallback score
     }
   }
 
@@ -491,6 +877,281 @@ export class ContentAnalysisProcessor
     return Math.round(Math.max(0, Math.min(100, score)));
   }
 
+  /**
+   * Calculate cosine similarity between two vectors
+   */
+  private calculateCosineSimilarity(
+    vectorA: number[],
+    vectorB: number[]
+  ): number {
+    const dotProduct = vectorA.reduce((sum, a, i) => sum + a * vectorB[i]!, 0);
+    const magnitudeA = Math.sqrt(vectorA.reduce((sum, a) => sum + a * a, 0));
+    const magnitudeB = Math.sqrt(vectorB.reduce((sum, b) => sum + b * b, 0));
+    return dotProduct / (magnitudeA * magnitudeB);
+  }
+
+  /**
+   * Extract semantic clusters from content using NLP techniques
+   */
+  private async extractSemanticClusters(content: string): Promise<string[]> {
+    try {
+      const openaiApiKey = process.env["OPENAI_API_KEY"];
+      if (!openaiApiKey) {
+        return ["Core Content", "Supporting Ideas"];
+      }
+
+      const clusterPrompt = `Extract 3-5 main semantic clusters (topic groups) from this content:
+
+${content.substring(0, 2000)}...
+
+Return only a JSON array of cluster names: ["cluster1", "cluster2", ...]`;
+
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openaiApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an expert in content analysis and topic modeling. Return only valid JSON arrays.",
+              },
+              {
+                role: "user",
+                content: clusterPrompt,
+              },
+            ],
+            temperature: 0.1,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return (
+        JSON.parse(data.choices[0].message.content) || [
+          "Core Content",
+          "Supporting Ideas",
+        ]
+      );
+    } catch (error) {
+      console.error("Semantic cluster extraction failed:", error);
+      return ["Core Content", "Supporting Ideas", "Technical Details"];
+    }
+  }
+
+  /**
+   * Calculate context relevance score
+   */
+  private calculateContextRelevance(
+    content: { title: string; content: string },
+    targetKeywords: string[]
+  ): number {
+    const fullText = `${content.title} ${content.content}`.toLowerCase();
+    let relevanceScore = 0;
+
+    for (const keyword of targetKeywords) {
+      const keywordLower = keyword.toLowerCase();
+      const keywordWords = keywordLower.split(/\s+/);
+
+      // Check for exact keyword match
+      const exactMatches = (fullText.match(new RegExp(keywordLower, "g")) || [])
+        .length;
+      if (exactMatches > 0) {
+        relevanceScore += Math.min(30, exactMatches * 10);
+      }
+
+      // Check for partial matches (individual words)
+      for (const word of keywordWords) {
+        if (word.length > 2) {
+          const wordMatches = (
+            fullText.match(new RegExp(`\\b${word}\\b`, "g")) || []
+          ).length;
+          relevanceScore += Math.min(10, wordMatches * 2);
+        }
+      }
+    }
+
+    return Math.min(1, relevanceScore / (targetKeywords.length * 50));
+  }
+
+  /**
+   * Fallback E-A-T analysis based on content patterns
+   */
+  private fallbackEATAnalysis(content: {
+    title: string;
+    content: string;
+    headings: { level: number; text: string }[];
+  }): {
+    overallScore: number;
+    expertise: number;
+    authoritativeness: number;
+    trustworthiness: number;
+    signals: {
+      citations: number;
+      authorMentions: number;
+      expertLanguage: number;
+      factualAccuracy: number;
+    };
+  } {
+    const text = content.content.toLowerCase();
+
+    // Expertise indicators
+    const expertTerms = [
+      "according to",
+      "research shows",
+      "studies indicate",
+      "data suggests",
+      "analysis reveals",
+    ];
+    const expertiseScore = Math.min(
+      100,
+      expertTerms.filter(term => text.includes(term)).length * 20 + 40
+    );
+
+    // Authoritativeness indicators
+    const citationPatterns =
+      text.match(/\b(source|study|research|report|according to)\b/g) || [];
+    const authoritativeScore = Math.min(100, citationPatterns.length * 10 + 50);
+
+    // Trustworthiness indicators
+    const trustPatterns =
+      text.match(/\b(fact|verified|confirmed|proven|evidence)\b/g) || [];
+    const trustworthinessScore = Math.min(100, trustPatterns.length * 15 + 45);
+
+    const overallScore = Math.round(
+      (expertiseScore + authoritativeScore + trustworthinessScore) / 3
+    );
+
+    return {
+      overallScore,
+      expertise: expertiseScore,
+      authoritativeness: authoritativeScore,
+      trustworthiness: trustworthinessScore,
+      signals: {
+        citations: citationPatterns.length,
+        authorMentions: (text.match(/\b(author|expert|specialist)\b/g) || [])
+          .length,
+        expertLanguage: expertTerms.filter(term => text.includes(term)).length,
+        factualAccuracy: trustPatterns.length,
+      },
+    };
+  }
+
+  /**
+   * Fallback topic analysis
+   */
+  private fallbackTopicAnalysis(
+    content: {
+      title: string;
+      content: string;
+      headings: { level: number; text: string }[];
+    },
+    targetKeywords: string[]
+  ): {
+    coverage: number;
+    completeness: number;
+    expertiseLevel: number;
+    topicClusters: string[];
+  } {
+    const contentLength = content.content.split(/\s+/).length;
+    const headingCount = content.headings.length;
+
+    // Basic coverage calculation
+    const coverage = Math.min(
+      100,
+      (contentLength / 500) * 50 + headingCount * 10
+    );
+
+    // Completeness based on keyword coverage
+    const keywordCoverage =
+      targetKeywords.filter(keyword =>
+        content.content.toLowerCase().includes(keyword.toLowerCase())
+      ).length / targetKeywords.length;
+    const completeness = Math.round(keywordCoverage * 100);
+
+    // Expertise level based on content depth
+    const expertiseLevel = Math.min(100, (contentLength / 1000) * 80 + 20);
+
+    // Generate topic clusters from headings
+    const topicClusters =
+      content.headings.length > 0
+        ? content.headings.slice(0, 4).map(h => h.text)
+        : ["Main Topic", "Supporting Concepts"];
+
+    return {
+      coverage: Math.round(coverage),
+      completeness,
+      expertiseLevel: Math.round(expertiseLevel),
+      topicClusters,
+    };
+  }
+
+  /**
+   * Calculate keyword density
+   */
+  private calculateKeywordDensity(content: string, keywords: string[]): number {
+    const words = content.toLowerCase().split(/\s+/);
+    const totalWords = words.length;
+
+    let keywordCount = 0;
+    for (const keyword of keywords) {
+      const keywordMatches = (
+        content.toLowerCase().match(new RegExp(keyword.toLowerCase(), "g")) ||
+        []
+      ).length;
+      keywordCount += keywordMatches;
+    }
+
+    return totalWords > 0 ? (keywordCount / totalWords) * 100 : 0;
+  }
+
+  /**
+   * Calculate competitor averages from database
+   */
+  private calculateCompetitorAverages(competitorData: any[]): {
+    avgContentLength: number;
+    avgTitleLength: number;
+    avgKeywordDensity: number;
+  } {
+    if (competitorData.length === 0) {
+      return {
+        avgContentLength: 1000,
+        avgTitleLength: 50,
+        avgKeywordDensity: 2.5,
+      };
+    }
+
+    // Extract metrics from competitor data
+    const lengths = competitorData.map(
+      comp => comp.data?.contentLength || 1000
+    );
+    const titleLengths = competitorData.map(
+      comp => comp.data?.titleLength || 50
+    );
+    const densities = competitorData.map(
+      comp => comp.data?.keywordDensity || 2.5
+    );
+
+    return {
+      avgContentLength:
+        lengths.reduce((sum, len) => sum + len, 0) / lengths.length,
+      avgTitleLength:
+        titleLengths.reduce((sum, len) => sum + len, 0) / titleLengths.length,
+      avgKeywordDensity:
+        densities.reduce((sum, den) => sum + den, 0) / densities.length,
+    };
+  }
+
   private countSyllables(word: string): number {
     const vowels = "aeiouyAEIOUY";
     let count = 0;
@@ -568,6 +1229,15 @@ export class ContentAnalysisProcessor
       keywordDensity: number;
       contentGaps: string[];
       topicCoverage: number;
+      semanticSimilarity: number;
+      eatScore: number;
+      competitiveBenchmark: number;
+      topicDepthAnalysis: {
+        coverage: number;
+        completeness: number;
+        expertiseLevel: number;
+        topicClusters: string[];
+      };
     };
     technicalSEO: number;
     readabilityScore: number;
@@ -580,38 +1250,220 @@ export class ContentAnalysisProcessor
     };
     analysisDepth: string;
   }): ContentQualityResult {
-    // Apply Phase 1 weighting algorithm
-    const technicalSeoWeight = 0.3;
-    const contentDepthWeight = 0.4;
-    const readabilityWeight = 0.2;
-    const semanticRelevanceWeight = 0.1;
+    // Enhanced weighting algorithm incorporating new metrics
+    const technicalSeoWeight = 0.2; // Reduced from 0.30
+    const contentDepthWeight = 0.25; // Reduced from 0.40
+    const readabilityWeight = 0.15; // Reduced from 0.20
+    const semanticRelevanceWeight = 0.1; // Same
+    const semanticSimilarityWeight = 0.1; // New
+    const eatWeight = 0.15; // New - E-A-T scoring
+    const competitiveBenchmarkWeight = 0.05; // New - competitive positioning
 
-    const contentDepth = data.contentAnalysis.topicCoverage || 75;
-
-    const overallScore = Math.round(
-      data.technicalSEO * technicalSeoWeight +
-        contentDepth * contentDepthWeight +
-        data.readabilityScore * readabilityWeight +
-        data.semanticRelevance * semanticRelevanceWeight
+    // Enhanced content depth calculation
+    const enhancedContentDepth = Math.round(
+      data.contentAnalysis.topicCoverage * 0.4 +
+        data.contentAnalysis.topicDepthAnalysis.coverage * 0.3 +
+        data.contentAnalysis.topicDepthAnalysis.completeness * 0.2 +
+        data.contentAnalysis.topicDepthAnalysis.expertiseLevel * 0.1
     );
 
+    // Calculate advanced overall score
+    const overallScore = Math.round(
+      data.technicalSEO * technicalSeoWeight +
+        enhancedContentDepth * contentDepthWeight +
+        data.readabilityScore * readabilityWeight +
+        data.semanticRelevance * semanticRelevanceWeight +
+        data.contentAnalysis.semanticSimilarity * semanticSimilarityWeight +
+        data.contentAnalysis.eatScore * eatWeight +
+        data.contentAnalysis.competitiveBenchmark * competitiveBenchmarkWeight
+    );
+
+    // Generate comprehensive recommendations
     const recommendations: ContentRecommendation[] = [
       ...this.generateTechnicalRecommendations(data.technicalSEO),
-      ...this.generateContentRecommendations(contentDepth),
+      ...this.generateContentRecommendations(enhancedContentDepth),
       ...this.generateReadabilityRecommendations(data.readabilityScore),
       ...this.generateSemanticRecommendations(data.semanticRelevance),
+      ...this.generateEATRecommendations(data.contentAnalysis.eatScore),
+      ...this.generateTopicDepthRecommendations(
+        data.contentAnalysis.topicDepthAnalysis
+      ),
+      ...this.generateCompetitiveRecommendations(
+        data.contentAnalysis.competitiveBenchmark
+      ),
     ];
 
     return {
       overallScore,
       technicalSeo: data.technicalSEO,
-      contentDepth,
+      contentDepth: enhancedContentDepth,
       readability: data.readabilityScore,
       semanticRelevance: data.semanticRelevance,
-      recommendations: recommendations.slice(0, 10), // Top 10 recommendations
-      contentGaps: data.competitorComparison?.gaps || [],
-      improvementTimeline: this.estimateImprovementTimeline(overallScore),
+      recommendations: recommendations
+        .sort((a, b) => {
+          // Sort by priority and impact
+          const priorityOrder = { high: 3, medium: 2, low: 1 };
+          const impactOrder = { high: 3, medium: 2, low: 1 };
+
+          const aScore = priorityOrder[a.priority] * impactOrder[a.impact];
+          const bScore = priorityOrder[b.priority] * impactOrder[b.impact];
+
+          return bScore - aScore;
+        })
+        .slice(0, 12), // Top 12 recommendations
+      contentGaps: [
+        ...data.contentAnalysis.contentGaps,
+        ...(data.competitorComparison?.gaps || []),
+      ],
+      improvementTimeline: this.estimateEnhancedImprovementTimeline(
+        overallScore,
+        data.contentAnalysis.eatScore,
+        data.contentAnalysis.topicDepthAnalysis.coverage
+      ),
+      // Additional metadata for enhanced analysis
+      metadata: {
+        semanticSimilarity: data.contentAnalysis.semanticSimilarity,
+        eatScore: data.contentAnalysis.eatScore,
+        competitiveBenchmark: data.contentAnalysis.competitiveBenchmark,
+        topicClusters: data.contentAnalysis.topicDepthAnalysis.topicClusters,
+        expertiseLevel: data.contentAnalysis.topicDepthAnalysis.expertiseLevel,
+        analysisVersion: "2.0-enhanced",
+      },
     };
+  }
+
+  /**
+   * Generate E-A-T specific recommendations
+   */
+  private generateEATRecommendations(
+    eatScore: number
+  ): ContentRecommendation[] {
+    if (eatScore >= 85) return [];
+
+    const recommendations: ContentRecommendation[] = [];
+
+    if (eatScore < 70) {
+      recommendations.push({
+        type: "authority",
+        priority: "high",
+        impact: "high",
+        effort: "medium",
+        title: "Enhance Content Authority",
+        description:
+          "Add credible sources, citations, and expert references to boost authoritativeness.",
+        implementation:
+          "Include links to authoritative sources, cite studies, and reference industry experts.",
+        expectedImprovement: 25,
+      });
+    }
+
+    if (eatScore < 80) {
+      recommendations.push({
+        type: "expertise",
+        priority: "medium",
+        impact: "high",
+        effort: "medium",
+        title: "Demonstrate Subject Matter Expertise",
+        description:
+          "Deepen technical content and showcase professional knowledge in the subject area.",
+        implementation:
+          "Add detailed explanations, industry insights, and professional terminology where appropriate.",
+        expectedImprovement: 20,
+      });
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate topic depth recommendations
+   */
+  private generateTopicDepthRecommendations(topicAnalysis: {
+    coverage: number;
+    completeness: number;
+    expertiseLevel: number;
+    topicClusters: string[];
+  }): ContentRecommendation[] {
+    const recommendations: ContentRecommendation[] = [];
+
+    if (topicAnalysis.coverage < 75) {
+      recommendations.push({
+        type: "content",
+        priority: "high",
+        impact: "high",
+        effort: "high",
+        title: "Expand Topic Coverage",
+        description: `Content covers ${topicAnalysis.coverage}% of target topics. Expand coverage of: ${topicAnalysis.topicClusters.slice(0, 2).join(", ")}`,
+        implementation:
+          "Research and add comprehensive sections for missing topic areas.",
+        expectedImprovement: 30,
+      });
+    }
+
+    if (topicAnalysis.completeness < 70) {
+      recommendations.push({
+        type: "content",
+        priority: "medium",
+        impact: "medium",
+        effort: "medium",
+        title: "Improve Topic Completeness",
+        description:
+          "Add subtopics and related concepts to create more comprehensive coverage.",
+        implementation:
+          "Identify missing subtopics and create detailed sections for each.",
+        expectedImprovement: 22,
+      });
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate competitive recommendations
+   */
+  private generateCompetitiveRecommendations(
+    competitiveScore: number
+  ): ContentRecommendation[] {
+    if (competitiveScore >= 80) return [];
+
+    const recommendations: ContentRecommendation[] = [];
+
+    if (competitiveScore < 70) {
+      recommendations.push({
+        type: "competitive",
+        priority: "medium",
+        impact: "medium",
+        effort: "medium",
+        title: "Improve Competitive Positioning",
+        description:
+          "Content underperforms compared to top competitors in the space.",
+        implementation:
+          "Analyze top-performing competitor content and identify gaps to address.",
+        expectedImprovement: 18,
+      });
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Enhanced improvement timeline calculation
+   */
+  private estimateEnhancedImprovementTimeline(
+    overallScore: number,
+    eatScore: number,
+    topicCoverage: number
+  ): string {
+    // Factor in multiple dimensions for more accurate timeline
+    const averageScore = (overallScore + eatScore + topicCoverage) / 3;
+
+    if (averageScore >= 90) return "1-2 weeks (minor optimizations)";
+    if (averageScore >= 80) return "3-4 weeks (moderate improvements)";
+    if (averageScore >= 70)
+      return "6-8 weeks (significant enhancements needed)";
+    if (averageScore >= 60)
+      return "2-3 months (comprehensive content overhaul)";
+    return "3-4 months (major content strategy revision required)";
   }
 
   private generateTechnicalRecommendations(

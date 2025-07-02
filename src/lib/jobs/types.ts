@@ -216,10 +216,26 @@ export interface ContentQualityResult {
   recommendations: ContentRecommendation[];
   contentGaps: string[];
   improvementTimeline: string;
+  metadata?: {
+    semanticSimilarity: number;
+    eatScore: number;
+    competitiveBenchmark: number;
+    topicClusters: string[];
+    expertiseLevel: number;
+    analysisVersion: string;
+  };
 }
 
 export interface ContentRecommendation {
-  type: "title" | "meta" | "content" | "structure" | "keywords";
+  type:
+    | "title"
+    | "meta"
+    | "content"
+    | "structure"
+    | "keywords"
+    | "authority"
+    | "expertise"
+    | "competitive";
   priority: "high" | "medium" | "low";
   impact: "high" | "medium" | "low";
   effort: "high" | "medium" | "low";
