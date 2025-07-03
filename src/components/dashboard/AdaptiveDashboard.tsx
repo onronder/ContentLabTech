@@ -26,12 +26,18 @@ import {
   Sparkles,
   LucideIcon,
   FolderOpen,
+  Plus,
 } from "lucide-react";
 
 // Import role-based dashboards
 import { ExecutiveDashboard } from "./ExecutiveDashboard";
 import { ContentManagerDashboard } from "./ContentManagerDashboard";
 import { AnalystWorkspace } from "./AnalystWorkspace";
+import {
+  ExecutiveEmptyState,
+  ContentManagerEmptyState,
+  AnalystEmptyState,
+} from "./empty-states";
 
 type UserRole = "executive" | "content-manager" | "analyst" | "admin";
 
@@ -287,7 +293,62 @@ export const AdaptiveDashboard = () => {
       {/* Role-Based Dashboard Content */}
       <div className="min-h-screen">
         <div className="animate-fade-in-up">
-          <DashboardComponent projectId={currentProject?.id} />
+          {!currentProject && projects.length === 0 ? (
+            // Show empty state when no projects exist
+            currentRole === "executive" ? (
+              <ExecutiveEmptyState
+                onCreateProject={() => {
+                  window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                }}
+              />
+            ) : currentRole === "content-manager" ? (
+              <ContentManagerEmptyState
+                onCreateProject={() => {
+                  window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                }}
+              />
+            ) : currentRole === "analyst" ? (
+              <AnalystEmptyState
+                onCreateProject={() => {
+                  window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                }}
+              />
+            ) : (
+              // Default empty state for admin and other roles
+              <div className="space-y-4 py-12 text-center">
+                <div
+                  className={cn(
+                    "mx-auto w-fit rounded-lg p-3",
+                    currentDashboard?.bgColor
+                  )}
+                >
+                  {currentDashboard &&
+                    React.createElement(currentDashboard.icon, {
+                      className: cn("h-12 w-12", currentDashboard.color),
+                    })}
+                </div>
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Welcome to {currentDashboard?.name}
+                </h2>
+                <p className="mx-auto max-w-md text-gray-600">
+                  Create your first project to start using{" "}
+                  {currentDashboard?.description.toLowerCase()}.
+                </p>
+                <Button
+                  onClick={() => {
+                    window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                  }}
+                  className="mt-4"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Project
+                </Button>
+              </div>
+            )
+          ) : (
+            // Show normal dashboard when projects exist
+            <DashboardComponent projectId={currentProject?.id} />
+          )}
         </div>
       </div>
 
