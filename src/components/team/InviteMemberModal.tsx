@@ -66,7 +66,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!teamId) {
       setError("Team ID is required");
       return;
@@ -105,9 +105,11 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
       }
 
       const data = await response.json();
-      
+
       if (data.invitationSent) {
-        setSuccess(`Invitation sent to ${form.email}. They will receive an email with instructions to join the team.`);
+        setSuccess(
+          `Invitation sent to ${form.email}. They will receive an email with instructions to join the team.`
+        );
       } else if (data.member) {
         setSuccess(`${form.email} has been added to the team successfully!`);
         onMemberInvited(data.member);
@@ -124,7 +126,6 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
         onClose();
         setSuccess(null);
       }, 2000);
-
     } catch (err) {
       console.error("Failed to invite member:", err);
       setError(err instanceof Error ? err.message : "Failed to invite member");
@@ -185,7 +186,8 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
             <span>Invite Team Member</span>
           </DialogTitle>
           <DialogDescription>
-            Send an invitation to add a new member to your team. They'll receive an email with instructions to join.
+            Send an invitation to add a new member to your team. They&apos;ll
+            receive an email with instructions to join.
           </DialogDescription>
         </DialogHeader>
 
@@ -194,13 +196,15 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           <div className="space-y-2">
             <Label htmlFor="email">Email Address</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Mail className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
                 id="email"
                 type="email"
                 placeholder="member@example.com"
                 value={form.email}
-                onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                onChange={e =>
+                  setForm(prev => ({ ...prev, email: e.target.value }))
+                }
                 className="pl-10"
                 disabled={isInviting}
                 required
@@ -213,7 +217,9 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
             <Label htmlFor="role">Role</Label>
             <Select
               value={form.role}
-              onValueChange={(value) => setForm(prev => ({ ...prev, role: value as any }))}
+              onValueChange={value =>
+                setForm(prev => ({ ...prev, role: value as any }))
+              }
               disabled={isInviting}
             >
               <SelectTrigger>
@@ -242,7 +248,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
             </Select>
 
             {/* Role Description */}
-            <div className="flex items-start space-x-2 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-start space-x-2 rounded-lg bg-gray-50 p-3">
               {getRoleIcon(form.role)}
               <div>
                 <p className="text-sm font-medium text-gray-900 capitalize">
@@ -257,43 +263,57 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0" />
+            <div className="flex items-center space-x-2 rounded-lg border border-red-200 bg-red-50 p-3">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 text-red-600" />
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
 
           {/* Success Message */}
           {success && (
-            <div className="flex items-center space-x-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+            <div className="flex items-center space-x-2 rounded-lg border border-green-200 bg-green-50 p-3">
+              <CheckCircle className="h-4 w-4 flex-shrink-0 text-green-600" />
               <p className="text-sm text-green-700">{success}</p>
             </div>
           )}
 
           {/* Role Permissions Info */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-gray-900">Role Permissions</h4>
+            <h4 className="text-sm font-medium text-gray-900">
+              Role Permissions
+            </h4>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">View projects and content</span>
                 <div className="flex space-x-1">
-                  <Badge variant="outline" className="px-1 py-0 text-xs">Viewer</Badge>
-                  <Badge variant="outline" className="px-1 py-0 text-xs">Member</Badge>
-                  <Badge variant="outline" className="px-1 py-0 text-xs">Admin</Badge>
+                  <Badge variant="outline" className="px-1 py-0 text-xs">
+                    Viewer
+                  </Badge>
+                  <Badge variant="outline" className="px-1 py-0 text-xs">
+                    Member
+                  </Badge>
+                  <Badge variant="outline" className="px-1 py-0 text-xs">
+                    Admin
+                  </Badge>
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Create and edit content</span>
                 <div className="flex space-x-1">
-                  <Badge variant="outline" className="px-1 py-0 text-xs">Member</Badge>
-                  <Badge variant="outline" className="px-1 py-0 text-xs">Admin</Badge>
+                  <Badge variant="outline" className="px-1 py-0 text-xs">
+                    Member
+                  </Badge>
+                  <Badge variant="outline" className="px-1 py-0 text-xs">
+                    Admin
+                  </Badge>
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Manage team members</span>
                 <div className="flex space-x-1">
-                  <Badge variant="outline" className="px-1 py-0 text-xs">Admin</Badge>
+                  <Badge variant="outline" className="px-1 py-0 text-xs">
+                    Admin
+                  </Badge>
                 </div>
               </div>
             </div>
