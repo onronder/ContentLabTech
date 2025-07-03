@@ -3,9 +3,10 @@
 /**
  * Premium AuthForm Component
  * Enhanced authentication form with progressive validation and modern design
+ * Phase 1.1: Added comprehensive debugging and loading state improvements
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Eye, EyeOff, Mail, Lock, Loader2, Check, X, User } from "lucide-react";
 
 import { useSupabaseAuth } from "@/hooks/auth/use-supabase-auth";
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { AuthDebugPanel } from "./auth-debug-panel";
 
 interface FieldValidation {
   isValid: boolean;
@@ -26,6 +28,15 @@ interface AuthFormProps {
   redirectUrl?: string;
 }
 
+// Development debugging helper
+const isDevelopment = process.env.NODE_ENV === "development";
+
+const debugLog = (message: string, data?: any) => {
+  if (isDevelopment) {
+    console.log(`[AuthForm Debug] ${message}`, data);
+  }
+};
+
 export const AuthForm = ({
   mode = "signin",
   onModeChange,
@@ -33,19 +44,81 @@ export const AuthForm = ({
 }: AuthFormProps) => {
   const { signIn, signUp, loading: authLoading } = useSupabaseAuth();
   const [formLoading, setFormLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<{
+    authLoading: boolean;
+    formLoading: boolean;
+    inputsDisabled: boolean;
+    lastUpdate: string;
+  }>({
+    authLoading: false,
+    formLoading: false,
+    inputsDisabled: false,
+    lastUpdate: new Date().toISOString(),
+  });
 
-  // Safety mechanism: reset loading state after timeout
+  // Enhanced loading state management with debugging
+  const updateLoadingState = useCallback(
+    (newFormLoading: boolean, source: string) => {
+      debugLog(`Loading state change from ${source}`, {
+        oldFormLoading: formLoading,
+        newFormLoading,
+        authLoading,
+      });
+      setFormLoading(newFormLoading);
+    },
+    [formLoading, authLoading]
+  );
+
+  // Safety mechanism: reset loading state after timeout with enhanced logging
   useEffect(() => {
     if (formLoading) {
+      debugLog("Form loading timeout started", { timeout: 30000 });
       const timeout = setTimeout(() => {
-        console.warn("Form loading timeout - resetting loading state");
-        setFormLoading(false);
+        console.warn(
+          "[AuthForm] Form loading timeout - resetting loading state"
+        );
+        updateLoadingState(false, "timeout");
       }, 30000); // 30 second timeout
 
-      return () => clearTimeout(timeout);
+      return () => {
+        debugLog("Form loading timeout cleared");
+        clearTimeout(timeout);
+      };
     }
     return undefined;
-  }, [formLoading]);
+  }, [formLoading, updateLoadingState]);
+
+  // Debug info updater
+  useEffect(() => {
+    const inputsDisabled = authLoading || formLoading;
+    setDebugInfo({
+      authLoading,
+      formLoading,
+      inputsDisabled,
+      lastUpdate: new Date().toISOString(),
+    });
+
+    if (inputsDisabled) {
+      debugLog("Inputs are disabled", { authLoading, formLoading });
+    }
+  }, [authLoading, formLoading]);
+
+  // Enhanced loading state reset mechanism
+  useEffect(() => {
+    const resetLoadingStates = () => {
+      if (authLoading || formLoading) {
+        debugLog("Resetting stuck loading states", {
+          authLoading,
+          formLoading,
+        });
+        updateLoadingState(false, "reset-mechanism");
+      }
+    };
+
+    // Reset loading states on component mount if they're stuck
+    const timer = setTimeout(resetLoadingStates, 1000);
+    return () => clearTimeout(timer);
+  }, []); // Only run on mount
 
   const [formData, setFormData] = useState({
     email: "",
@@ -111,100 +184,120 @@ export const AuthForm = ({
 
   // Validate field
   const validateField = (field: string, value: string): FieldValidation => {
-    const rules = validationRules[field as keyof typeof validationRules];
-    if (!rules) return { isValid: true, errors: [] };
-
-    const errors: string[] = [];
-    rules.forEach(rule => {
-      if (!rule.test(value)) {
-        errors.push(rule.message);
-      }
-    });
-
-    return { isValid: errors.length === 0, errors };
-  };
-
-  // Handle input change with simplified validation
-  const handleInputChange = (field: string, value: string) => {
     try {
-      setFormData(prev => ({ ...prev, [field]: value }));
-      setError(null);
+      const rules = validationRules[field as keyof typeof validationRules];
+      if (!rules) return { isValid: true, errors: [] };
 
-      // Only validate after user has typed something substantial
-      if (value.length > 0) {
-        const validation = validateField(field, value);
-        setFieldValidation(prev => ({ ...prev, [field]: validation }));
-
-        // Calculate password strength
-        if (field === "password") {
-          setPasswordStrength(calculatePasswordStrength(value));
+      const errors: string[] = [];
+      rules.forEach(rule => {
+        if (!rule.test(value)) {
+          errors.push(rule.message);
         }
+      });
 
-        // Validate confirm password
-        if (field === "confirmPassword" || field === "password") {
-          const passwordValue =
-            field === "password" ? value : formData.password;
-          const confirmValue =
-            field === "confirmPassword" ? value : formData.confirmPassword;
-
-          if (mode === "signup" && confirmValue) {
-            const isMatching = passwordValue === confirmValue;
-            setFieldValidation(prev => ({
-              ...prev,
-              confirmPassword: {
-                isValid: isMatching,
-                errors: isMatching ? [] : ["Passwords do not match"],
-              },
-            }));
-          }
-        }
-      } else {
-        // Clear validation for empty fields
-        setFieldValidation(prev => ({
-          ...prev,
-          [field]: { isValid: true, errors: [] },
-        }));
-      }
+      return { isValid: errors.length === 0, errors };
     } catch (error) {
-      console.error("Error in handleInputChange:", error);
+      console.error("[AuthForm] Error in validateField:", error);
+      return { isValid: true, errors: [] };
     }
   };
 
+  // Enhanced input change handler with error protection
+  const handleInputChange = useCallback(
+    (field: string, value: string) => {
+      try {
+        debugLog(`Input change for ${field}`, {
+          value: value.substring(0, 10) + "...",
+        });
+
+        setFormData(prev => ({ ...prev, [field]: value }));
+        setError(null);
+
+        // Only validate after user has typed something substantial
+        if (value.length > 0) {
+          const validation = validateField(field, value);
+          setFieldValidation(prev => ({ ...prev, [field]: validation }));
+
+          // Calculate password strength
+          if (field === "password") {
+            setPasswordStrength(calculatePasswordStrength(value));
+          }
+
+          // Validate confirm password
+          if (field === "confirmPassword" || field === "password") {
+            const passwordValue =
+              field === "password" ? value : formData.password;
+            const confirmValue =
+              field === "confirmPassword" ? value : formData.confirmPassword;
+
+            if (mode === "signup" && confirmValue) {
+              const isMatching = passwordValue === confirmValue;
+              setFieldValidation(prev => ({
+                ...prev,
+                confirmPassword: {
+                  isValid: isMatching,
+                  errors: isMatching ? [] : ["Passwords do not match"],
+                },
+              }));
+            }
+          }
+        } else {
+          // Clear validation for empty fields
+          setFieldValidation(prev => ({
+            ...prev,
+            [field]: { isValid: true, errors: [] },
+          }));
+        }
+      } catch (error) {
+        console.error("[AuthForm] Error in handleInputChange:", error);
+        // Don't block input on validation errors
+      }
+    },
+    [formData, mode]
+  );
+
   // Check form validity - simplified to avoid blocking input
   useEffect(() => {
-    const requiredFields =
-      mode === "signup"
-        ? ["email", "password", "confirmPassword", "fullName"]
-        : ["email", "password"];
+    try {
+      const requiredFields =
+        mode === "signup"
+          ? ["email", "password", "confirmPassword", "fullName"]
+          : ["email", "password"];
 
-    // Simplified validation: just check if required fields have values
-    // Only check validation errors if validation has been performed
-    const isValid = requiredFields.every(field => {
-      const value = formData[field as keyof typeof formData];
-      const validation = fieldValidation[field];
+      // Simplified validation: just check if required fields have values
+      // Only check validation errors if validation has been performed
+      const isValid = requiredFields.every(field => {
+        const value = formData[field as keyof typeof formData];
+        const validation = fieldValidation[field];
 
-      // Must have a value
-      if (!value || value.trim() === "") return false;
+        // Must have a value
+        if (!value || value.trim() === "") return false;
 
-      // If validation exists and has errors, it's invalid
-      if (validation && validation.errors && validation.errors.length > 0)
-        return false;
+        // If validation exists and has errors, it's invalid
+        if (validation && validation.errors && validation.errors.length > 0)
+          return false;
 
-      return true;
-    });
+        return true;
+      });
 
-    setIsFormValid(isValid);
+      setIsFormValid(isValid);
+    } catch (error) {
+      console.error("[AuthForm] Error in form validity check:", error);
+      setIsFormValid(false);
+    }
   }, [formData, fieldValidation, mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setFormLoading(true);
+    updateLoadingState(true, "form-submit");
+
+    debugLog("Form submission started", { mode, isFormValid });
 
     if (!isFormValid) {
       setError("Please fix all validation errors before submitting");
-      setFormLoading(false);
+      updateLoadingState(false, "validation-error");
       return;
     }
 
@@ -222,10 +315,12 @@ export const AuthForm = ({
 
         if (signUpError) {
           setError(signUpError.message);
+          debugLog("Sign up error", signUpError);
         } else if (user) {
           setSuccess(
             "Account created successfully! Please check your email to verify your account."
           );
+          debugLog("Sign up success", { userId: user.id });
         }
       } else {
         const { user, error: signInError } = await signIn(
@@ -235,20 +330,25 @@ export const AuthForm = ({
 
         if (signInError) {
           setError(signInError.message);
+          debugLog("Sign in error", signInError);
         } else if (user) {
+          debugLog("Sign in success", { userId: user.id });
           window.location.href = redirectUrl;
         }
       }
     } catch (err) {
-      setError("An unexpected error occurred. Please try again.");
-      console.error("Auth error:", err);
+      const errorMessage = "An unexpected error occurred. Please try again.";
+      setError(errorMessage);
+      console.error("[AuthForm] Auth error:", err);
+      debugLog("Unexpected auth error", err);
     } finally {
-      setFormLoading(false);
+      updateLoadingState(false, "form-submit-complete");
     }
   };
 
   const toggleMode = () => {
     const newMode = mode === "signin" ? "signup" : "signin";
+    debugLog("Mode toggle", { from: mode, to: newMode });
     onModeChange?.(newMode);
     setError(null);
     setSuccess(null);
@@ -260,6 +360,7 @@ export const AuthForm = ({
     });
     setFieldValidation({});
     setPasswordStrength(0);
+    updateLoadingState(false, "mode-toggle");
   };
 
   // Get password strength color and label
@@ -272,8 +373,20 @@ export const AuthForm = ({
 
   const passwordStrengthInfo = getPasswordStrengthInfo(passwordStrength);
 
+  // Calculate if inputs should be disabled
+  const inputsDisabled = authLoading || formLoading;
+
   return (
     <div className="space-y-6">
+      {/* Enhanced Debug Panel */}
+      <AuthDebugPanel
+        formLoading={formLoading}
+        inputsDisabled={inputsDisabled}
+        isFormValid={isFormValid}
+        formData={formData}
+        className="mb-4"
+      />
+
       <form onSubmit={handleSubmit} className="space-y-6">
         {mode === "signup" && (
           <div className="space-y-2">
@@ -296,7 +409,7 @@ export const AuthForm = ({
                       ? "border-success-500 focus:border-success-500"
                       : "border-border focus:border-brand-blue"
                 }`}
-                disabled={authLoading || formLoading}
+                disabled={inputsDisabled}
               />
               {formData.fullName && fieldValidation["fullName"]?.isValid && (
                 <Check className="text-success-500 pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 transform" />
@@ -334,7 +447,7 @@ export const AuthForm = ({
                     ? "border-success-500 focus:border-success-500"
                     : "border-border focus:border-brand-blue"
               }`}
-              disabled={authLoading || formLoading}
+              disabled={inputsDisabled}
             />
             {formData.email && fieldValidation["email"]?.isValid && (
               <Check className="text-success-500 pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 transform" />
@@ -363,21 +476,21 @@ export const AuthForm = ({
               value={formData.password}
               onChange={e => handleInputChange("password", e.target.value)}
               placeholder="Enter your password"
-              className={`h-12 border-2 pr-10 pl-10 transition-all duration-200 ${
+              className={`relative z-20 h-12 border-2 pr-10 pl-10 transition-all duration-200 ${
                 fieldValidation["password"]?.isValid === false
                   ? "border-error-500 focus:border-error-500"
                   : formData.password && fieldValidation["password"]?.isValid
                     ? "border-success-500 focus:border-success-500"
                     : "border-border focus:border-brand-blue"
               }`}
-              disabled={authLoading || formLoading}
+              disabled={inputsDisabled}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 z-30 -translate-y-1/2 transform transition-colors"
-              disabled={authLoading || formLoading}
-              style={{ pointerEvents: "auto" }}
+              disabled={inputsDisabled}
+              style={{ pointerEvents: inputsDisabled ? "none" : "auto" }}
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />
@@ -436,7 +549,7 @@ export const AuthForm = ({
                   handleInputChange("confirmPassword", e.target.value)
                 }
                 placeholder="Confirm your password"
-                className={`h-12 border-2 pr-10 pl-10 transition-all duration-200 ${
+                className={`relative z-20 h-12 border-2 pr-10 pl-10 transition-all duration-200 ${
                   fieldValidation["confirmPassword"]?.isValid === false
                     ? "border-error-500 focus:border-error-500"
                     : formData.confirmPassword &&
@@ -444,14 +557,14 @@ export const AuthForm = ({
                       ? "border-success-500 focus:border-success-500"
                       : "border-border focus:border-brand-blue"
                 }`}
-                disabled={authLoading || formLoading}
+                disabled={inputsDisabled}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 z-30 -translate-y-1/2 transform transition-colors"
-                disabled={authLoading || formLoading}
-                style={{ pointerEvents: "auto" }}
+                disabled={inputsDisabled}
+                style={{ pointerEvents: inputsDisabled ? "none" : "auto" }}
               >
                 {showConfirmPassword ? (
                   <EyeOff className="h-4 w-4" />
@@ -500,13 +613,13 @@ export const AuthForm = ({
         <Button
           type="submit"
           className={`h-12 w-full text-base font-semibold transition-all duration-200 ${
-            isFormValid && !authLoading && !formLoading
+            isFormValid && !inputsDisabled
               ? "bg-gradient-primary transform hover:scale-[1.02] hover:opacity-90"
               : ""
           }`}
-          disabled={authLoading || formLoading || !isFormValid}
+          disabled={inputsDisabled || !isFormValid}
         >
-          {authLoading || formLoading ? (
+          {inputsDisabled ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               {mode === "signin" ? "Signing In..." : "Creating Account..."}
@@ -524,7 +637,7 @@ export const AuthForm = ({
           type="button"
           onClick={toggleMode}
           className="text-muted-foreground hover:text-brand-blue font-medium transition-colors"
-          disabled={authLoading || formLoading}
+          disabled={inputsDisabled}
         >
           {mode === "signin"
             ? "Don't have an account? Create one"

@@ -3,6 +3,7 @@
 /**
  * Authentication Context for ContentLab Nexus
  * Provides Supabase Auth state management across the application
+ * Enhanced with better error handling and loading state management
  */
 
 import {
@@ -11,6 +12,7 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useCallback,
 } from "react";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 
@@ -62,6 +64,10 @@ export interface AuthContextType {
   hasPermission: (permission: string) => boolean;
   canManageTeam: () => boolean;
   isTeamOwner: () => boolean;
+
+  // Enhanced debugging and recovery
+  resetAuthState: () => void;
+  getDebugInfo: () => Record<string, any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -78,11 +84,23 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Development debugging helper
+const isDevelopment = process.env.NODE_ENV === "development";
+
+const debugLog = (message: string, data?: any) => {
+  if (isDevelopment) {
+    console.log(`[AuthContext Debug] ${message}`, data);
+  }
+};
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Authentication state
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initializationError, setInitializationError] = useState<string | null>(
+    null
+  );
 
   // Teams state
   const [teams, setTeams] = useState<TeamWithUserRole[]>([]);
@@ -92,47 +110,116 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   >(null);
   const [teamsLoading, setTeamsLoading] = useState(false);
 
-  // Initialize auth state
+  // Enhanced configuration validation
+  const validateSupabaseConfig = useCallback(() => {
+    const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+    const key = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+
+    if (!url || !key) {
+      const error =
+        "Missing Supabase configuration: URL or publishable key not found";
+      console.error("[AuthContext] " + error);
+      setInitializationError(error);
+      return false;
+    }
+
+    if (!key.startsWith("sb_publishable_")) {
+      const error =
+        "Invalid publishable key format. Expected: sb_publishable_...";
+      console.error("[AuthContext] " + error);
+      setInitializationError(error);
+      return false;
+    }
+
+    // Check for legacy JWT fallback that causes crashes
+    if (key.startsWith("eyJ")) {
+      const error =
+        "CRITICAL: Legacy JWT token detected as publishable key. This causes browser crashes.";
+      console.error("[AuthContext] " + error);
+      setInitializationError(error);
+      return false;
+    }
+
+    debugLog("Supabase configuration validated successfully");
+    return true;
+  }, []);
+
+  // Enhanced loading state management
+  const setLoadingWithTimeout = useCallback(
+    (isLoading: boolean, operation: string) => {
+      debugLog(`Loading state change: ${operation}`, { isLoading });
+      setLoading(isLoading);
+
+      if (isLoading) {
+        // Set a safety timeout to prevent infinite loading
+        const timeout = setTimeout(() => {
+          console.warn(
+            `[AuthContext] Loading timeout for operation: ${operation}`
+          );
+          setLoading(false);
+        }, 15000); // 15 second timeout
+
+        return () => clearTimeout(timeout);
+      }
+    },
+    []
+  );
+
+  // Enhanced auth state reset
+  const resetAuthState = useCallback(() => {
+    debugLog("Resetting auth state");
+    setUser(null);
+    setSession(null);
+    setLoading(false);
+    setTeams([]);
+    setCurrentTeam(null);
+    setCurrentTeamRole(null);
+    setInitializationError(null);
+    removeFromLocalStorage("currentTeamId");
+  }, []);
+
+  // Debug info getter
+  const getDebugInfo = useCallback(() => {
+    return {
+      user: user ? { id: user.id, email: user.email } : null,
+      session: session ? { expires_at: session.expires_at } : null,
+      loading,
+      teamsLoading,
+      teamsCount: teams.length,
+      currentTeam: currentTeam
+        ? { id: currentTeam.id, name: currentTeam.name }
+        : null,
+      initializationError,
+      timestamp: new Date().toISOString(),
+    };
+  }, [
+    user,
+    session,
+    loading,
+    teamsLoading,
+    teams.length,
+    currentTeam,
+    initializationError,
+  ]);
+
+  // Initialize auth state with enhanced error handling
   useEffect(() => {
     let mounted = true;
+    let cleanup: (() => void) | undefined;
 
-    // Check for Supabase configuration issues
-    const checkSupabaseConfig = () => {
-      const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-      const key = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-
-      if (!url || !key) {
-        console.error("Missing Supabase configuration");
-        return false;
-      }
-
-      if (!key.startsWith("sb_publishable_")) {
-        console.error(
-          "Invalid publishable key format. Expected: sb_publishable_..."
-        );
-        return false;
-      }
-
-      // Check for legacy JWT fallback that causes crashes
-      if (key.startsWith("eyJ")) {
-        console.error(
-          "CRITICAL: Legacy JWT token detected as publishable key. This causes browser crashes."
-        );
-        return false;
-      }
-
-      return true;
-    };
-
-    async function getInitialSession() {
+    async function initializeAuth() {
       try {
+        debugLog("Initializing auth state");
+
         // Validate configuration first
-        if (!checkSupabaseConfig()) {
+        if (!validateSupabaseConfig()) {
           if (mounted) {
             setLoading(false);
           }
           return;
         }
+
+        cleanup = setLoadingWithTimeout(true, "initialization");
 
         const {
           data: { session },
@@ -141,31 +228,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         if (mounted) {
           if (error) {
-            console.error("Error getting session:", error);
+            console.error("[AuthContext] Error getting session:", error);
+            setInitializationError(error.message);
           } else {
             setSession(session);
             setUser(session?.user ?? null);
+            debugLog("Initial session loaded", { hasSession: !!session });
           }
           setLoading(false);
         }
       } catch (error) {
-        console.error("Failed to initialize auth:", error);
+        console.error("[AuthContext] Failed to initialize auth:", error);
         if (mounted) {
+          setInitializationError("Failed to initialize authentication");
           setLoading(false);
         }
+      } finally {
+        cleanup?.();
       }
     }
 
-    getInitialSession();
+    initializeAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes with enhanced error handling
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (mounted) {
+        debugLog("Auth state change", { event, hasSession: !!session });
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        setInitializationError(null);
 
         if (event === "SIGNED_IN" && session?.user) {
           await loadUserTeams(session.user.id);
@@ -180,14 +275,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     return () => {
       mounted = false;
+      cleanup?.();
       subscription.unsubscribe();
     };
-  }, []);
+  }, [validateSupabaseConfig, setLoadingWithTimeout]);
 
   // Load user teams when user signs in
   const loadUserTeams = async (userId: string) => {
     setTeamsLoading(true);
     try {
+      debugLog("Loading user teams", { userId });
+
       const { data: userTeams, error } = await supabase
         .from("teams")
         .select(
@@ -200,154 +298,202 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Error loading teams:", error);
+        console.error("[AuthContext] Error loading teams:", error);
         return;
       }
 
-      const teamsWithRole =
-        userTeams?.map(team => ({
-          ...team,
-          userRole: team.team_members[0]?.role,
-        })) || [];
+      const teamsWithRole: TeamWithUserRole[] = (userTeams || []).map(team => ({
+        ...team,
+        userRole: team.team_members[0]?.role || "member",
+      }));
 
       setTeams(teamsWithRole);
+      debugLog("Teams loaded", { count: teamsWithRole.length });
 
-      // Set current team from localStorage or default to first team
+      // Set current team from localStorage or first team
       const savedTeamId = getFromLocalStorage("currentTeamId");
-      const teamToSet = savedTeamId
-        ? teamsWithRole.find(t => t.id === savedTeamId) || teamsWithRole[0]
+      const targetTeam = savedTeamId
+        ? teamsWithRole.find(team => team.id === savedTeamId)
         : teamsWithRole[0];
 
-      if (teamToSet) {
-        setCurrentTeam(teamToSet);
-        setCurrentTeamRole(teamToSet.userRole);
-        setToLocalStorage("currentTeamId", teamToSet.id);
+      if (targetTeam) {
+        setCurrentTeam(targetTeam);
+        setCurrentTeamRole(targetTeam.userRole);
+        setToLocalStorage("currentTeamId", targetTeam.id);
+        debugLog("Current team set", {
+          teamId: targetTeam.id,
+          role: targetTeam.userRole,
+        });
       }
     } catch (error) {
-      console.error("Error loading teams:", error);
+      console.error("[AuthContext] Error in loadUserTeams:", error);
     } finally {
       setTeamsLoading(false);
     }
   };
 
-  // Authentication methods
+  // Enhanced authentication methods with better error handling
   const signUp = async (
     email: string,
     password: string,
     options?: { data?: Record<string, unknown> }
   ) => {
     try {
+      debugLog("Sign up attempt", { email });
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: options?.data || {},
+          ...options,
+          emailRedirectTo: `${getWindowOrigin()}/auth/callback`,
         },
       });
 
+      if (error) {
+        debugLog("Sign up error", error);
+      } else {
+        debugLog("Sign up success", { userId: data.user?.id });
+      }
+
       return { user: data.user, error };
     } catch (error) {
-      console.error("SignUp error:", error);
-      return {
-        user: null,
-        error: {
-          message:
-            "Authentication service unavailable. Please check your configuration.",
-          name: "ConfigurationError",
-        } as AuthError,
-      };
+      console.error("[AuthContext] Sign up error:", error);
+      return { user: null, error: error as AuthError };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
+      debugLog("Sign in attempt", { email });
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      if (error) {
+        debugLog("Sign in error", error);
+      } else {
+        debugLog("Sign in success", { userId: data.user?.id });
+      }
+
       return { user: data.user, error };
     } catch (error) {
-      console.error("SignIn error:", error);
-      return {
-        user: null,
-        error: {
-          message:
-            "Authentication service unavailable. Please check your configuration.",
-          name: "ConfigurationError",
-        } as AuthError,
-      };
+      console.error("[AuthContext] Sign in error:", error);
+      return { user: null, error: error as AuthError };
     }
   };
 
   const signInWithOAuth = async (provider: "google") => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${getWindowOrigin()}/auth/callback`,
-      },
-    });
+    try {
+      debugLog("OAuth sign in attempt", { provider });
 
-    return { error };
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${getWindowOrigin()}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        debugLog("OAuth sign in error", error);
+      }
+
+      return { error };
+    } catch (error) {
+      console.error("[AuthContext] OAuth sign in error:", error);
+      return { error: error as AuthError };
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    try {
+      debugLog("Sign out attempt");
 
-    if (!error) {
-      // Clear local state
-      setTeams([]);
-      setCurrentTeam(null);
-      setCurrentTeamRole(null);
-      removeFromLocalStorage("currentTeamId");
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        debugLog("Sign out error", error);
+      } else {
+        debugLog("Sign out success");
+      }
+
+      return { error };
+    } catch (error) {
+      console.error("[AuthContext] Sign out error:", error);
+      return { error: error as AuthError };
     }
-
-    return { error };
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getWindowOrigin()}/auth/reset-password`,
-    });
+    try {
+      debugLog("Password reset attempt", { email });
 
-    return { error };
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${getWindowOrigin()}/auth/reset-password`,
+      });
+
+      if (error) {
+        debugLog("Password reset error", error);
+      } else {
+        debugLog("Password reset success");
+      }
+
+      return { error };
+    } catch (error) {
+      console.error("[AuthContext] Password reset error:", error);
+      return { error: error as AuthError };
+    }
   };
 
-  // Team management methods
   const switchTeam = async (teamId: string): Promise<boolean> => {
-    const team = teams.find(t => t.id === teamId);
-    if (!team) return false;
+    try {
+      debugLog("Team switch attempt", { teamId });
 
-    setCurrentTeam(team);
-    setCurrentTeamRole(team.userRole);
-    setToLocalStorage("currentTeamId", teamId);
-    return true;
+      const team = teams.find(t => t.id === teamId);
+      if (!team) {
+        console.error("[AuthContext] Team not found:", teamId);
+        return false;
+      }
+
+      setCurrentTeam(team);
+      setCurrentTeamRole(team.userRole);
+      setToLocalStorage("currentTeamId", teamId);
+      debugLog("Team switch success", { teamId, role: team.userRole });
+      return true;
+    } catch (error) {
+      console.error("[AuthContext] Team switch error:", error);
+      return false;
+    }
   };
 
   const refreshTeams = async () => {
-    if (user?.id) {
+    if (user) {
       await loadUserTeams(user.id);
     }
   };
 
-  // Permission methods
   const hasPermission = (permission: string): boolean => {
     if (!currentTeamRole) return false;
 
-    // Define role hierarchy
-    const rolePermissions = {
-      owner: [
-        "manage_team",
-        "manage_projects",
+    // Define role-based permissions
+    const rolePermissions: Record<TeamMember["role"], string[]> = {
+      owner: ["*"], // All permissions
+      admin: [
         "manage_content",
+        "manage_projects",
         "view_analytics",
+        "invite_members",
       ],
-      admin: ["manage_projects", "manage_content", "view_analytics"],
       member: ["manage_content", "view_analytics"],
       viewer: ["view_analytics"],
     };
 
-    return rolePermissions[currentTeamRole]?.includes(permission) || false;
+    const userPermissions = rolePermissions[currentTeamRole] || [];
+    return (
+      userPermissions.includes("*") || userPermissions.includes(permission)
+    );
   };
 
   const canManageTeam = (): boolean => {
@@ -358,34 +504,34 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return currentTeamRole === "owner";
   };
 
-  const value: AuthContextType = {
-    // Authentication state
+  const contextValue: AuthContextType = {
+    // State
     user,
     session,
     loading,
-
-    // Teams state
     teams,
     currentTeam,
     currentTeamRole,
     teamsLoading,
 
-    // Authentication methods
+    // Methods
     signUp,
     signIn,
     signInWithOAuth,
     signOut,
     resetPassword,
-
-    // Team management
     switchTeam,
     refreshTeams,
-
-    // Permissions
     hasPermission,
     canManageTeam,
     isTeamOwner,
+
+    // Enhanced debugging and recovery
+    resetAuthState,
+    getDebugInfo,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  );
 };
