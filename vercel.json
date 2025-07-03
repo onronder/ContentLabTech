@@ -58,12 +58,6 @@
       ]
     }
   ],
-  "rewrites": [
-    {
-      "source": "/assets/(.*)",
-      "destination": "/_next/static/$1"
-    }
-  ],
   "cleanUrls": false,
   "trailingSlash": false,
   "env": {

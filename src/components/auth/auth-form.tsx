@@ -72,18 +72,15 @@ export const AuthForm = ({
   // Safety mechanism: reset loading state after timeout with enhanced logging
   useEffect(() => {
     if (formLoading) {
-      debugLog("Form loading timeout started", { timeout: 30000 });
+      debugLog("Form loading timeout started", { timeout: 15000 });
       const timeout = setTimeout(() => {
         console.warn(
           "[AuthForm] Form loading timeout - resetting loading state"
         );
         updateLoadingState(false, "timeout");
-      }, 30000); // 30 second timeout
+      }, 15000); // 15 second timeout (reduced from 30)
 
-      return () => {
-        debugLog("Form loading timeout cleared");
-        clearTimeout(timeout);
-      };
+      return () => clearTimeout(timeout);
     }
     return undefined;
   }, [formLoading, updateLoadingState]);

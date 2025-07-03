@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // Ensure proper asset handling for Vercel
   trailingSlash: false,
 
-  // Force Next.js asset paths (not Vite)
+  // Force Next.js default asset paths
   assetPrefix: "",
   basePath: "",
 
@@ -75,27 +75,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Fallback for any /assets/ requests to redirect to /_next/static/
-      {
-        source: "/assets/(.*)",
-        headers: [
-          {
-            key: "X-Robots-Tag",
-            value: "noindex",
-          },
-        ],
-      },
-    ];
-  },
-
-  // Rewrites to handle potential asset path mismatches
-  async rewrites() {
-    return [
-      // Redirect any /assets/ requests to /_next/static/
-      {
-        source: "/assets/:path*",
-        destination: "/_next/static/:path*",
-      },
     ];
   },
 
@@ -124,17 +103,8 @@ const nextConfig: NextConfig = {
       };
     }
 
-    // Ensure proper public path for assets
-    config.output = {
-      ...config.output,
-      publicPath: "/_next/",
-    };
-
     return config;
   },
-
-  // Use default Next.js behavior for output
-  // output: undefined, // Removed to fix TypeScript strict mode
 };
 
 export default nextConfig;

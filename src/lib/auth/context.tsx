@@ -151,13 +151,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(isLoading);
 
       if (isLoading) {
-        // Set a safety timeout to prevent infinite loading
+        // Set a safety timeout to prevent infinite loading - reduced timeout for better UX
         const timeout = setTimeout(() => {
           console.warn(
             `[AuthContext] Loading timeout for operation: ${operation}`
           );
           setLoading(false);
-        }, 15000); // 15 second timeout
+        }, 10000); // 10 second timeout (reduced from 15)
 
         return () => clearTimeout(timeout);
       }
