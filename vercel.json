@@ -58,6 +58,20 @@
       ]
     }
   ],
+  "rewrites": [
+    {
+      "source": "/assets/:path*",
+      "destination": "/_next/static/:path*"
+    },
+    {
+      "source": "/assets/css/:path*",
+      "destination": "/_next/static/css/:path*"
+    },
+    {
+      "source": "/assets/chunks/:path*",
+      "destination": "/_next/static/chunks/:path*"
+    }
+  ],
   "cleanUrls": false,
   "trailingSlash": false,
   "env": {

@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
           },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
         ],
       },
       {
@@ -37,6 +41,10 @@ const nextConfig: NextConfig = {
           {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
         ],
       },
@@ -51,6 +59,10 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
           },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
         ],
       },
       {
@@ -64,6 +76,10 @@ const nextConfig: NextConfig = {
             key: "Cache-Control",
             value: "public, max-age=31536000, immutable",
           },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
         ],
       },
       {
@@ -75,19 +91,55 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "X-Frame-Options",
+            value: "DENY",
+          },
+          {
+            key: "X-Content-Type-Options",
+            value: "nosniff",
+          },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
+        ],
+      },
     ];
   },
 
-  // Experimental features for better performance
+  // Build optimizations
   experimental: {
+    optimizeCss: true,
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
   },
 
   // External packages for server components
   serverExternalPackages: ["sharp"],
 
-  // Enhanced webpack configuration
-  webpack: (config, { buildId, dev, isServer, defaultLoaders, webpack }) => {
+  // Webpack optimizations
+  webpack: (config, { dev, isServer }) => {
+    // Optimize bundles
+    if (!dev && !isServer) {
+      config.optimization = {
+        ...config.optimization,
+        splitChunks: {
+          ...config.optimization.splitChunks,
+          cacheGroups: {
+            ...config.optimization.splitChunks.cacheGroups,
+            vendor: {
+              test: /[\\/]node_modules[\\/]/,
+              name: "vendors",
+              chunks: "all",
+            },
+          },
+        },
+      };
+    }
+
     // Ensure proper asset resolution
     config.resolve.alias = {
       ...config.resolve.alias,
