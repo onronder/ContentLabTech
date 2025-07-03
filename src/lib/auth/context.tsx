@@ -96,8 +96,44 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     let mounted = true;
 
+    // Check for Supabase configuration issues
+    const checkSupabaseConfig = () => {
+      const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
+      const key = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+
+      if (!url || !key) {
+        console.error("Missing Supabase configuration");
+        return false;
+      }
+
+      if (!key.startsWith("sb_publishable_")) {
+        console.error(
+          "Invalid publishable key format. Expected: sb_publishable_..."
+        );
+        return false;
+      }
+
+      // Check for legacy JWT fallback that causes crashes
+      if (key.startsWith("eyJ")) {
+        console.error(
+          "CRITICAL: Legacy JWT token detected as publishable key. This causes browser crashes."
+        );
+        return false;
+      }
+
+      return true;
+    };
+
     async function getInitialSession() {
       try {
+        // Validate configuration first
+        if (!checkSupabaseConfig()) {
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
         const {
           data: { session },
           error,

@@ -31,7 +31,16 @@ export const validateEnvironmentConfig = () => {
   if (!publishableKey) {
     errors.push("Missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
   } else if (!validatePublishableKey(publishableKey)) {
-    errors.push("Invalid NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY format");
+    // Check for legacy JWT fallback - this causes browser crashes
+    if (publishableKey.startsWith("eyJ")) {
+      errors.push(
+        "CRITICAL: Using legacy JWT token as publishable key fallback. This causes runtime failures with new key system."
+      );
+    } else {
+      errors.push(
+        "Invalid NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY format (expected: sb_publishable_...)"
+      );
+    }
   }
 
   // Service role key is optional for client-side only applications
