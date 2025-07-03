@@ -146,7 +146,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Enhanced loading state management
   const setLoadingWithTimeout = useCallback(
-    (isLoading: boolean, operation: string) => {
+    (isLoading: boolean, operation: string): (() => void) | undefined => {
       debugLog(`Loading state change: ${operation}`, { isLoading });
       setLoading(isLoading);
 
@@ -161,6 +161,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
         return () => clearTimeout(timeout);
       }
+
+      return undefined;
     },
     []
   );
