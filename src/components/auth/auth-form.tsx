@@ -31,8 +31,21 @@ export const AuthForm = ({
   onModeChange,
   redirectUrl = "/dashboard",
 }: AuthFormProps) => {
-  const { signIn, signUp, loading } = useSupabaseAuth();
+  const { signIn, signUp, loading: authLoading } = useSupabaseAuth();
   const [formLoading, setFormLoading] = useState(false);
+
+  // Safety mechanism: reset loading state after timeout
+  useEffect(() => {
+    if (formLoading) {
+      const timeout = setTimeout(() => {
+        console.warn("Form loading timeout - resetting loading state");
+        setFormLoading(false);
+      }, 30000); // 30 second timeout
+
+      return () => clearTimeout(timeout);
+    }
+    return undefined;
+  }, [formLoading]);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -111,50 +124,73 @@ export const AuthForm = ({
     return { isValid: errors.length === 0, errors };
   };
 
-  // Handle input change with validation
+  // Handle input change with simplified validation
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    setError(null);
+    try {
+      setFormData(prev => ({ ...prev, [field]: value }));
+      setError(null);
 
-    // Validate field
-    const validation = validateField(field, value);
-    setFieldValidation(prev => ({ ...prev, [field]: validation }));
+      // Only validate after user has typed something substantial
+      if (value.length > 0) {
+        const validation = validateField(field, value);
+        setFieldValidation(prev => ({ ...prev, [field]: validation }));
 
-    // Calculate password strength
-    if (field === "password") {
-      setPasswordStrength(calculatePasswordStrength(value));
-    }
+        // Calculate password strength
+        if (field === "password") {
+          setPasswordStrength(calculatePasswordStrength(value));
+        }
 
-    // Validate confirm password
-    if (field === "confirmPassword" || field === "password") {
-      const passwordValue = field === "password" ? value : formData.password;
-      const confirmValue =
-        field === "confirmPassword" ? value : formData.confirmPassword;
+        // Validate confirm password
+        if (field === "confirmPassword" || field === "password") {
+          const passwordValue =
+            field === "password" ? value : formData.password;
+          const confirmValue =
+            field === "confirmPassword" ? value : formData.confirmPassword;
 
-      if (mode === "signup" && confirmValue) {
-        const isMatching = passwordValue === confirmValue;
+          if (mode === "signup" && confirmValue) {
+            const isMatching = passwordValue === confirmValue;
+            setFieldValidation(prev => ({
+              ...prev,
+              confirmPassword: {
+                isValid: isMatching,
+                errors: isMatching ? [] : ["Passwords do not match"],
+              },
+            }));
+          }
+        }
+      } else {
+        // Clear validation for empty fields
         setFieldValidation(prev => ({
           ...prev,
-          confirmPassword: {
-            isValid: isMatching,
-            errors: isMatching ? [] : ["Passwords do not match"],
-          },
+          [field]: { isValid: true, errors: [] },
         }));
       }
+    } catch (error) {
+      console.error("Error in handleInputChange:", error);
     }
   };
 
-  // Check form validity
+  // Check form validity - simplified to avoid blocking input
   useEffect(() => {
     const requiredFields =
       mode === "signup"
         ? ["email", "password", "confirmPassword", "fullName"]
         : ["email", "password"];
 
+    // Simplified validation: just check if required fields have values
+    // Only check validation errors if validation has been performed
     const isValid = requiredFields.every(field => {
       const value = formData[field as keyof typeof formData];
       const validation = fieldValidation[field];
-      return value && validation?.isValid !== false;
+
+      // Must have a value
+      if (!value || value.trim() === "") return false;
+
+      // If validation exists and has errors, it's invalid
+      if (validation && validation.errors && validation.errors.length > 0)
+        return false;
+
+      return true;
     });
 
     setIsFormValid(isValid);
@@ -260,7 +296,7 @@ export const AuthForm = ({
                       ? "border-success-500 focus:border-success-500"
                       : "border-border focus:border-brand-blue"
                 }`}
-                disabled={loading || formLoading}
+                disabled={authLoading || formLoading}
               />
               {formData.fullName && fieldValidation["fullName"]?.isValid && (
                 <Check className="text-success-500 pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 transform" />
@@ -298,7 +334,7 @@ export const AuthForm = ({
                     ? "border-success-500 focus:border-success-500"
                     : "border-border focus:border-brand-blue"
               }`}
-              disabled={loading}
+              disabled={authLoading || formLoading}
             />
             {formData.email && fieldValidation["email"]?.isValid && (
               <Check className="text-success-500 pointer-events-none absolute top-1/2 right-3 z-10 h-4 w-4 -translate-y-1/2 transform" />
@@ -334,13 +370,13 @@ export const AuthForm = ({
                     ? "border-success-500 focus:border-success-500"
                     : "border-border focus:border-brand-blue"
               }`}
-              disabled={loading}
+              disabled={authLoading || formLoading}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 z-30 -translate-y-1/2 transform transition-colors"
-              disabled={loading}
+              disabled={authLoading || formLoading}
               style={{ pointerEvents: "auto" }}
             >
               {showPassword ? (
@@ -408,13 +444,13 @@ export const AuthForm = ({
                       ? "border-success-500 focus:border-success-500"
                       : "border-border focus:border-brand-blue"
                 }`}
-                disabled={loading || formLoading}
+                disabled={authLoading || formLoading}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 className="text-muted-foreground hover:text-foreground absolute top-1/2 right-3 z-30 -translate-y-1/2 transform transition-colors"
-                disabled={loading || formLoading}
+                disabled={authLoading || formLoading}
                 style={{ pointerEvents: "auto" }}
               >
                 {showConfirmPassword ? (
@@ -464,13 +500,13 @@ export const AuthForm = ({
         <Button
           type="submit"
           className={`h-12 w-full text-base font-semibold transition-all duration-200 ${
-            isFormValid && !loading && !formLoading
+            isFormValid && !authLoading && !formLoading
               ? "bg-gradient-primary transform hover:scale-[1.02] hover:opacity-90"
               : ""
           }`}
-          disabled={loading || formLoading || !isFormValid}
+          disabled={authLoading || formLoading || !isFormValid}
         >
-          {loading || formLoading ? (
+          {authLoading || formLoading ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               {mode === "signin" ? "Signing In..." : "Creating Account..."}
@@ -488,7 +524,7 @@ export const AuthForm = ({
           type="button"
           onClick={toggleMode}
           className="text-muted-foreground hover:text-brand-blue font-medium transition-colors"
-          disabled={loading || formLoading}
+          disabled={authLoading || formLoading}
         >
           {mode === "signin"
             ? "Don't have an account? Create one"

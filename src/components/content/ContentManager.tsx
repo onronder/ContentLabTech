@@ -42,7 +42,13 @@ interface ContentItem {
   title: string;
   content: string;
   url?: string;
-  content_type: "article" | "blog_post" | "landing_page" | "product_page" | "category_page" | "other";
+  content_type:
+    | "article"
+    | "blog_post"
+    | "landing_page"
+    | "product_page"
+    | "category_page"
+    | "other";
   status: "draft" | "published" | "archived" | "deleted";
   seo_score?: number;
   readability_score?: number;
@@ -68,10 +74,10 @@ interface ContentItem {
 }
 
 interface ContentFilters {
-  projectId?: string;
-  status?: string;
-  contentType?: string;
-  search?: string;
+  projectId?: string | undefined;
+  status?: string | undefined;
+  contentType?: string | undefined;
+  search?: string | undefined;
   limit: number;
   offset: number;
 }
@@ -127,7 +133,8 @@ export const ContentManager = () => {
       });
 
       if (filters.status) params.append("status", filters.status);
-      if (filters.contentType) params.append("contentType", filters.contentType);
+      if (filters.contentType)
+        params.append("contentType", filters.contentType);
       if (filters.projectId) params.append("projectId", filters.projectId);
       if (filters.search) params.append("search", filters.search);
 
@@ -241,7 +248,7 @@ export const ContentManager = () => {
         <div className="flex items-center space-x-4">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Search content..."
               value={searchTerm}
@@ -306,10 +313,10 @@ export const ContentManager = () => {
             onClick={() => setViewMode("grid")}
           >
             <div className="grid h-4 w-4 grid-cols-2 gap-0.5">
-              <div className="bg-current rounded-sm" />
-              <div className="bg-current rounded-sm" />
-              <div className="bg-current rounded-sm" />
-              <div className="bg-current rounded-sm" />
+              <div className="rounded-sm bg-current" />
+              <div className="rounded-sm bg-current" />
+              <div className="rounded-sm bg-current" />
+              <div className="rounded-sm bg-current" />
             </div>
           </Button>
           <Button
@@ -425,12 +432,11 @@ const EmptyState = ({ onCreateContent }: { onCreateContent: () => void }) => (
     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 p-4">
       <FileText className="h-8 w-8 text-green-600" />
     </div>
-    <h3 className="mb-2 text-xl font-semibold text-gray-900">
-      No content yet
-    </h3>
+    <h3 className="mb-2 text-xl font-semibold text-gray-900">No content yet</h3>
     <p className="mb-6 text-gray-600">
-      Start creating high-performing content with AI-powered analysis and optimization.
-      Get insights on SEO, readability, and competitive positioning.
+      Start creating high-performing content with AI-powered analysis and
+      optimization. Get insights on SEO, readability, and competitive
+      positioning.
     </p>
     <div className="space-y-4">
       <Button onClick={onCreateContent} size="lg">

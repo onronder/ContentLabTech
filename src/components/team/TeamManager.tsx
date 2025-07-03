@@ -89,9 +89,9 @@ interface TeamData {
 }
 
 interface TeamFilters {
-  role?: string;
-  status?: string;
-  search?: string;
+  role?: string | undefined;
+  status?: string | undefined;
+  search?: string | undefined;
 }
 
 type ViewMode = "members" | "activity" | "settings";
@@ -155,30 +155,38 @@ export const TeamManager = () => {
 
   const handleMemberInvited = (newMember: TeamMember) => {
     if (teamData) {
-      setTeamData(prev => prev ? {
-        ...prev,
-        members: [...prev.members, newMember],
-        stats: {
-          ...prev.stats,
-          totalMembers: prev.stats.totalMembers + 1,
-          roles: {
-            ...prev.stats.roles,
-            [newMember.role]: (prev.stats.roles[newMember.role] || 0) + 1,
-          },
-        },
-      } : null);
+      setTeamData(prev =>
+        prev
+          ? {
+              ...prev,
+              members: [...prev.members, newMember],
+              stats: {
+                ...prev.stats,
+                totalMembers: prev.stats.totalMembers + 1,
+                roles: {
+                  ...prev.stats.roles,
+                  [newMember.role]: (prev.stats.roles[newMember.role] || 0) + 1,
+                },
+              },
+            }
+          : null
+      );
     }
     setShowInviteModal(false);
   };
 
   const handleMemberUpdated = (updatedMember: TeamMember) => {
     if (teamData) {
-      setTeamData(prev => prev ? {
-        ...prev,
-        members: prev.members.map(m => 
-          m.id === updatedMember.id ? updatedMember : m
-        ),
-      } : null);
+      setTeamData(prev =>
+        prev
+          ? {
+              ...prev,
+              members: prev.members.map(m =>
+                m.id === updatedMember.id ? updatedMember : m
+              ),
+            }
+          : null
+      );
     }
   };
 
@@ -186,40 +194,50 @@ export const TeamManager = () => {
     if (teamData) {
       const member = teamData.members.find(m => m.id === memberId);
       if (member) {
-        setTeamData(prev => prev ? {
-          ...prev,
-          members: prev.members.filter(m => m.id !== memberId),
-          stats: {
-            ...prev.stats,
-            totalMembers: prev.stats.totalMembers - 1,
-            roles: {
-              ...prev.stats.roles,
-              [member.role]: Math.max(0, (prev.stats.roles[member.role] || 0) - 1),
-            },
-          },
-        } : null);
+        setTeamData(prev =>
+          prev
+            ? {
+                ...prev,
+                members: prev.members.filter(m => m.id !== memberId),
+                stats: {
+                  ...prev.stats,
+                  totalMembers: prev.stats.totalMembers - 1,
+                  roles: {
+                    ...prev.stats.roles,
+                    [member.role]: Math.max(
+                      0,
+                      (prev.stats.roles[member.role] || 0) - 1
+                    ),
+                  },
+                },
+              }
+            : null
+        );
       }
     }
   };
 
   // Filter members based on current filters
-  const filteredMembers = teamData?.members.filter(member => {
-    if (filters.role && member.role !== filters.role) return false;
-    if (filters.status) {
-      if (filters.status === "online" && !member.isOnline) return false;
-      if (filters.status === "offline" && member.isOnline) return false;
-    }
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      return (
-        member.fullName.toLowerCase().includes(searchLower) ||
-        member.email.toLowerCase().includes(searchLower)
-      );
-    }
-    return true;
-  }) || [];
+  const filteredMembers =
+    teamData?.members.filter(member => {
+      if (filters.role && member.role !== filters.role) return false;
+      if (filters.status) {
+        if (filters.status === "online" && !member.isOnline) return false;
+        if (filters.status === "offline" && member.isOnline) return false;
+      }
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        return (
+          member.fullName.toLowerCase().includes(searchLower) ||
+          member.email.toLowerCase().includes(searchLower)
+        );
+      }
+      return true;
+    }) || [];
 
-  const canManageMembers = teamData?.currentUser?.role === "owner" || teamData?.currentUser?.role === "admin";
+  const canManageMembers =
+    teamData?.currentUser?.role === "owner" ||
+    teamData?.currentUser?.role === "admin";
 
   if (loading && !teamData) {
     return (
@@ -297,7 +315,11 @@ export const TeamManager = () => {
       {teamData && <TeamStats data={teamData.stats} loading={loading} />}
 
       {/* Team Content */}
-      <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)} className="space-y-6">
+      <Tabs
+        value={viewMode}
+        onValueChange={value => setViewMode(value as ViewMode)}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="members" className="flex items-center space-x-2">
             <Users className="h-4 w-4" />
@@ -319,7 +341,7 @@ export const TeamManager = () => {
             <div className="flex items-center space-x-4">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Search members..."
                   value={searchTerm}
@@ -372,7 +394,8 @@ export const TeamManager = () => {
             </div>
 
             <div className="text-sm text-gray-500">
-              {filteredMembers.length} of {teamData?.stats.totalMembers || 0} members
+              {filteredMembers.length} of {teamData?.stats.totalMembers || 0}{" "}
+              members
             </div>
           </div>
 
@@ -391,7 +414,10 @@ export const TeamManager = () => {
               </Button>
             </div>
           ) : filteredMembers.length === 0 ? (
-            <EmptyMembersState onInviteMember={() => setShowInviteModal(true)} canInvite={canManageMembers} />
+            <EmptyMembersState
+              onInviteMember={() => setShowInviteModal(true)}
+              canInvite={canManageMembers}
+            />
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredMembers.map(member => (
@@ -417,10 +443,14 @@ export const TeamManager = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {teamData?.recentActivity && teamData.recentActivity.length > 0 ? (
+              {teamData?.recentActivity &&
+              teamData.recentActivity.length > 0 ? (
                 <div className="space-y-4">
                   {teamData.recentActivity.map(activity => (
-                    <div key={activity.id} className="flex items-center space-x-3 border-b border-gray-100 pb-3 last:border-0">
+                    <div
+                      key={activity.id}
+                      className="flex items-center space-x-3 border-b border-gray-100 pb-3 last:border-0"
+                    >
                       <div className="rounded-full bg-green-100 p-2">
                         <Activity className="h-4 w-4 text-green-600" />
                       </div>
@@ -431,14 +461,16 @@ export const TeamManager = () => {
                         <div className="flex items-center space-x-2 text-xs text-gray-500">
                           <span>{activity.userName}</span>
                           <span>•</span>
-                          <span>{new Date(activity.timestamp).toLocaleDateString()}</span>
+                          <span>
+                            {new Date(activity.timestamp).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center text-gray-500 p-8">
+                <div className="p-8 text-center text-gray-500">
                   <Activity className="mx-auto mb-2 h-8 w-8" />
                   <p>No recent team activity</p>
                 </div>
@@ -452,8 +484,10 @@ export const TeamManager = () => {
             <TeamSettings
               team={teamData.team}
               currentUserRole={teamData.currentUser?.role || "viewer"}
-              onTeamUpdated={(updatedTeam) => {
-                setTeamData(prev => prev ? { ...prev, team: updatedTeam } : null);
+              onTeamUpdated={updatedTeam => {
+                setTeamData(prev =>
+                  prev ? { ...prev, team: updatedTeam } : null
+                );
               }}
             />
           )}
@@ -465,14 +499,20 @@ export const TeamManager = () => {
         open={showInviteModal}
         onClose={() => setShowInviteModal(false)}
         onMemberInvited={handleMemberInvited}
-        teamId={currentTeam?.id}
+        teamId={currentTeam?.id || ""}
       />
     </div>
   );
 };
 
 // Empty Members State Component
-const EmptyMembersState = ({ onInviteMember, canInvite }: { onInviteMember: () => void; canInvite: boolean }) => (
+const EmptyMembersState = ({
+  onInviteMember,
+  canInvite,
+}: {
+  onInviteMember: () => void;
+  canInvite: boolean;
+}) => (
   <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
     <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-blue-100 p-4">
       <Users className="h-8 w-8 text-blue-600" />
@@ -481,10 +521,9 @@ const EmptyMembersState = ({ onInviteMember, canInvite }: { onInviteMember: () =
       No team members found
     </h3>
     <p className="mb-6 text-gray-600">
-      {canInvite 
+      {canInvite
         ? "Start building your team by inviting members to collaborate on projects."
-        : "No team members match your current filters. Try adjusting your search criteria."
-      }
+        : "No team members match your current filters. Try adjusting your search criteria."}
     </p>
     {canInvite && (
       <div className="space-y-4">

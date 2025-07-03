@@ -5,12 +5,12 @@
 
 // Validate publishable key format
 export const validatePublishableKey = (key: string): boolean => {
-  return key.startsWith("sb_publishable_") && key.length > 20;
+  return key.startsWith("sb_publishable_") && key.length > 80;
 };
 
 // Validate secret key format
 export const validateSecretKey = (key: string): boolean => {
-  return key.startsWith("sb_secret_") && key.length > 20;
+  return key.startsWith("sb_secret_") && key.length > 80;
 };
 
 // Validate environment configuration
@@ -30,13 +30,17 @@ export const validateEnvironmentConfig = () => {
 
   if (!publishableKey) {
     errors.push("Missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
-  } else if (publishableKey.length < 20) {
-    errors.push("Invalid NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY format");
+  } else if (!validatePublishableKey(publishableKey)) {
+    errors.push(
+      "Invalid NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY format (must start with 'sb_publishable_' and be >80 chars)"
+    );
   }
 
   // Service role key is optional for client-side only applications
-  if (serviceRoleKey && serviceRoleKey.length < 20) {
-    errors.push("Invalid SUPABASE_SECRET_KEY format");
+  if (serviceRoleKey && !validateSecretKey(serviceRoleKey)) {
+    errors.push(
+      "Invalid SUPABASE_SECRET_KEY format (must start with 'sb_secret_' and be >80 chars)"
+    );
   }
 
   // Environment is properly configured

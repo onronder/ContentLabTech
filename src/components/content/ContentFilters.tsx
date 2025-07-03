@@ -33,15 +33,15 @@ import {
 } from "lucide-react";
 
 interface ContentFilters {
-  status?: string;
-  contentType?: string;
-  projectId?: string;
-  author?: string;
+  status?: string | undefined;
+  contentType?: string | undefined;
+  projectId?: string | undefined;
+  author?: string | undefined;
   dateRange?: {
     from: Date;
     to: Date;
   };
-  minSeoScore?: number;
+  minSeoScore?: number | undefined;
   tags?: string[];
 }
 
@@ -100,7 +100,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
           <Label className="text-xs text-gray-600">Status</Label>
           <Select
             value={filters.status || ""}
-            onValueChange={(value) =>
+            onValueChange={value =>
               onFiltersChange({
                 ...filters,
                 status: value || undefined,
@@ -124,7 +124,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
           <Label className="text-xs text-gray-600">Type</Label>
           <Select
             value={filters.contentType || ""}
-            onValueChange={(value) =>
+            onValueChange={value =>
               onFiltersChange({
                 ...filters,
                 contentType: value || undefined,
@@ -151,7 +151,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
           <Label className="text-xs text-gray-600">Project</Label>
           <Select
             value={filters.projectId || ""}
-            onValueChange={(value) =>
+            onValueChange={value =>
               onFiltersChange({
                 ...filters,
                 projectId: value || undefined,
@@ -163,7 +163,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Any project</SelectItem>
-              {projects.map((project) => (
+              {projects.map(project => (
                 <SelectItem key={project.id} value={project.id}>
                   {project.name}
                 </SelectItem>
@@ -177,7 +177,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
           <Label className="text-xs text-gray-600">Author</Label>
           <Select
             value={filters.author || ""}
-            onValueChange={(value) =>
+            onValueChange={value =>
               onFiltersChange({
                 ...filters,
                 author: value || undefined,
@@ -189,7 +189,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="">Any author</SelectItem>
-              {authors.map((author) => (
+              {authors.map(author => (
                 <SelectItem key={author.id} value={author.id}>
                   {author.name}
                 </SelectItem>
@@ -206,10 +206,12 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             min="0"
             max="100"
             value={filters.minSeoScore || ""}
-            onChange={(e) =>
+            onChange={e =>
               onFiltersChange({
                 ...filters,
-                minSeoScore: e.target.value ? Number(e.target.value) : undefined,
+                minSeoScore: e.target.value
+                  ? Number(e.target.value)
+                  : undefined,
               })
             }
             placeholder="0-100"
@@ -261,10 +263,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
       {activeFilterCount > 0 && (
         <div className="flex flex-wrap gap-2">
           {filters.status && (
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1"
-            >
+            <Badge variant="secondary" className="flex items-center gap-1">
               Status: {filters.status}
               <X
                 className="h-3 w-3 cursor-pointer"
@@ -273,10 +272,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             </Badge>
           )}
           {filters.contentType && (
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1"
-            >
+            <Badge variant="secondary" className="flex items-center gap-1">
               Type: {filters.contentType}
               <X
                 className="h-3 w-3 cursor-pointer"
@@ -285,11 +281,10 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             </Badge>
           )}
           {filters.projectId && (
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1"
-            >
-              Project: {projects.find(p => p.id === filters.projectId)?.name || filters.projectId}
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Project:{" "}
+              {projects.find(p => p.id === filters.projectId)?.name ||
+                filters.projectId}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => removeFilter("projectId")}
@@ -297,11 +292,10 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             </Badge>
           )}
           {filters.author && (
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1"
-            >
-              Author: {authors.find(a => a.id === filters.author)?.name || filters.author}
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Author:{" "}
+              {authors.find(a => a.id === filters.author)?.name ||
+                filters.author}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => removeFilter("author")}
@@ -309,10 +303,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             </Badge>
           )}
           {filters.minSeoScore && (
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1"
-            >
+            <Badge variant="secondary" className="flex items-center gap-1">
               SEO Score ≥ {filters.minSeoScore}
               <X
                 className="h-3 w-3 cursor-pointer"
@@ -321,11 +312,9 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             </Badge>
           )}
           {filters.dateRange && (
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1"
-            >
-              Date: {filters.dateRange.from.toLocaleDateString()} - {filters.dateRange.to.toLocaleDateString()}
+            <Badge variant="secondary" className="flex items-center gap-1">
+              Date: {filters.dateRange.from.toLocaleDateString()} -{" "}
+              {filters.dateRange.to.toLocaleDateString()}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => removeFilter("dateRange")}

@@ -78,14 +78,14 @@ export const TeamStats: React.FC<TeamStatsProps> = ({ data, loading }) => {
     },
     {
       title: "Administrators",
-      value: (data.roles.admin || 0) + (data.roles.owner || 0),
+      value: (data.roles["admin"] || 0) + (data.roles["owner"] || 0),
       icon: <Shield className="h-5 w-5 text-purple-600" />,
       description: "Can manage team",
       bgColor: "bg-purple-50",
     },
     {
       title: "Active Members",
-      value: data.roles.member || 0,
+      value: data.roles["member"] || 0,
       icon: <Activity className="h-5 w-5 text-orange-600" />,
       description: "Full access",
       bgColor: "bg-orange-50",
@@ -143,7 +143,7 @@ export const TeamStats: React.FC<TeamStatsProps> = ({ data, loading }) => {
               <span>Role Distribution</span>
               <span>{data.totalMembers} total</span>
             </div>
-            <div className="flex h-2 rounded-full bg-gray-200 overflow-hidden">
+            <div className="flex h-2 overflow-hidden rounded-full bg-gray-200">
               {Object.entries(data.roles).map(([role, count]) => {
                 const percentage = (count / data.totalMembers) * 100;
                 const colors = {
@@ -155,7 +155,9 @@ export const TeamStats: React.FC<TeamStatsProps> = ({ data, loading }) => {
                 return (
                   <div
                     key={role}
-                    className={colors[role as keyof typeof colors] || "bg-gray-500"}
+                    className={
+                      colors[role as keyof typeof colors] || "bg-gray-500"
+                    }
                     style={{ width: `${percentage}%` }}
                     title={`${role}: ${count} members (${percentage.toFixed(1)}%)`}
                   />
