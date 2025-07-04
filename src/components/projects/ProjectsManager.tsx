@@ -43,6 +43,7 @@ import { ProjectCard } from "./ProjectCard";
 import { CreateProjectModal } from "./CreateProjectModal";
 import { ProjectFilters } from "./ProjectFilters";
 import { ProjectStats } from "./ProjectStats";
+import { ProjectsEmptyState } from "./ProjectsEmptyState";
 
 interface Project {
   id: string;
@@ -325,7 +326,7 @@ export const ProjectsManager = () => {
           </Button>
         </div>
       ) : projects.length === 0 && !loading ? (
-        <EmptyState onCreateProject={() => setShowCreateModal(true)} />
+        <ProjectsEmptyState onCreateProject={() => setShowCreateModal(true)} />
       ) : (
         <div className="space-y-6">
           {/* Projects Grid/List */}
@@ -396,38 +397,5 @@ export const ProjectsManager = () => {
   );
 };
 
-// Empty State Component
-const EmptyState = ({ onCreateProject }: { onCreateProject: () => void }) => (
-  <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-blue-100 p-4">
-      <FolderOpen className="h-8 w-8 text-blue-600" />
-    </div>
-    <h3 className="mb-2 text-xl font-semibold text-gray-900">
-      No projects yet
-    </h3>
-    <p className="mb-6 text-gray-600">
-      Get started by creating your first content project. Track performance,
-      analyze competitors, and optimize your content strategy.
-    </p>
-    <div className="space-y-4">
-      <Button onClick={onCreateProject} size="lg">
-        <Plus className="mr-2 h-5 w-5" />
-        Create Your First Project
-      </Button>
-      <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
-        <div className="flex items-center space-x-2">
-          <Target className="h-4 w-4" />
-          <span>Competitive Analysis</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <BarChart3 className="h-4 w-4" />
-          <span>Performance Tracking</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Sparkles className="h-4 w-4" />
-          <span>AI Optimization</span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+// Old EmptyState component replaced with ProjectsEmptyState
+// const EmptyState = ({ onCreateProject }: { onCreateProject: () => void }) => (...)

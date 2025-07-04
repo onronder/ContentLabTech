@@ -35,6 +35,7 @@ import { ContentCard } from "./ContentCard";
 import { CreateContentModal } from "./CreateContentModal";
 import { ContentFilters } from "./ContentFilters";
 import { ContentStats } from "./ContentStats";
+import { ContentEmptyState } from "./ContentEmptyState";
 
 interface ContentItem {
   id: string;
@@ -355,7 +356,7 @@ export const ContentManager = () => {
           </Button>
         </div>
       ) : content.length === 0 && !loading ? (
-        <EmptyState onCreateContent={() => setShowCreateModal(true)} />
+        <ContentEmptyState onCreateContent={() => setShowCreateModal(true)} />
       ) : (
         <div className="space-y-6">
           {/* Content Grid/List */}
@@ -426,37 +427,5 @@ export const ContentManager = () => {
   );
 };
 
-// Empty State Component
-const EmptyState = ({ onCreateContent }: { onCreateContent: () => void }) => (
-  <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-12 text-center">
-    <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 p-4">
-      <FileText className="h-8 w-8 text-green-600" />
-    </div>
-    <h3 className="mb-2 text-xl font-semibold text-gray-900">No content yet</h3>
-    <p className="mb-6 text-gray-600">
-      Start creating high-performing content with AI-powered analysis and
-      optimization. Get insights on SEO, readability, and competitive
-      positioning.
-    </p>
-    <div className="space-y-4">
-      <Button onClick={onCreateContent} size="lg">
-        <Plus className="mr-2 h-5 w-5" />
-        Create Your First Content
-      </Button>
-      <div className="flex items-center justify-center space-x-6 text-sm text-gray-500">
-        <div className="flex items-center space-x-2">
-          <PenTool className="h-4 w-4" />
-          <span>AI Content Editor</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Lightbulb className="h-4 w-4" />
-          <span>SEO Optimization</span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Target className="h-4 w-4" />
-          <span>Performance Tracking</span>
-        </div>
-      </div>
-    </div>
-  </div>
-);
+// Old EmptyState component replaced with ContentEmptyState
+// const EmptyState = ({ onCreateContent }: { onCreateContent: () => void }) => (...)

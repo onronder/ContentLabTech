@@ -37,6 +37,7 @@ import {
 import { AnalyticsOverview } from "./AnalyticsOverview";
 import { PerformanceMetrics } from "./PerformanceMetrics";
 import { ContentAnalytics } from "./ContentAnalytics";
+import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 // import { TeamAnalytics } from "./TeamAnalytics";
 
 interface AnalyticsData {
@@ -66,7 +67,9 @@ export const AnalyticsDashboard = () => {
   const { currentTeam } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
+    null
+  );
   const [selectedTimeRange, setSelectedTimeRange] = useState("30d");
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -85,8 +88,12 @@ export const AnalyticsDashboard = () => {
     try {
       // Load analytics status and trends
       const [statusResponse, trendsResponse] = await Promise.all([
-        fetch(`/api/analytics/status?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}`),
-        fetch(`/api/analytics/trends?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}`)
+        fetch(
+          `/api/analytics/status?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}`
+        ),
+        fetch(
+          `/api/analytics/trends?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}`
+        ),
       ]);
 
       if (!statusResponse.ok || !trendsResponse.ok) {
@@ -95,7 +102,7 @@ export const AnalyticsDashboard = () => {
 
       const [statusData, trendsData] = await Promise.all([
         statusResponse.json(),
-        trendsResponse.json()
+        trendsResponse.json(),
       ]);
 
       // Mock analytics data structure - integrate with actual API responses
@@ -113,13 +120,13 @@ export const AnalyticsDashboard = () => {
         trends: trendsData.trends || {
           traffic: [],
           performance: [],
-          content: []
+          content: [],
         },
         predictions: statusData.predictions || {
           nextWeek: { traffic: 0, confidence: 0 },
           nextMonth: { performance: 0, confidence: 0 },
-          quarterlyGoals: { onTrack: false, progress: 0 }
-        }
+          quarterlyGoals: { onTrack: false, progress: 0 },
+        },
       });
     } catch (err) {
       console.error("Failed to load analytics:", err);
@@ -135,13 +142,15 @@ export const AnalyticsDashboard = () => {
 
   const handleExport = async () => {
     try {
-      const response = await fetch(`/api/analytics/export?teamId=${currentTeam?.id}&timeRange=${selectedTimeRange}`);
+      const response = await fetch(
+        `/api/analytics/export?teamId=${currentTeam?.id}&timeRange=${selectedTimeRange}`
+      );
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = `analytics-${selectedTimeRange}-${new Date().toISOString().split('T')[0]}.csv`;
+        a.download = `analytics-${selectedTimeRange}-${new Date().toISOString().split("T")[0]}.csv`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -209,7 +218,10 @@ export const AnalyticsDashboard = () => {
           </Badge>
 
           {/* Time Range Selector */}
-          <Select value={selectedTimeRange} onValueChange={setSelectedTimeRange}>
+          <Select
+            value={selectedTimeRange}
+            onValueChange={setSelectedTimeRange}
+          >
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -241,59 +253,74 @@ export const AnalyticsDashboard = () => {
             <h3 className="font-semibold text-red-900">Analytics Error</h3>
           </div>
           <p className="mt-2 text-red-700">{error}</p>
-          <Button 
-            onClick={handleRefresh} 
-            variant="outline" 
-            className="mt-4"
-          >
+          <Button onClick={handleRefresh} variant="outline" className="mt-4">
             Try Again
           </Button>
         </div>
       )}
 
       {/* Analytics Content */}
-      {analyticsData && !error && (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      {analyticsData && !error && analyticsData.overview.totalProjects > 0 ? (
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="overview"
+              className="flex items-center space-x-2"
+            >
               <Activity className="h-4 w-4" />
               <span>Overview</span>
             </TabsTrigger>
-            <TabsTrigger value="performance" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="performance"
+              className="flex items-center space-x-2"
+            >
               <Gauge className="h-4 w-4" />
               <span>Performance</span>
             </TabsTrigger>
-            <TabsTrigger value="content" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="content"
+              className="flex items-center space-x-2"
+            >
               <Target className="h-4 w-4" />
               <span>Content</span>
             </TabsTrigger>
-            <TabsTrigger value="competitive" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="competitive"
+              className="flex items-center space-x-2"
+            >
               <Trophy className="h-4 w-4" />
               <span>Competitive</span>
             </TabsTrigger>
-            <TabsTrigger value="predictions" className="flex items-center space-x-2">
+            <TabsTrigger
+              value="predictions"
+              className="flex items-center space-x-2"
+            >
               <Sparkles className="h-4 w-4" />
               <span>Predictions</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <AnalyticsOverview 
-              data={analyticsData.overview} 
+            <AnalyticsOverview
+              data={analyticsData.overview}
               trends={analyticsData.trends}
               timeRange={selectedTimeRange}
             />
           </TabsContent>
 
           <TabsContent value="performance" className="space-y-6">
-            <PerformanceMetrics 
+            <PerformanceMetrics
               timeRange={selectedTimeRange}
               teamId={currentTeam?.id}
             />
           </TabsContent>
 
           <TabsContent value="content" className="space-y-6">
-            <ContentAnalytics 
+            <ContentAnalytics
               timeRange={selectedTimeRange}
               teamId={currentTeam?.id}
             />
@@ -309,7 +336,7 @@ export const AnalyticsDashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center text-gray-500 p-8">
+                  <div className="p-8 text-center text-gray-500">
                     <Trophy className="mx-auto mb-2 h-8 w-8" />
                     <p>Competitive analytics dashboard coming soon</p>
                   </div>
@@ -328,7 +355,7 @@ export const AnalyticsDashboard = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center text-gray-500 p-8">
+                  <div className="p-8 text-center text-gray-500">
                     <Brain className="mx-auto mb-2 h-8 w-8" />
                     <p>Advanced ML predictions coming soon</p>
                   </div>
@@ -349,7 +376,10 @@ export const AnalyticsDashboard = () => {
                     </div>
                     <div className="flex items-center space-x-1 text-xs text-gray-500">
                       <CheckCircle className="h-3 w-3 text-green-500" />
-                      <span>{analyticsData.predictions.nextWeek.confidence}% confidence</span>
+                      <span>
+                        {analyticsData.predictions.nextWeek.confidence}%
+                        confidence
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -366,7 +396,10 @@ export const AnalyticsDashboard = () => {
                     </div>
                     <div className="flex items-center space-x-1 text-xs text-gray-500">
                       <TrendingUp className="h-3 w-3 text-blue-500" />
-                      <span>{analyticsData.predictions.nextMonth.confidence}% confidence</span>
+                      <span>
+                        {analyticsData.predictions.nextMonth.confidence}%
+                        confidence
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -388,7 +421,9 @@ export const AnalyticsDashboard = () => {
                         <AlertTriangle className="h-3 w-3 text-yellow-500" />
                       )}
                       <span>
-                        {analyticsData.predictions.quarterlyGoals.onTrack ? "On track" : "Needs attention"}
+                        {analyticsData.predictions.quarterlyGoals.onTrack
+                          ? "On track"
+                          : "Needs attention"}
                       </span>
                     </div>
                   </CardContent>
@@ -397,7 +432,9 @@ export const AnalyticsDashboard = () => {
             </div>
           </TabsContent>
         </Tabs>
-      )}
+      ) : analyticsData && !error ? (
+        <AnalyticsEmptyState />
+      ) : null}
     </div>
   );
 };
