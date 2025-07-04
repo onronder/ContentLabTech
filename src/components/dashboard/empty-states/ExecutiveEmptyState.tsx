@@ -116,7 +116,7 @@ export const ExecutiveEmptyState = ({
             What You&apos;ll Get
           </h2>
           <p className="text-gray-600">
-            Comprehensive strategic tools designed for executive decision-making
+            Comprehensive strategic insights for executive decision-making
           </p>
         </div>
 
@@ -128,14 +128,9 @@ export const ExecutiveEmptyState = ({
             >
               <div className="space-y-4">
                 <div
-                  className={cn(
-                    "w-fit rounded-lg p-3 transition-transform group-hover:scale-110",
-                    capability.bgColor
-                  )}
+                  className={`w-fit rounded-lg p-3 transition-transform group-hover:scale-110 ${capability.bgColor}`}
                 >
-                  <capability.icon
-                    className={cn("h-6 w-6", capability.color)}
-                  />
+                  <capability.icon className={`h-6 w-6 ${capability.color}`} />
                 </div>
 
                 <div>
