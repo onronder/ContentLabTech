@@ -113,7 +113,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Enhanced configuration validation
   const validateSupabaseConfig = useCallback(() => {
     const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-    const key = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+    const key = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
     if (!url || !key) {
       const error =
@@ -123,18 +123,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return false;
     }
 
-    if (!key.startsWith("sb_publishable_")) {
+    // Updated validation for legacy JWT keys
+    if (!key.startsWith("eyJ")) {
       const error =
-        "Invalid publishable key format. Expected: sb_publishable_...";
-      console.error("[AuthContext] " + error);
-      setInitializationError(error);
-      return false;
-    }
-
-    // Check for legacy JWT fallback that causes crashes
-    if (key.startsWith("eyJ")) {
-      const error =
-        "CRITICAL: Legacy JWT token detected as publishable key. This causes browser crashes.";
+        "Invalid anon key format. Expected legacy JWT format starting with 'eyJ'";
       console.error("[AuthContext] " + error);
       setInitializationError(error);
       return false;

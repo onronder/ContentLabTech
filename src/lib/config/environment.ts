@@ -9,26 +9,52 @@ import { z } from "zod";
 // Environment validation schema
 const environmentSchema = z.object({
   // Next.js
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  
+  NODE_ENV: z
+    .enum(["development", "production", "test"])
+    .default("development"),
+
   // Supabase - Critical for database operations
   NEXT_PUBLIC_SUPABASE_URL: z.string().url("Invalid Supabase URL"),
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1, "Supabase publishable key is required"),
-  SUPABASE_SECRET_KEY: z.string().min(1, "Supabase secret key is required").optional(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z
+    .string()
+    .min(1, "Supabase publishable key is required"),
+  SUPABASE_SERVICE_ROLE_KEY: z
+    .string()
+    .min(1, "Supabase service role key is required")
+    .optional(),
 
   // OpenAI - Critical for AI features
-  OPENAI_API_KEY: z.string().min(1, "OpenAI API key is required for AI features").optional(),
+  OPENAI_API_KEY: z
+    .string()
+    .min(1, "OpenAI API key is required for AI features")
+    .optional(),
 
   // Redis - Critical for job processing and rate limiting
   REDIS_HOST: z.string().default("localhost"),
-  REDIS_PORT: z.string().transform(val => parseInt(val, 10)).pipe(z.number().min(1).max(65535)).default("6379"),
+  REDIS_PORT: z
+    .string()
+    .transform(val => parseInt(val, 10))
+    .pipe(z.number().min(1).max(65535))
+    .default("6379"),
   REDIS_PASSWORD: z.string().optional(),
-  REDIS_TLS: z.string().transform(val => val === "true").default("false"),
+  REDIS_TLS: z
+    .string()
+    .transform(val => val === "true")
+    .default("false"),
 
   // BrightData - Critical for competitive analysis
-  BRIGHTDATA_CUSTOMER_ID: z.string().min(1, "BrightData customer ID is required for competitive features").optional(),
-  BRIGHTDATA_ZONE: z.string().min(1, "BrightData zone is required for competitive features").optional(), 
-  BRIGHTDATA_PASSWORD: z.string().min(1, "BrightData password is required for competitive features").optional(),
+  BRIGHTDATA_CUSTOMER_ID: z
+    .string()
+    .min(1, "BrightData customer ID is required for competitive features")
+    .optional(),
+  BRIGHTDATA_ZONE: z
+    .string()
+    .min(1, "BrightData zone is required for competitive features")
+    .optional(),
+  BRIGHTDATA_PASSWORD: z
+    .string()
+    .min(1, "BrightData password is required for competitive features")
+    .optional(),
 
   // Google Analytics - Optional but recommended
   GOOGLE_ANALYTICS_CLIENT_ID: z.string().optional(),
@@ -38,8 +64,16 @@ const environmentSchema = z.object({
   NEXT_PUBLIC_WEBSOCKET_URL: z.string().url().optional(),
 
   // Rate limiting
-  API_RATE_LIMIT_REQUESTS: z.string().transform(val => parseInt(val, 10)).pipe(z.number().min(1)).default("100"),
-  API_RATE_LIMIT_WINDOW: z.string().transform(val => parseInt(val, 10)).pipe(z.number().min(1)).default("3600"),
+  API_RATE_LIMIT_REQUESTS: z
+    .string()
+    .transform(val => parseInt(val, 10))
+    .pipe(z.number().min(1))
+    .default("100"),
+  API_RATE_LIMIT_WINDOW: z
+    .string()
+    .transform(val => parseInt(val, 10))
+    .pipe(z.number().min(1))
+    .default("3600"),
 });
 
 export type EnvironmentConfig = z.infer<typeof environmentSchema>;
@@ -65,7 +99,7 @@ const OPTIONAL_VARS = [
   "OPENAI_API_KEY",
   "REDIS_HOST",
   "BRIGHTDATA_CUSTOMER_ID",
-  "BRIGHTDATA_ZONE", 
+  "BRIGHTDATA_ZONE",
   "BRIGHTDATA_PASSWORD",
 ] as const;
 
@@ -102,22 +136,37 @@ export function validateEnvironment(): ValidationResult {
     OPTIONAL_VARS.forEach(varName => {
       if (!process.env[varName]) {
         optionalMissing.push(varName);
-        warnings.push(`Optional environment variable missing: ${varName} (some features may be disabled)`);
+        warnings.push(
+          `Optional environment variable missing: ${varName} (some features may be disabled)`
+        );
       }
     });
 
     // Additional validation checks
-    if (process.env["NEXT_PUBLIC_SUPABASE_URL"] && !process.env["NEXT_PUBLIC_SUPABASE_URL"].includes("supabase.co")) {
+    if (
+      process.env["NEXT_PUBLIC_SUPABASE_URL"] &&
+      !process.env["NEXT_PUBLIC_SUPABASE_URL"].includes("supabase.co")
+    ) {
       warnings.push("Supabase URL doesn't appear to be a valid Supabase URL");
     }
 
-    if (process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] && !process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"].startsWith("sb_publishable_")) {
+    if (
+      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] &&
+      !process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"].startsWith(
+        "sb_publishable_"
+      )
+    ) {
       errors.push("Supabase publishable key has invalid format");
     }
 
     // Check for legacy JWT tokens
-    if (process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] && process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"].startsWith("eyJ")) {
-      errors.push("CRITICAL: Legacy JWT token detected as publishable key. This will cause browser crashes.");
+    if (
+      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] &&
+      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"].startsWith("eyJ")
+    ) {
+      errors.push(
+        "CRITICAL: Legacy JWT token detected as publishable key. This will cause browser crashes."
+      );
     }
 
     const isValid = errors.length === 0 && criticalMissing.length === 0;
@@ -134,7 +183,9 @@ export function validateEnvironment(): ValidationResult {
     return {
       isValid: false,
       config: undefined,
-      errors: [`Environment validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
+      errors: [
+        `Environment validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      ],
       warnings: [],
       criticalMissing: [],
       optionalMissing: [],
@@ -150,14 +201,16 @@ export function getEnvironmentConfig(): EnvironmentConfig {
   const validation = validateEnvironment();
 
   if (!validation.isValid) {
-    const errorMessage = `Environment validation failed:\n${validation.errors.join('\n')}`;
-    
+    const errorMessage = `Environment validation failed:\n${validation.errors.join("\n")}`;
+
     if (process.env.NODE_ENV === "production") {
       throw new Error(errorMessage);
     } else {
       console.error(errorMessage);
       if (validation.warnings.length > 0) {
-        console.warn(`Environment warnings:\n${validation.warnings.join('\n')}`);
+        console.warn(
+          `Environment warnings:\n${validation.warnings.join("\n")}`
+        );
       }
     }
   }
@@ -180,14 +233,13 @@ export function getFeatureFlags(): {
   return {
     aiFeatures: Boolean(env["OPENAI_API_KEY"]),
     competitiveAnalysis: Boolean(
-      env["BRIGHTDATA_CUSTOMER_ID"] && 
-      env["BRIGHTDATA_ZONE"] && 
-      env["BRIGHTDATA_PASSWORD"]
+      env["BRIGHTDATA_CUSTOMER_ID"] &&
+        env["BRIGHTDATA_ZONE"] &&
+        env["BRIGHTDATA_PASSWORD"]
     ),
     realTimeUpdates: Boolean(env["NEXT_PUBLIC_WEBSOCKET_URL"]),
     advancedAnalytics: Boolean(
-      env["GOOGLE_ANALYTICS_CLIENT_ID"] && 
-      env["GOOGLE_ANALYTICS_CLIENT_SECRET"]
+      env["GOOGLE_ANALYTICS_CLIENT_ID"] && env["GOOGLE_ANALYTICS_CLIENT_SECRET"]
     ),
     jobProcessing: Boolean(env["REDIS_HOST"]),
   };
@@ -211,7 +263,10 @@ export function getEnvironmentStatus(): {
   if (!validation.isValid || validation.criticalMissing.length > 0) {
     status = "critical";
     summary = `Critical configuration issues detected. ${validation.criticalMissing.length} critical variables missing.`;
-  } else if (validation.warnings.length > 0 || validation.optionalMissing.length > 0) {
+  } else if (
+    validation.warnings.length > 0 ||
+    validation.optionalMissing.length > 0
+  ) {
     status = "degraded";
     summary = `Configuration functional but some features may be disabled. ${validation.optionalMissing.length} optional variables missing.`;
   } else {
@@ -232,11 +287,13 @@ if (process.env.NODE_ENV === "production") {
   const validation = validateEnvironment();
   if (!validation.isValid) {
     console.error("🚨 CRITICAL: Environment validation failed in production");
-    console.error(validation.errors.join('\n'));
-    
+    console.error(validation.errors.join("\n"));
+
     // Allow startup but with degraded functionality
     if (validation.criticalMissing.length > 0) {
-      console.error("🚨 Critical variables missing - some features will be unavailable");
+      console.error(
+        "🚨 Critical variables missing - some features will be unavailable"
+      );
     }
   }
 }
