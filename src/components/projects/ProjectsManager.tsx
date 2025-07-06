@@ -170,10 +170,20 @@ export const ProjectsManager = () => {
   };
 
   const createDefaultTeam = async () => {
-    if (!user) return;
+    console.log("Create team button clicked. User:", user);
+
+    if (!user) {
+      console.error("No user found in auth context");
+      setError("User not found. Please refresh the page and try again.");
+      return;
+    }
 
     setCreatingDefaultTeam(true);
+    setError(null); // Clear any previous errors
+
     try {
+      console.log("Making API request to create team for user:", user.id);
+
       const response = await fetch("/api/fix-team-assignments", {
         method: "POST",
         headers: {
@@ -182,17 +192,26 @@ export const ProjectsManager = () => {
         body: JSON.stringify({ userId: user.id }),
       });
 
+      console.log("API response status:", response.status);
+
       if (response.ok) {
+        const responseData = await response.json();
+        console.log("Team creation successful:", responseData);
+
         // Refresh teams to pick up the new team
+        console.log("Refreshing teams...");
         await refreshTeams();
+        console.log("Teams refreshed successfully");
       } else {
         const errorData = await response.json();
         console.error("Failed to create default team:", errorData);
-        setError("Failed to create default team. Please contact support.");
+        setError(
+          `Failed to create team: ${errorData.error || "Unknown error"}`
+        );
       }
     } catch (error) {
       console.error("Error creating default team:", error);
-      setError("Failed to create default team. Please contact support.");
+      setError("Network error. Please check your connection and try again.");
     } finally {
       setCreatingDefaultTeam(false);
     }
@@ -268,6 +287,11 @@ export const ProjectsManager = () => {
             >
               {creatingDefaultTeam ? "Creating Team..." : "Create My Team"}
             </Button>
+            {error && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
             <p className="text-sm text-orange-600">
               Or contact your administrator to join an existing team.
             </p>
