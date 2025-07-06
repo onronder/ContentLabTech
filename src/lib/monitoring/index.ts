@@ -209,12 +209,25 @@ export const monitoringUtils = {
     userId?: string,
     details?: any
   ) => {
-    logger.business({
+    const businessData: {
+      type: string;
+      action: string;
+      userId?: string;
+      details?: any;
+    } = {
       type,
       action,
-      userId,
-      details,
-    });
+    };
+    
+    if (userId) {
+      businessData.userId = userId;
+    }
+    
+    if (details) {
+      businessData.details = details;
+    }
+    
+    logger.business(businessData);
   },
 
   /**
