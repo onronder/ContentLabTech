@@ -73,7 +73,7 @@ interface ProjectFilters {
 type ViewMode = "grid" | "list" | "analytics";
 
 export const ProjectsManager = () => {
-  const { currentTeam, teamsLoading, user, refreshTeams } = useAuth();
+  const { currentTeam, teamsLoading, user, refreshTeams, session } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,49 +170,64 @@ export const ProjectsManager = () => {
   };
 
   const createDefaultTeam = async () => {
-    console.log("Create team button clicked. User:", user);
+    console.log("=== CREATE TEAM BUTTON CLICKED ===");
+    console.log("User object:", user);
+    console.log("User ID:", user?.id);
+    console.log("User email:", user?.email);
 
     if (!user) {
-      console.error("No user found in auth context");
+      console.error("❌ No user found in auth context");
       setError("User not found. Please refresh the page and try again.");
       return;
     }
 
+    console.log("✅ User found, starting team creation...");
     setCreatingDefaultTeam(true);
-    setError(null); // Clear any previous errors
+    setError(null);
 
     try {
-      console.log("Making API request to create team for user:", user.id);
+      console.log("🚀 Making API request to create team for user:", user.id);
+      console.log(
+        "🔐 Session token:",
+        session?.access_token ? "Present" : "Missing"
+      );
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
 
       const response = await fetch("/api/fix-team-assignments", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify({ userId: user.id }),
       });
 
-      console.log("API response status:", response.status);
+      console.log("📡 API response status:", response.status);
+      console.log("📡 API response headers:", response.headers);
 
       if (response.ok) {
         const responseData = await response.json();
-        console.log("Team creation successful:", responseData);
+        console.log("✅ Team creation successful:", responseData);
 
-        // Refresh teams to pick up the new team
-        console.log("Refreshing teams...");
+        console.log("🔄 Refreshing teams...");
         await refreshTeams();
-        console.log("Teams refreshed successfully");
+        console.log("✅ Teams refreshed successfully");
       } else {
         const errorData = await response.json();
-        console.error("Failed to create default team:", errorData);
+        console.error("❌ Failed to create default team:", errorData);
         setError(
           `Failed to create team: ${errorData.error || "Unknown error"}`
         );
       }
     } catch (error) {
-      console.error("Error creating default team:", error);
+      console.error("💥 Error creating default team:", error);
       setError("Network error. Please check your connection and try again.");
     } finally {
+      console.log("🏁 Finished team creation process");
       setCreatingDefaultTeam(false);
     }
   };
@@ -287,6 +302,13 @@ export const ProjectsManager = () => {
             >
               {creatingDefaultTeam ? "Creating Team..." : "Create My Team"}
             </Button>
+            {creatingDefaultTeam && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+                <p className="text-sm text-blue-700">
+                  Processing team creation... Check console for details.
+                </p>
+              </div>
+            )}
             {error && (
               <div className="rounded-md border border-red-200 bg-red-50 p-3">
                 <p className="text-sm text-red-700">{error}</p>

@@ -13,6 +13,29 @@ const supabase = createClient(
   }
 );
 
+// Helper function to get authenticated user from request
+async function getAuthenticatedUser(request: NextRequest) {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+
+  try {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+    if (error || !user) {
+      return null;
+    }
+    return user;
+  } catch (error) {
+    return null;
+  }
+}
+
 interface FixResult {
   success: boolean;
   message: string;
@@ -101,10 +124,25 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    // Starting fix process
+    // Authenticate the request
+    const authenticatedUser = await getAuthenticatedUser(request);
+    if (!authenticatedUser) {
+      return NextResponse.json(
+        { error: "Unauthorized - Please log in" },
+        { status: 401 }
+      );
+    }
 
     const body = await request.json();
     const { userId } = body;
+
+    // Verify the user is requesting for themselves
+    if (userId && userId !== authenticatedUser.id) {
+      return NextResponse.json(
+        { error: "Forbidden - Can only create team for yourself" },
+        { status: 403 }
+      );
+    }
 
     const fixes: FixResult[] = [];
 
