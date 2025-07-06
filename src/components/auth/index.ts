@@ -2,7 +2,7 @@
  * Authentication Components Exports
  */
 
-export { AuthForm } from "./auth-form";
+export { AuthFormRobust as AuthForm } from "./auth-form-robust";
 export { OAuthButtons } from "./oauth-buttons";
 export { ForgotPasswordForm } from "./forgot-password-form";
 export { AuthLoading } from "./auth-loading";
