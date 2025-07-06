@@ -83,7 +83,7 @@ interface ProjectFilters {
 type ViewMode = "grid" | "list" | "analytics";
 
 export const ProjectsManager = () => {
-  const { currentTeam } = useAuth();
+  const { currentTeam, teamsLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,10 +98,14 @@ export const ProjectsManager = () => {
 
   // Load projects when team or filters change
   useEffect(() => {
-    if (currentTeam?.id) {
+    if (currentTeam?.id && !teamsLoading) {
       loadProjects();
+    } else if (!teamsLoading && !currentTeam?.id) {
+      // No team available, stop loading
+      setLoading(false);
+      setProjects([]);
     }
-  }, [currentTeam?.id, filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentTeam?.id, filters, teamsLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounced search
   useEffect(() => {
@@ -174,7 +178,8 @@ export const ProjectsManager = () => {
     }));
   };
 
-  if (loading && projects.length === 0) {
+  // Show loading state when teams or projects are loading
+  if ((loading || teamsLoading) && projects.length === 0) {
     return (
       <div className="space-y-8">
         {/* Loading Header */}
@@ -197,6 +202,44 @@ export const ProjectsManager = () => {
               className="h-64 animate-pulse rounded-xl bg-gray-200"
             />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Handle no team case
+  if (!teamsLoading && !currentTeam?.id) {
+    return (
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="mb-2 flex items-center space-x-3">
+              <div className="rounded-lg bg-blue-50 p-2">
+                <FolderOpen className="h-6 w-6 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
+                <p className="text-lg text-gray-600">
+                  Manage your content projects and campaigns
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* No Team State */}
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-8 text-center">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-orange-100 p-3">
+            <Users className="h-6 w-6 text-orange-600" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold text-orange-900">
+            No Team Selected
+          </h3>
+          <p className="mb-4 text-orange-700">
+            You need to be part of a team to manage projects. Please contact
+            your administrator to join a team.
+          </p>
         </div>
       </div>
     );

@@ -48,6 +48,53 @@ export const BaseEmptyState = ({
   const roleConfig = getRoleConfig(currentRole);
   const gradient = getRoleGradient(currentRole);
 
+  // Safe CSS class mappings to avoid dynamic class generation
+  const buttonClasses = {
+    purple: "bg-purple-600 hover:bg-purple-700 text-white",
+    blue: "bg-blue-600 hover:bg-blue-700 text-white",
+    green: "bg-green-600 hover:bg-green-700 text-white",
+  };
+
+  const iconClasses = {
+    purple: "text-purple-600",
+    blue: "text-blue-600",
+    green: "text-green-600",
+  };
+
+  const borderClasses = {
+    purple: "border-purple-200",
+    blue: "border-blue-200",
+    green: "border-green-200",
+  };
+
+  const gradientClasses = {
+    purple: "from-purple-600 to-blue-600",
+    blue: "from-blue-600 to-green-600",
+    green: "from-green-600 to-blue-600",
+  };
+
+  const statusClasses = {
+    purple: "bg-purple-400",
+    blue: "bg-blue-400",
+    green: "bg-green-400",
+  };
+
+  const primaryButtonClass =
+    buttonClasses[roleConfig.primaryColor as keyof typeof buttonClasses] ||
+    buttonClasses.purple;
+  const mainIconClass =
+    iconClasses[roleConfig.primaryColor as keyof typeof iconClasses] ||
+    iconClasses.purple;
+  const borderClass =
+    borderClasses[roleConfig.primaryColor as keyof typeof borderClasses] ||
+    borderClasses.purple;
+  const gradientClass =
+    gradientClasses[roleConfig.primaryColor as keyof typeof gradientClasses] ||
+    gradientClasses.purple;
+  const statusClass =
+    statusClasses[roleConfig.primaryColor as keyof typeof statusClasses] ||
+    statusClasses.purple;
+
   // Handle primary action
   const handlePrimaryAction = () => {
     if (content.primaryAction.action) {
@@ -147,7 +194,7 @@ export const BaseEmptyState = ({
             )}
           >
             <MainIcon
-              className={cn("h-16 w-16", `text-${roleConfig.primaryColor}-600`)}
+              className={cn("h-16 w-16", mainIconClass)}
               aria-hidden="true"
             />
           </div>
@@ -158,7 +205,7 @@ export const BaseEmptyState = ({
             variant="outline"
             className={cn(
               "border-opacity-50 bg-gradient-to-r",
-              `border-${roleConfig.primaryColor}-200`,
+              borderClass,
               gradient.from,
               gradient.to
             )}
@@ -166,12 +213,7 @@ export const BaseEmptyState = ({
             <span
               className={cn(
                 "bg-gradient-to-r bg-clip-text font-medium text-transparent",
-                `from-${roleConfig.primaryColor}-600`,
-                roleConfig.primaryColor === "purple"
-                  ? "to-blue-600"
-                  : roleConfig.primaryColor === "blue"
-                    ? "to-green-600"
-                    : "to-blue-600"
+                gradientClass
               )}
             >
               {roleConfig.displayName} Platform
@@ -240,14 +282,7 @@ export const BaseEmptyState = ({
 
       {/* Benefits Section */}
       <section
-        className={cn(
-          "rounded-xl border bg-gradient-to-r from-gray-50 p-8",
-          roleConfig.primaryColor === "purple"
-            ? "to-blue-50"
-            : roleConfig.primaryColor === "blue"
-              ? "to-green-50"
-              : "to-blue-50"
-        )}
+        className="rounded-xl border bg-gradient-to-r from-gray-50 to-blue-50 p-8"
         aria-labelledby="benefits-title"
       >
         <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2">
@@ -277,7 +312,7 @@ export const BaseEmptyState = ({
                 <div
                   className={cn(
                     "h-2 w-2 animate-pulse rounded-full",
-                    `bg-${roleConfig.primaryColor}-400`
+                    statusClass
                   )}
                 />
                 <span>Strategic Focus</span>
@@ -307,7 +342,7 @@ export const BaseEmptyState = ({
             onClick={handlePrimaryAction}
             className={cn(
               "transform px-8 py-3 text-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg",
-              `bg-${roleConfig.primaryColor}-600 hover:bg-${roleConfig.primaryColor}-700`
+              primaryButtonClass
             )}
             aria-describedby="primary-action-description"
           >
