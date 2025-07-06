@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (includeEnvironment) {
-      detailedHealth.environment = {
+      detailedHealth["environment"] = {
         ...systemHealth.environment,
         env: process.env.NODE_ENV,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     if (includeMetrics) {
       // Add process metrics
-      detailedHealth.processMetrics = {
+      detailedHealth["processMetrics"] = {
         pid: process.pid,
         ppid: process.ppid,
         title: process.title,
@@ -54,12 +54,12 @@ export async function GET(request: NextRequest) {
 
       // Add resource usage
       if (process.resourceUsage) {
-        detailedHealth.resourceUsage = process.resourceUsage();
+        detailedHealth["resourceUsage"] = process.resourceUsage();
       }
 
       // Add performance marks if available
       if (typeof performance !== "undefined") {
-        detailedHealth.performance = {
+        detailedHealth["performance"] = {
           now: performance.now(),
           timeOrigin: performance.timeOrigin,
         };
