@@ -14,33 +14,37 @@ function getSupabaseAdmin() {
   if (!_supabaseAdmin) {
     // Validate environment variables
     const supabaseUrl = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-    const supabaseSecretKey = process.env["SUPABASE_SECRET_KEY"];
+    const supabaseServiceRoleKey = process.env["SUPABASE_SERVICE_ROLE_KEY"];
 
-    if (!supabaseUrl || !supabaseSecretKey) {
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
       throw new Error(
-        "Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY"
+        "Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"
       );
     }
 
-    // Validate secret key format
-    if (!supabaseSecretKey.startsWith("sb_secret_")) {
+    // Validate legacy service role key format (JWT)
+    if (!supabaseServiceRoleKey.startsWith("eyJ")) {
       throw new Error(
-        "Invalid secret key format. Expected format: sb_secret_..."
+        "Invalid service role key format. Expected legacy JWT format starting with 'eyJ'"
       );
     }
 
-    // Server-side Supabase client with secret key (administrative privileges)
-    _supabaseAdmin = createClient<Database>(supabaseUrl, supabaseSecretKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-      global: {
-        headers: {
-          "X-Client-Info": "contentlab-nexus-server",
+    // Server-side Supabase client with service role key (administrative privileges)
+    _supabaseAdmin = createClient<Database>(
+      supabaseUrl,
+      supabaseServiceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
         },
-      },
-    });
+        global: {
+          headers: {
+            "X-Client-Info": "contentlab-nexus-server",
+          },
+        },
+      }
+    );
   }
 
   return _supabaseAdmin;

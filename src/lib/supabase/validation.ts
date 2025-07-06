@@ -3,21 +3,37 @@
  * Security utilities for the new API key system
  */
 
-// Validate publishable key format
-export const validatePublishableKey = (key: string): boolean => {
-  return key.startsWith("sb_publishable_") && key.length > 20;
+// Validate legacy anon key format (JWT)
+export const validateLegacyAnonKey = (key: string): boolean => {
+  return key.startsWith("eyJ") && key.length > 100;
 };
 
-// Validate secret key format
+// Validate legacy service role key format (JWT)
+export const validateLegacyServiceRoleKey = (key: string): boolean => {
+  return key.startsWith("eyJ") && key.length > 100;
+};
+
+// Legacy validation functions for backward compatibility
+export const validatePublishableKey = (key: string): boolean => {
+  // Support both new and legacy formats during transition
+  return key.startsWith("sb_publishable_") || key.startsWith("eyJ");
+};
+
 export const validateSecretKey = (key: string): boolean => {
-  return key.startsWith("sb_secret_") && key.length > 20;
+  // Support both new and legacy formats during transition
+  return key.startsWith("sb_secret_") || key.startsWith("eyJ");
 };
 
 // Validate environment configuration
 export const validateEnvironmentConfig = () => {
   const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-  const publishableKey = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-  const serviceRoleKey = process.env["SUPABASE_SECRET_KEY"];
+  // Check for legacy keys first, then fallback to new keys
+  const anonKey =
+    process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
+    process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+  const serviceRoleKey =
+    process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
+    process.env["SUPABASE_SECRET_KEY"];
 
   const errors: string[] = [];
 
@@ -28,24 +44,28 @@ export const validateEnvironmentConfig = () => {
     errors.push("Invalid NEXT_PUBLIC_SUPABASE_URL format");
   }
 
-  if (!publishableKey) {
-    errors.push("Missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY");
-  } else if (!validatePublishableKey(publishableKey)) {
-    // Check for legacy JWT fallback - this causes browser crashes
-    if (publishableKey.startsWith("eyJ")) {
-      errors.push(
-        "CRITICAL: Using legacy JWT token as publishable key fallback. This causes runtime failures with new key system."
-      );
-    } else {
-      errors.push(
-        "Invalid NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY format (expected: sb_publishable_...)"
-      );
-    }
+  if (!anonKey) {
+    errors.push(
+      "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+    );
+  } else if (
+    !validateLegacyAnonKey(anonKey) &&
+    !validatePublishableKey(anonKey)
+  ) {
+    errors.push(
+      "Invalid anon/publishable key format. Expected legacy JWT format (eyJ...) or new format (sb_publishable_...)"
+    );
   }
 
   // Service role key is optional for client-side only applications
-  if (serviceRoleKey && !validateSecretKey(serviceRoleKey)) {
-    errors.push("Invalid SUPABASE_SECRET_KEY format");
+  if (
+    serviceRoleKey &&
+    !validateLegacyServiceRoleKey(serviceRoleKey) &&
+    !validateSecretKey(serviceRoleKey)
+  ) {
+    errors.push(
+      "Invalid service role/secret key format. Expected legacy JWT format (eyJ...) or new format (sb_secret_...)"
+    );
   }
 
   // Environment is properly configured
@@ -118,17 +138,23 @@ export const checkDevelopmentWarnings = () => {
 // Configuration status helper
 export const getConfigurationStatus = () => {
   const hasUrl = !!process.env["NEXT_PUBLIC_SUPABASE_URL"];
+  const hasAnonKey = !!process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
   const hasPublishableKey =
     !!process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-  const hasServiceKey = !!process.env["SUPABASE_SECRET_KEY"];
+  const hasLegacyServiceKey = !!process.env["SUPABASE_SERVICE_ROLE_KEY"];
+  const hasNewServiceKey = !!process.env["SUPABASE_SECRET_KEY"];
 
-  const configured = hasUrl && hasPublishableKey;
+  const configured = hasUrl && (hasAnonKey || hasPublishableKey);
+  const hasServiceKey = hasLegacyServiceKey || hasNewServiceKey;
+
+  const keyType = hasAnonKey ? "legacy" : hasPublishableKey ? "new" : "none";
 
   return {
     configured,
     hasServiceKey,
+    keyType,
     message: configured
-      ? "✅ Supabase configuration is valid"
+      ? `✅ Supabase configuration is valid (${keyType} keys)`
       : "❌ Missing required Supabase configuration",
   };
 };

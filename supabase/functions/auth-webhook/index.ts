@@ -77,7 +77,7 @@ async function sendEmail(payload: EmailPayload): Promise<void> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${SUPABASE_SECRET_KEY}`,
+      apikey: SUPABASE_SECRET_KEY,
     },
     body: JSON.stringify(payload),
   });
