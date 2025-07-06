@@ -118,17 +118,36 @@ export const AuthFormFixed = ({
           );
         }
       } else {
+        console.log("Attempting sign in with:", {
+          email: formData.email,
+          passwordLength: formData.password.length,
+        });
+
         const { user, error: signInError } = await signIn(
           formData.email,
           formData.password
         );
 
+        console.log("Sign in response:", {
+          hasUser: !!user,
+          userId: user?.id,
+          userEmail: user?.email,
+          errorMessage: signInError?.message,
+          errorCode: signInError?.name,
+        });
+
         if (signInError) {
+          console.error("Sign in error details:", signInError);
           setError(signInError.message);
         } else if (user) {
           // Success - use router for proper redirect
-          console.log("Sign in successful, user:", user);
+          console.log("Sign in successful, user:", {
+            id: user.id,
+            email: user.email,
+          });
           console.log("Redirecting to:", redirectUrl);
+
+          setSuccess("Sign in successful! Redirecting...");
 
           // Small delay to ensure auth context updates
           setTimeout(() => {
