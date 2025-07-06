@@ -419,7 +419,7 @@ export default function ErrorsWidget({
 
           <TabsContent value="top" className="space-y-4">
             <div className="space-y-2">
-              {metrics?.topErrors.length > 0 ? (
+              {metrics?.topErrors && metrics.topErrors.length > 0 ? (
                 metrics.topErrors.map((error, index) => (
                   <div key={error.id} className="border rounded-lg p-3">
                     <div className="flex items-start justify-between">
