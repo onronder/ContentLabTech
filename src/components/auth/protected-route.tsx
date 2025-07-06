@@ -9,7 +9,7 @@ import { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-import { useSupabaseAuth } from "@/hooks/auth/use-supabase-auth";
+import { useAuth } from "@/lib/auth/context";
 import { AuthLoading } from "./auth-loading";
 
 interface ProtectedRouteProps {
@@ -24,7 +24,8 @@ export const ProtectedRoute = ({
   fallback,
   redirectTo = "/auth/signin",
 }: ProtectedRouteProps) => {
-  const { loading, isAuthenticated } = useSupabaseAuth();
+  const { loading, user } = useAuth();
+  const isAuthenticated = !!user;
   const router = useRouter();
 
   useEffect(() => {
