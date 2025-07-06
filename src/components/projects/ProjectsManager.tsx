@@ -6,7 +6,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,19 +20,10 @@ import { useAuth } from "@/lib/auth/context";
 import {
   Plus,
   Search,
-  Filter,
-  Globe,
   Users,
-  Calendar,
   FolderOpen,
-  MoreHorizontal,
   Sparkles,
-  Target,
   BarChart3,
-  ArrowUpRight,
-  Clock,
-  FileText,
-  Eye,
   Zap,
   AlertTriangle,
 } from "lucide-react";
@@ -83,7 +73,7 @@ interface ProjectFilters {
 type ViewMode = "grid" | "list" | "analytics";
 
 export const ProjectsManager = () => {
-  const { currentTeam, teamsLoading } = useAuth();
+  const { currentTeam, teamsLoading, user, refreshTeams } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +85,7 @@ export const ProjectsManager = () => {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [totalProjects, setTotalProjects] = useState(0);
+  const [creatingDefaultTeam, setCreatingDefaultTeam] = useState(false);
 
   // Load projects when team or filters change
   useEffect(() => {
@@ -178,6 +169,35 @@ export const ProjectsManager = () => {
     }));
   };
 
+  const createDefaultTeam = async () => {
+    if (!user) return;
+
+    setCreatingDefaultTeam(true);
+    try {
+      const response = await fetch("/api/fix-team-assignments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (response.ok) {
+        // Refresh teams to pick up the new team
+        await refreshTeams();
+      } else {
+        const errorData = await response.json();
+        console.error("Failed to create default team:", errorData);
+        setError("Failed to create default team. Please contact support.");
+      }
+    } catch (error) {
+      console.error("Error creating default team:", error);
+      setError("Failed to create default team. Please contact support.");
+    } finally {
+      setCreatingDefaultTeam(false);
+    }
+  };
+
   // Show loading state when teams or projects are loading
   if ((loading || teamsLoading) && projects.length === 0) {
     return (
@@ -237,9 +257,21 @@ export const ProjectsManager = () => {
             No Team Selected
           </h3>
           <p className="mb-4 text-orange-700">
-            You need to be part of a team to manage projects. Please contact
-            your administrator to join a team.
+            You need to be part of a team to manage projects. We can create a
+            default team for you to get started.
           </p>
+          <div className="space-y-2">
+            <Button
+              onClick={createDefaultTeam}
+              disabled={creatingDefaultTeam}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              {creatingDefaultTeam ? "Creating Team..." : "Create My Team"}
+            </Button>
+            <p className="text-sm text-orange-600">
+              Or contact your administrator to join an existing team.
+            </p>
+          </div>
         </div>
       </div>
     );
