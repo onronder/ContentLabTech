@@ -4,7 +4,10 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { ServiceStatus, serviceDegradationManager } from "@/lib/resilience/service-degradation";
+import {
+  ServiceStatus,
+  serviceDegradationManager,
+} from "@/lib/resilience/service-degradation";
 
 export interface ServiceDegradationState {
   status: ServiceStatus;
@@ -30,39 +33,51 @@ export function useServiceDegradation({
   serviceName,
   requiredFeatures = [],
   pollInterval = 30000, // 30 seconds
-  onStatusChange
+  onStatusChange,
 }: UseServiceDegradationOptions) {
   const [state, setState] = useState<ServiceDegradationState>(() => {
     const status = serviceDegradationManager.getServiceStatus(serviceName);
     const summary = serviceDegradationManager.getHealthSummary();
     const serviceInfo = summary[serviceName];
-    
-    return {
+
+    const baseState = {
       status,
       isAvailable: status !== ServiceStatus.UNAVAILABLE,
       isDegraded: status === ServiceStatus.DEGRADED,
-      lastError: serviceInfo?.lastError,
       availableFeatures: serviceInfo?.availableFeatures || [],
-      recommendations: status !== ServiceStatus.HEALTHY 
-        ? serviceDegradationManager.getDegradationRecommendations(serviceName)
-        : undefined
     };
+
+    const stateWithOptionals: ServiceDegradationState = {
+      ...baseState,
+      ...(serviceInfo?.lastError && { lastError: serviceInfo.lastError }),
+      ...(status !== ServiceStatus.HEALTHY && {
+        recommendations:
+          serviceDegradationManager.getDegradationRecommendations(serviceName),
+      }),
+    };
+
+    return stateWithOptionals;
   });
 
   const updateState = useCallback(() => {
     const status = serviceDegradationManager.getServiceStatus(serviceName);
     const summary = serviceDegradationManager.getHealthSummary();
     const serviceInfo = summary[serviceName];
-    
-    const newState: ServiceDegradationState = {
+
+    const baseNewState = {
       status,
       isAvailable: status !== ServiceStatus.UNAVAILABLE,
       isDegraded: status === ServiceStatus.DEGRADED,
-      lastError: serviceInfo?.lastError,
       availableFeatures: serviceInfo?.availableFeatures || [],
-      recommendations: status !== ServiceStatus.HEALTHY 
-        ? serviceDegradationManager.getDegradationRecommendations(serviceName)
-        : undefined
+    };
+
+    const newState: ServiceDegradationState = {
+      ...baseNewState,
+      ...(serviceInfo?.lastError && { lastError: serviceInfo.lastError }),
+      ...(status !== ServiceStatus.HEALTHY && {
+        recommendations:
+          serviceDegradationManager.getDegradationRecommendations(serviceName),
+      }),
     };
 
     setState(prevState => {
@@ -74,24 +89,36 @@ export function useServiceDegradation({
     });
   }, [serviceName, onStatusChange]);
 
-  const checkFeatureAvailability = useCallback((featureName: string): boolean => {
-    return serviceDegradationManager.isFeatureAvailable(serviceName, featureName);
-  }, [serviceName]);
+  const checkFeatureAvailability = useCallback(
+    (featureName: string): boolean => {
+      return serviceDegradationManager.isFeatureAvailable(
+        serviceName,
+        featureName
+      );
+    },
+    [serviceName]
+  );
 
-  const getFallbackData = useCallback((dataType: string): unknown => {
-    return serviceDegradationManager.getFallbackData(serviceName, dataType);
-  }, [serviceName]);
+  const getFallbackData = useCallback(
+    (dataType: string): unknown => {
+      return serviceDegradationManager.getFallbackData(serviceName, dataType);
+    },
+    [serviceName]
+  );
 
   const areRequiredFeaturesAvailable = useCallback((): boolean => {
-    return requiredFeatures.every(feature => 
+    return requiredFeatures.every(feature =>
       serviceDegradationManager.isFeatureAvailable(serviceName, feature)
     );
   }, [serviceName, requiredFeatures]);
 
-  const recordFailure = useCallback((error: string) => {
-    serviceDegradationManager.recordFailure(serviceName, error);
-    updateState();
-  }, [serviceName, updateState]);
+  const recordFailure = useCallback(
+    (error: string) => {
+      serviceDegradationManager.recordFailure(serviceName, error);
+      updateState();
+    },
+    [serviceName, updateState]
+  );
 
   const recordSuccess = useCallback(() => {
     serviceDegradationManager.recordSuccess(serviceName);
@@ -111,13 +138,15 @@ export function useServiceDegradation({
     areRequiredFeaturesAvailable,
     recordFailure,
     recordSuccess,
-    refresh: updateState
+    refresh: updateState,
   };
 }
 
 // Utility hook for multiple services
 export function useMultipleServiceDegradation(serviceNames: string[]) {
-  const [services, setServices] = useState<Record<string, ServiceDegradationState>>({});
+  const [services, setServices] = useState<
+    Record<string, ServiceDegradationState>
+  >({});
 
   const updateServices = useCallback(() => {
     const summary = serviceDegradationManager.getHealthSummary();
@@ -126,16 +155,23 @@ export function useMultipleServiceDegradation(serviceNames: string[]) {
     serviceNames.forEach(serviceName => {
       const status = serviceDegradationManager.getServiceStatus(serviceName);
       const serviceInfo = summary[serviceName];
-      
-      newServices[serviceName] = {
+
+      const baseServiceState = {
         status,
         isAvailable: status !== ServiceStatus.UNAVAILABLE,
         isDegraded: status === ServiceStatus.DEGRADED,
-        lastError: serviceInfo?.lastError,
         availableFeatures: serviceInfo?.availableFeatures || [],
-        recommendations: status !== ServiceStatus.HEALTHY 
-          ? serviceDegradationManager.getDegradationRecommendations(serviceName)
-          : undefined
+      };
+
+      newServices[serviceName] = {
+        ...baseServiceState,
+        ...(serviceInfo?.lastError && { lastError: serviceInfo.lastError }),
+        ...(status !== ServiceStatus.HEALTHY && {
+          recommendations:
+            serviceDegradationManager.getDegradationRecommendations(
+              serviceName
+            ),
+        }),
       };
     });
 
@@ -151,11 +187,15 @@ export function useMultipleServiceDegradation(serviceNames: string[]) {
   return {
     services,
     refresh: updateServices,
-    allHealthy: Object.values(services).every(s => s.status === ServiceStatus.HEALTHY),
-    anyUnavailable: Object.values(services).some(s => s.status === ServiceStatus.UNAVAILABLE),
+    allHealthy: Object.values(services).every(
+      s => s.status === ServiceStatus.HEALTHY
+    ),
+    anyUnavailable: Object.values(services).some(
+      s => s.status === ServiceStatus.UNAVAILABLE
+    ),
     degradedServices: Object.entries(services)
       .filter(([, state]) => state.isDegraded)
-      .map(([name]) => name)
+      .map(([name]) => name),
   };
 }
 
@@ -164,26 +204,35 @@ import { createContext, useContext, ReactNode } from "react";
 
 interface ServiceDegradationContextType {
   getServiceStatus: (serviceName: string) => ServiceStatus;
-  checkFeatureAvailability: (serviceName: string, featureName: string) => boolean;
+  checkFeatureAvailability: (
+    serviceName: string,
+    featureName: string
+  ) => boolean;
   getFallbackData: (serviceName: string, dataType: string) => unknown;
   recordFailure: (serviceName: string, error: string) => void;
   recordSuccess: (serviceName: string) => void;
 }
 
-const ServiceDegradationContext = createContext<ServiceDegradationContextType | undefined>(undefined);
+const ServiceDegradationContext = createContext<
+  ServiceDegradationContextType | undefined
+>(undefined);
 
-export function ServiceDegradationProvider({ children }: { children: ReactNode }) {
+export function ServiceDegradationProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const contextValue: ServiceDegradationContextType = {
-    getServiceStatus: (serviceName: string) => 
+    getServiceStatus: (serviceName: string) =>
       serviceDegradationManager.getServiceStatus(serviceName),
-    checkFeatureAvailability: (serviceName: string, featureName: string) => 
+    checkFeatureAvailability: (serviceName: string, featureName: string) =>
       serviceDegradationManager.isFeatureAvailable(serviceName, featureName),
-    getFallbackData: (serviceName: string, dataType: string) => 
+    getFallbackData: (serviceName: string, dataType: string) =>
       serviceDegradationManager.getFallbackData(serviceName, dataType),
-    recordFailure: (serviceName: string, error: string) => 
+    recordFailure: (serviceName: string, error: string) =>
       serviceDegradationManager.recordFailure(serviceName, error),
-    recordSuccess: (serviceName: string) => 
-      serviceDegradationManager.recordSuccess(serviceName)
+    recordSuccess: (serviceName: string) =>
+      serviceDegradationManager.recordSuccess(serviceName),
   };
 
   return (
@@ -196,7 +245,9 @@ export function ServiceDegradationProvider({ children }: { children: ReactNode }
 export function useServiceDegradationContext() {
   const context = useContext(ServiceDegradationContext);
   if (!context) {
-    throw new Error("useServiceDegradationContext must be used within a ServiceDegradationProvider");
+    throw new Error(
+      "useServiceDegradationContext must be used within a ServiceDegradationProvider"
+    );
   }
   return context;
 }

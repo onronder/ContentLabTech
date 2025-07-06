@@ -7,15 +7,18 @@ import React from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  AlertTriangle, 
-  AlertCircle, 
-  CheckCircle, 
-  RefreshCw, 
+import {
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
   Info,
-  X
+  X,
 } from "lucide-react";
-import { useServiceDegradation, useMultipleServiceDegradation } from "@/hooks/useServiceDegradation";
+import {
+  useServiceDegradation,
+  useMultipleServiceDegradation,
+} from "@/hooks/useServiceDegradation";
 import { ServiceStatus } from "@/lib/resilience/service-degradation";
 
 interface ServiceStatusBannerProps {
@@ -31,28 +34,28 @@ export function ServiceStatusBanner({
   serviceNames,
   showWhenHealthy = false,
   onDismiss,
-  className = ""
+  className = "",
 }: ServiceStatusBannerProps) {
   if (serviceName) {
-    return (
-      <SingleServiceBanner
-        serviceName={serviceName}
-        showWhenHealthy={showWhenHealthy}
-        onDismiss={onDismiss}
-        className={className}
-      />
-    );
+    const singleServiceProps = {
+      serviceName,
+      showWhenHealthy,
+      className,
+      ...(onDismiss && { onDismiss }),
+    };
+
+    return <SingleServiceBanner {...singleServiceProps} />;
   }
 
   if (serviceNames && serviceNames.length > 0) {
-    return (
-      <MultipleServiceBanner
-        serviceNames={serviceNames}
-        showWhenHealthy={showWhenHealthy}
-        onDismiss={onDismiss}
-        className={className}
-      />
-    );
+    const multiServiceProps = {
+      serviceNames,
+      showWhenHealthy,
+      className,
+      ...(onDismiss && { onDismiss }),
+    };
+
+    return <MultipleServiceBanner {...multiServiceProps} />;
   }
 
   return null;
@@ -62,21 +65,15 @@ function SingleServiceBanner({
   serviceName,
   showWhenHealthy,
   onDismiss,
-  className
+  className,
 }: {
   serviceName: string;
   showWhenHealthy: boolean;
   onDismiss?: () => void;
   className: string;
 }) {
-  const { 
-    status, 
-    isAvailable, 
-    isDegraded, 
-    recommendations,
-    availableFeatures,
-    refresh 
-  } = useServiceDegradation({ serviceName });
+  const { status, isDegraded, recommendations, availableFeatures, refresh } =
+    useServiceDegradation({ serviceName });
 
   // Don't show banner if service is healthy and showWhenHealthy is false
   if (status === ServiceStatus.HEALTHY && !showWhenHealthy) {
@@ -115,18 +112,22 @@ function SingleServiceBanner({
         <div className="flex items-center gap-2">
           {getStatusIcon()}
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="mb-1 flex items-center gap-2">
               <span className="font-medium capitalize">{serviceName}</span>
-              <Badge variant={status === ServiceStatus.HEALTHY ? "default" : "secondary"}>
+              <Badge
+                variant={
+                  status === ServiceStatus.HEALTHY ? "default" : "secondary"
+                }
+              >
                 {status}
               </Badge>
             </div>
-            
+
             {recommendations && (
               <AlertDescription className="text-sm">
                 {recommendations.userMessage}
                 {recommendations.estimatedRecovery !== "N/A" && (
-                  <span className="ml-2 text-muted-foreground">
+                  <span className="text-muted-foreground ml-2">
                     (Est. recovery: {recommendations.estimatedRecovery})
                   </span>
                 )}
@@ -135,9 +136,11 @@ function SingleServiceBanner({
 
             {isDegraded && availableFeatures.length > 0 && (
               <div className="mt-2">
-                <p className="text-xs text-muted-foreground mb-1">Available features:</p>
+                <p className="text-muted-foreground mb-1 text-xs">
+                  Available features:
+                </p>
                 <div className="flex flex-wrap gap-1">
-                  {availableFeatures.map((feature) => (
+                  {availableFeatures.map(feature => (
                     <Badge key={feature} variant="outline" className="text-xs">
                       {feature}
                     </Badge>
@@ -146,33 +149,31 @@ function SingleServiceBanner({
               </div>
             )}
 
-            {recommendations && recommendations.alternativeActions.length > 0 && (
-              <div className="mt-2">
-                <p className="text-xs text-muted-foreground mb-1">Suggested actions:</p>
-                <ul className="text-xs space-y-1">
-                  {recommendations.alternativeActions.map((action, index) => (
-                    <li key={index} className="flex items-center gap-1">
-                      <span className="w-1 h-1 bg-current rounded-full" />
-                      {action}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            {recommendations &&
+              recommendations.alternativeActions.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-muted-foreground mb-1 text-xs">
+                    Suggested actions:
+                  </p>
+                  <ul className="space-y-1 text-xs">
+                    {recommendations.alternativeActions.map((action, index) => (
+                      <li key={index} className="flex items-center gap-1">
+                        <span className="h-1 w-1 rounded-full bg-current" />
+                        {action}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refresh}
-            className="h-8"
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />
+          <Button variant="outline" size="sm" onClick={refresh} className="h-8">
+            <RefreshCw className="mr-1 h-3 w-3" />
             Refresh
           </Button>
-          
+
           {onDismiss && (
             <Button
               variant="ghost"
@@ -193,14 +194,14 @@ function MultipleServiceBanner({
   serviceNames,
   showWhenHealthy,
   onDismiss,
-  className
+  className,
 }: {
   serviceNames: string[];
   showWhenHealthy: boolean;
   onDismiss?: () => void;
   className: string;
 }) {
-  const { services, allHealthy, anyUnavailable, degradedServices, refresh } = 
+  const { services, allHealthy, anyUnavailable, degradedServices, refresh } =
     useMultipleServiceDegradation(serviceNames);
 
   // Don't show banner if all services are healthy and showWhenHealthy is false
@@ -224,14 +225,14 @@ function MultipleServiceBanner({
     <Alert variant={getOverallVariant()} className={className}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <Info className="h-4 w-4" />
             <span className="font-medium">System Status</span>
             <Badge variant="outline">{getOverallStatus()}</Badge>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-            {serviceNames.map((serviceName) => {
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-4">
+            {serviceNames.map(serviceName => {
               const service = services[serviceName];
               if (!service) return null;
 
@@ -254,7 +255,7 @@ function MultipleServiceBanner({
 
           {degradedServices.length > 0 && (
             <div className="mt-2">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Limited functionality: {degradedServices.join(", ")}
               </p>
             </div>
@@ -262,16 +263,11 @@ function MultipleServiceBanner({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refresh}
-            className="h-8"
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />
+          <Button variant="outline" size="sm" onClick={refresh} className="h-8">
+            <RefreshCw className="mr-1 h-3 w-3" />
             Refresh
           </Button>
-          
+
           {onDismiss && (
             <Button
               variant="ghost"
@@ -289,8 +285,14 @@ function MultipleServiceBanner({
 }
 
 // Component for displaying service status in a compact format
-export function ServiceStatusIndicator({ serviceName }: { serviceName: string }) {
-  const { status, isDegraded, isAvailable } = useServiceDegradation({ serviceName });
+export function ServiceStatusIndicator({
+  serviceName,
+}: {
+  serviceName: string;
+}) {
+  const { status, isDegraded, isAvailable } = useServiceDegradation({
+    serviceName,
+  });
 
   if (status === ServiceStatus.HEALTHY) {
     return (

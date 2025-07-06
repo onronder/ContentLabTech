@@ -3,8 +3,8 @@
  * Comprehensive error tracking with deduplication and context preservation
  */
 
-import { logger } from './logger';
-import crypto from 'crypto';
+import { logger } from "./logger";
+import crypto from "crypto";
 
 export interface ErrorContext {
   userId?: string;
@@ -40,8 +40,15 @@ export interface TrackedError {
   resolvedBy?: string;
   resolvedAt?: string;
   tags: string[];
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  category: 'runtime' | 'validation' | 'network' | 'database' | 'auth' | 'business' | 'unknown';
+  severity: "low" | "medium" | "high" | "critical";
+  category:
+    | "runtime"
+    | "validation"
+    | "network"
+    | "database"
+    | "auth"
+    | "business"
+    | "unknown";
 }
 
 export interface ErrorMetrics {
@@ -82,40 +89,67 @@ export class ErrorTracker {
   private cleanupTimer?: NodeJS.Timeout;
 
   constructor() {
-    this.cleanupTimer = setInterval(() => this.cleanupOldErrors(), this.CLEANUP_INTERVAL);
+    this.cleanupTimer = setInterval(
+      () => this.cleanupOldErrors(),
+      this.CLEANUP_INTERVAL
+    );
   }
 
-  trackError(error: Error, context: Partial<ErrorContext> = {}): string {
+  trackError(
+    error: Error,
+    context: Partial<ErrorContext> & {
+      category?:
+        | "runtime"
+        | "validation"
+        | "network"
+        | "database"
+        | "auth"
+        | "business"
+        | "unknown";
+      severity?: "low" | "medium" | "high" | "critical";
+      tags?: string[];
+    } = {}
+  ): string {
     const errorId = crypto.randomUUID();
     const fingerprint = this.generateFingerprint(error);
+
+    // Extract additional properties
+    const { category, severity, tags, ...contextWithoutExtras } = context;
+
     const fullContext: ErrorContext = {
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      version: process.env.npm_package_version || '1.0.0',
-      ...context,
+      environment: process.env.NODE_ENV || "development",
+      version: process.env["npm_package_version"] || "1.0.0",
+      ...contextWithoutExtras,
     };
 
     // Check for existing error with same fingerprint
     const existingError = this.findExistingError(fingerprint);
-    
+
     if (existingError) {
       // Update existing error
       existingError.occurrences++;
       existingError.lastSeen = fullContext.timestamp;
-      
+
       // Update context with latest information
       if (fullContext.userId) existingError.context.userId = fullContext.userId;
-      if (fullContext.endpoint) existingError.context.endpoint = fullContext.endpoint;
-      
+      if (fullContext.endpoint)
+        existingError.context.endpoint = fullContext.endpoint;
+
       this.errors.set(existingError.id, existingError);
-      
+
       // Log occurrence
-      logger.error('Error occurred (tracked)', error, {
-        errorId: existingError.id,
-        fingerprint: fingerprint.hash,
-        occurrences: existingError.occurrences,
-        ...fullContext,
-      }, ['error-tracking', 'duplicate']);
+      logger.error(
+        "Error occurred (tracked)",
+        error,
+        {
+          errorId: existingError.id,
+          fingerprint: fingerprint.hash,
+          occurrences: existingError.occurrences,
+          ...fullContext,
+        },
+        ["error-tracking", "duplicate"]
+      );
 
       return existingError.id;
     }
@@ -129,22 +163,27 @@ export class ErrorTracker {
       firstSeen: fullContext.timestamp,
       lastSeen: fullContext.timestamp,
       resolved: false,
-      tags: this.generateTags(error, fullContext),
-      severity: this.calculateSeverity(error, fullContext),
-      category: this.categorizeError(error, fullContext),
+      tags: tags || this.generateTags(error, fullContext),
+      severity: severity || this.calculateSeverity(error, fullContext),
+      category: category || this.categorizeError(error, fullContext),
     };
 
     this.errors.set(errorId, trackedError);
     this.updateErrorCounts(fingerprint.hash);
 
     // Log new error
-    logger.error('New error tracked', error, {
-      errorId,
-      fingerprint: fingerprint.hash,
-      severity: trackedError.severity,
-      category: trackedError.category,
-      ...fullContext,
-    }, ['error-tracking', 'new']);
+    logger.error(
+      "New error tracked",
+      error,
+      {
+        errorId,
+        fingerprint: fingerprint.hash,
+        severity: trackedError.severity,
+        category: trackedError.category,
+        ...fullContext,
+      },
+      ["error-tracking", "new"]
+    );
 
     // Auto-cleanup if too many errors
     if (this.errors.size > this.MAX_ERRORS) {
@@ -179,52 +218,53 @@ export class ErrorTracker {
 
     // Severity filter
     if (query.severity && query.severity.length > 0) {
-      filteredErrors = filteredErrors.filter(error => 
+      filteredErrors = filteredErrors.filter(error =>
         query.severity!.includes(error.severity)
       );
     }
 
     // Category filter
     if (query.category && query.category.length > 0) {
-      filteredErrors = filteredErrors.filter(error => 
+      filteredErrors = filteredErrors.filter(error =>
         query.category!.includes(error.category)
       );
     }
 
     // Resolved filter
     if (query.resolved !== undefined) {
-      filteredErrors = filteredErrors.filter(error => 
-        error.resolved === query.resolved
+      filteredErrors = filteredErrors.filter(
+        error => error.resolved === query.resolved
       );
     }
 
     // User filter
     if (query.userId) {
-      filteredErrors = filteredErrors.filter(error => 
-        error.context.userId === query.userId
+      filteredErrors = filteredErrors.filter(
+        error => error.context.userId === query.userId
       );
     }
 
     // Endpoint filter
     if (query.endpoint) {
-      filteredErrors = filteredErrors.filter(error => 
-        error.context.endpoint === query.endpoint
+      filteredErrors = filteredErrors.filter(
+        error => error.context.endpoint === query.endpoint
       );
     }
 
     // Search filter
     if (query.search) {
       const searchLower = query.search.toLowerCase();
-      filteredErrors = filteredErrors.filter(error => 
-        error.fingerprint.message.toLowerCase().includes(searchLower) ||
-        error.fingerprint.type.toLowerCase().includes(searchLower) ||
-        error.tags.some(tag => tag.toLowerCase().includes(searchLower))
+      filteredErrors = filteredErrors.filter(
+        error =>
+          error.fingerprint.message.toLowerCase().includes(searchLower) ||
+          error.fingerprint.type.toLowerCase().includes(searchLower) ||
+          error.tags.some(tag => tag.toLowerCase().includes(searchLower))
       );
     }
 
     // Sort by last seen (most recent first)
-    filteredErrors.sort((a, b) => 
-      new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
+    filteredErrors.sort(
+      (a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
     );
 
     // Apply pagination
@@ -238,17 +278,23 @@ export class ErrorTracker {
     if (!error) return false;
 
     error.resolved = true;
-    error.resolvedBy = resolvedBy;
     error.resolvedAt = new Date().toISOString();
-    
+    if (resolvedBy) {
+      error.resolvedBy = resolvedBy;
+    }
+
     this.errors.set(errorId, error);
 
-    logger.info('Error resolved', {
-      errorId,
-      resolvedBy,
-      fingerprint: error.fingerprint.hash,
-      occurrences: error.occurrences,
-    }, ['error-tracking', 'resolved']);
+    logger.info(
+      "Error resolved",
+      {
+        errorId,
+        resolvedBy,
+        fingerprint: error.fingerprint.hash,
+        occurrences: error.occurrences,
+      },
+      ["error-tracking", "resolved"]
+    );
 
     return true;
   }
@@ -258,15 +304,19 @@ export class ErrorTracker {
     if (!error) return false;
 
     error.resolved = false;
-    error.resolvedBy = undefined;
-    error.resolvedAt = undefined;
-    
+    delete error.resolvedBy;
+    delete error.resolvedAt;
+
     this.errors.set(errorId, error);
 
-    logger.info('Error unresolved', {
-      errorId,
-      fingerprint: error.fingerprint.hash,
-    }, ['error-tracking', 'unresolved']);
+    logger.info(
+      "Error unresolved",
+      {
+        errorId,
+        fingerprint: error.fingerprint.hash,
+      },
+      ["error-tracking", "unresolved"]
+    );
 
     return true;
   }
@@ -275,8 +325,8 @@ export class ErrorTracker {
     const errors = Array.from(this.errors.values());
     const now = Date.now();
     const oneHour = 60 * 60 * 1000;
-    const recentErrors = errors.filter(error => 
-      now - new Date(error.lastSeen).getTime() < oneHour
+    const recentErrors = errors.filter(
+      error => now - new Date(error.lastSeen).getTime() < oneHour
     );
 
     // Calculate error rate (errors per hour)
@@ -290,20 +340,25 @@ export class ErrorTracker {
     // Errors by category
     const errorsByCategory: Record<string, number> = {};
     errors.forEach(error => {
-      errorsByCategory[error.category] = (errorsByCategory[error.category] || 0) + 1;
+      errorsByCategory[error.category] =
+        (errorsByCategory[error.category] || 0) + 1;
     });
 
     // Errors by severity
     const errorsBySeverity: Record<string, number> = {};
     errors.forEach(error => {
-      errorsBySeverity[error.severity] = (errorsBySeverity[error.severity] || 0) + 1;
+      errorsBySeverity[error.severity] =
+        (errorsBySeverity[error.severity] || 0) + 1;
     });
 
     // Recent errors (last 24 hours)
-    const oneDayAgo = now - (24 * 60 * 60 * 1000);
+    const oneDayAgo = now - 24 * 60 * 60 * 1000;
     const recentErrorsList = errors
       .filter(error => new Date(error.lastSeen).getTime() > oneDayAgo)
-      .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
+      )
       .slice(0, 20);
 
     return {
@@ -319,16 +374,20 @@ export class ErrorTracker {
   }
 
   private generateFingerprint(error: Error): ErrorFingerprint {
-    const message = error.message || 'Unknown error';
+    const message = error.message || "Unknown error";
     const type = error.constructor.name;
-    const stack = error.stack || '';
-    
+    const stack = error.stack || "";
+
     // Extract location from stack trace
     const location = this.extractLocationFromStack(stack);
-    
+
     // Create a hash based on error type, message, and location
     const hashInput = `${type}:${message}:${location}`;
-    const hash = crypto.createHash('sha256').update(hashInput).digest('hex').substring(0, 16);
+    const hash = crypto
+      .createHash("sha256")
+      .update(hashInput)
+      .digest("hex")
+      .substring(0, 16);
 
     return {
       hash,
@@ -340,20 +399,25 @@ export class ErrorTracker {
   }
 
   private extractLocationFromStack(stack: string): string {
-    const lines = stack.split('\n');
+    const lines = stack.split("\n");
     for (const line of lines) {
       // Look for file:line:column pattern
-      const match = line.match(/\((.+):(\d+):(\d+)\)/) || line.match(/at (.+):(\d+):(\d+)/);
+      const match =
+        line.match(/\((.+):(\d+):(\d+)\)/) || line.match(/at (.+):(\d+):(\d+)/);
       if (match) {
         const [, file, lineNum] = match;
-        const fileName = file.split('/').pop() || file;
-        return `${fileName}:${lineNum}`;
+        if (file) {
+          const fileName = file.split("/").pop() || file;
+          return `${fileName}:${lineNum}`;
+        }
       }
     }
-    return 'unknown';
+    return "unknown";
   }
 
-  private findExistingError(fingerprint: ErrorFingerprint): TrackedError | undefined {
+  private findExistingError(
+    fingerprint: ErrorFingerprint
+  ): TrackedError | undefined {
     return Array.from(this.errors.values()).find(
       error => error.fingerprint.hash === fingerprint.hash
     );
@@ -378,7 +442,7 @@ export class ErrorTracker {
       tags.push(`method:${context.method}`);
     }
     if (context.userId) {
-      tags.push('user-error');
+      tags.push("user-error");
     }
     if (context.environment) {
       tags.push(`env:${context.environment}`);
@@ -386,70 +450,100 @@ export class ErrorTracker {
 
     // Add message-based tags
     const message = error.message.toLowerCase();
-    if (message.includes('timeout')) tags.push('timeout');
-    if (message.includes('connection')) tags.push('connection');
-    if (message.includes('permission') || message.includes('unauthorized')) tags.push('auth');
-    if (message.includes('validation')) tags.push('validation');
-    if (message.includes('network')) tags.push('network');
+    if (message.includes("timeout")) tags.push("timeout");
+    if (message.includes("connection")) tags.push("connection");
+    if (message.includes("permission") || message.includes("unauthorized"))
+      tags.push("auth");
+    if (message.includes("validation")) tags.push("validation");
+    if (message.includes("network")) tags.push("network");
 
     return tags;
   }
 
-  private calculateSeverity(error: Error, context: ErrorContext): 'low' | 'medium' | 'high' | 'critical' {
+  private calculateSeverity(
+    error: Error,
+    context: ErrorContext
+  ): "low" | "medium" | "high" | "critical" {
     const message = error.message.toLowerCase();
     const type = error.constructor.name;
 
     // Critical errors
-    if (type === 'TypeError' && message.includes('cannot read property')) return 'critical';
-    if (type === 'ReferenceError') return 'critical';
-    if (message.includes('database') && message.includes('connection')) return 'critical';
-    if (message.includes('out of memory')) return 'critical';
-    if (message.includes('security') || message.includes('breach')) return 'critical';
+    if (type === "TypeError" && message.includes("cannot read property"))
+      return "critical";
+    if (type === "ReferenceError") return "critical";
+    if (message.includes("database") && message.includes("connection"))
+      return "critical";
+    if (message.includes("out of memory")) return "critical";
+    if (message.includes("security") || message.includes("breach"))
+      return "critical";
 
     // High severity errors
-    if (type === 'Error' && message.includes('500')) return 'high';
-    if (message.includes('timeout') && context.endpoint?.includes('api')) return 'high';
-    if (message.includes('authentication') || message.includes('authorization')) return 'high';
-    if (message.includes('payment') || message.includes('billing')) return 'high';
+    if (type === "Error" && message.includes("500")) return "high";
+    if (message.includes("timeout") && context.endpoint?.includes("api"))
+      return "high";
+    if (message.includes("authentication") || message.includes("authorization"))
+      return "high";
+    if (message.includes("payment") || message.includes("billing"))
+      return "high";
 
     // Medium severity errors
-    if (message.includes('validation')) return 'medium';
-    if (message.includes('404') || message.includes('not found')) return 'medium';
-    if (message.includes('rate limit')) return 'medium';
+    if (message.includes("validation")) return "medium";
+    if (message.includes("404") || message.includes("not found"))
+      return "medium";
+    if (message.includes("rate limit")) return "medium";
 
     // Default to low
-    return 'low';
+    return "low";
   }
 
-  private categorizeError(error: Error, context: ErrorContext): TrackedError['category'] {
+  private categorizeError(
+    error: Error,
+    context: ErrorContext
+  ): TrackedError["category"] {
     const message = error.message.toLowerCase();
     const type = error.constructor.name;
 
-    if (type === 'TypeError' || type === 'ReferenceError' || type === 'SyntaxError') {
-      return 'runtime';
+    if (
+      type === "TypeError" ||
+      type === "ReferenceError" ||
+      type === "SyntaxError"
+    ) {
+      return "runtime";
     }
 
-    if (message.includes('validation') || message.includes('invalid')) {
-      return 'validation';
+    if (message.includes("validation") || message.includes("invalid")) {
+      return "validation";
     }
 
-    if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
-      return 'network';
+    if (
+      message.includes("network") ||
+      message.includes("fetch") ||
+      message.includes("timeout")
+    ) {
+      return "network";
     }
 
-    if (message.includes('database') || message.includes('sql') || message.includes('query')) {
-      return 'database';
+    if (
+      message.includes("database") ||
+      message.includes("sql") ||
+      message.includes("query")
+    ) {
+      return "database";
     }
 
-    if (message.includes('auth') || message.includes('login') || message.includes('token')) {
-      return 'auth';
+    if (
+      message.includes("auth") ||
+      message.includes("login") ||
+      message.includes("token")
+    ) {
+      return "auth";
     }
 
-    if (context.endpoint && context.endpoint.includes('api')) {
-      return 'business';
+    if (context.endpoint && context.endpoint.includes("api")) {
+      return "business";
     }
 
-    return 'unknown';
+    return "unknown";
   }
 
   private calculateErrorTrends(): { hourly: number[]; daily: number[] } {
@@ -464,12 +558,18 @@ export class ErrorTracker {
       const hoursDiff = Math.floor((now - errorTime) / (60 * 60 * 1000));
       const daysDiff = Math.floor((now - errorTime) / (24 * 60 * 60 * 1000));
 
-      if (hoursDiff < 24) {
-        hourly[23 - hoursDiff] += error.occurrences;
+      if (hoursDiff < 24 && hoursDiff >= 0) {
+        const hourIndex = 23 - hoursDiff;
+        if (hourIndex >= 0 && hourIndex < 24) {
+          (hourly[hourIndex] as number) += error.occurrences;
+        }
       }
 
-      if (daysDiff < 7) {
-        daily[6 - daysDiff] += error.occurrences;
+      if (daysDiff < 7 && daysDiff >= 0) {
+        const dayIndex = 6 - daysDiff;
+        if (dayIndex >= 0 && dayIndex < 7) {
+          (daily[dayIndex] as number) += error.occurrences;
+        }
       }
     });
 
@@ -496,17 +596,21 @@ export class ErrorTracker {
     });
 
     if (toDelete.length > 0) {
-      logger.info('Cleaned up old errors', {
-        deletedCount: toDelete.length,
-        remainingCount: this.errors.size,
-      }, ['error-tracking', 'cleanup']);
+      logger.info(
+        "Cleaned up old errors",
+        {
+          deletedCount: toDelete.length,
+          remainingCount: this.errors.size,
+        },
+        ["error-tracking", "cleanup"]
+      );
     }
   }
 
   clearAllErrors(): void {
     this.errors.clear();
     this.errorCounts.clear();
-    logger.info('All errors cleared', {}, ['error-tracking', 'clear']);
+    logger.info("All errors cleared", {}, ["error-tracking", "clear"]);
   }
 
   shutdown(): void {
@@ -522,45 +626,59 @@ export const errorTracker = new ErrorTracker();
 // Global error handler
 export function setupGlobalErrorHandling(): void {
   // Handle uncaught exceptions
-  process.on('uncaughtException', (error) => {
+  process.on("uncaughtException", error => {
     const errorId = errorTracker.trackError(error, {
-      category: 'runtime',
-      severity: 'critical',
-      tags: ['uncaught-exception'],
+      category: "runtime",
+      severity: "critical",
+      tags: ["uncaught-exception"],
     });
 
-    logger.critical('Uncaught exception', error, {
-      errorId,
-      pid: process.pid,
-    }, ['uncaught-exception']);
+    logger.critical(
+      "Uncaught exception",
+      error,
+      {
+        errorId,
+        pid: process.pid,
+      },
+      ["uncaught-exception"]
+    );
 
     // In production, you might want to exit gracefully
     // process.exit(1);
   });
 
   // Handle unhandled promise rejections
-  process.on('unhandledRejection', (reason, promise) => {
+  process.on("unhandledRejection", (reason, promise) => {
     const error = reason instanceof Error ? reason : new Error(String(reason));
     const errorId = errorTracker.trackError(error, {
-      category: 'runtime',
-      severity: 'high',
-      tags: ['unhandled-rejection'],
+      category: "runtime",
+      severity: "high",
+      tags: ["unhandled-rejection"],
     });
 
-    logger.error('Unhandled promise rejection', error, {
-      errorId,
-      promise: promise.toString(),
-    }, ['unhandled-rejection']);
+    logger.error(
+      "Unhandled promise rejection",
+      error,
+      {
+        errorId,
+        promise: promise.toString(),
+      },
+      ["unhandled-rejection"]
+    );
   });
 
   // Handle warning events
-  process.on('warning', (warning) => {
-    if (warning.name === 'DeprecationWarning') {
-      logger.warn('Deprecation warning', {
-        name: warning.name,
-        message: warning.message,
-        stack: warning.stack,
-      }, ['deprecation']);
+  process.on("warning", warning => {
+    if (warning.name === "DeprecationWarning") {
+      logger.warn(
+        "Deprecation warning",
+        {
+          name: warning.name,
+          message: warning.message,
+          stack: warning.stack,
+        },
+        ["deprecation"]
+      );
     }
   });
 }
@@ -576,18 +694,21 @@ export function withErrorTracking<T extends any[], R>(
     } catch (error) {
       if (error instanceof Error) {
         const errorId = errorTracker.trackError(error, context);
-        
+
         // Add error ID to error object for debugging
         (error as any).errorId = errorId;
       }
-      
+
       throw error;
     }
   };
 }
 
 // Convenience function for manual error tracking
-export function trackError(error: Error, context: Partial<ErrorContext> = {}): string {
+export function trackError(
+  error: Error,
+  context: Partial<ErrorContext> = {}
+): string {
   return errorTracker.trackError(error, context);
 }
 
@@ -597,15 +718,20 @@ export function createErrorBoundary(componentName: string) {
     componentDidCatch: (error: Error, errorInfo: any) => {
       const errorId = errorTracker.trackError(error, {
         endpoint: componentName,
-        category: 'runtime',
+        category: "runtime",
         additional: errorInfo,
       });
 
-      logger.error('React error boundary caught error', error, {
-        errorId,
-        componentName,
-        errorInfo,
-      }, ['react-error-boundary']);
+      logger.error(
+        "React error boundary caught error",
+        error,
+        {
+          errorId,
+          componentName,
+          errorInfo,
+        },
+        ["react-error-boundary"]
+      );
     },
   };
 }
