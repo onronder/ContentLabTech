@@ -3,6 +3,10 @@
  * Provides search engine results and competitor analysis
  */
 
+import { timeoutFetch } from "./resilience/timeout-fetch";
+import { circuitBreakerManager } from "./resilience/circuit-breaker";
+import { serviceDegradationManager } from "./resilience/service-degradation";
+
 // Types for SERPAPI integration
 export interface SearchParams {
   query: string;
@@ -148,35 +152,63 @@ interface SerpApiKnowledgeGraph {
 }
 
 /**
- * Make SERPAPI request
+ * Make SERPAPI request with timeout and circuit breaker
  */
 async function makeSerpApiRequest(
   endpoint: string,
   params: Record<string, unknown>
 ): Promise<SerpApiResponse> {
-  const SERPAPI_API_KEY = process.env["SERPAPI_API_KEY"];
-  if (!SERPAPI_API_KEY) {
-    throw new Error("SERPAPI API key not configured");
-  }
+  return circuitBreakerManager.execute(
+    "serpapi-request",
+    async () => {
+      const SERPAPI_API_KEY = process.env["SERPAPI_API_KEY"];
+      if (!SERPAPI_API_KEY) {
+        throw new Error("SERPAPI API key not configured");
+      }
 
-  const url = new URL(`https://serpapi.com/${endpoint}`);
-  url.searchParams.set("api_key", SERPAPI_API_KEY);
+      const url = new URL(`https://serpapi.com/${endpoint}`);
+      url.searchParams.set("api_key", SERPAPI_API_KEY);
 
-  // Add all parameters
-  Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== null) {
-      url.searchParams.set(key, String(value));
+      // Add all parameters
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.set(key, String(value));
+        }
+      });
+
+      const response = await timeoutFetch(url.toString(), {
+        timeout: 15000, // 15 seconds timeout for SERPAPI
+        method: "GET",
+        headers: {
+          "User-Agent": "ContentLab-Nexus/1.0",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`SERPAPI error: ${response.status} - ${error}`);
+      }
+
+      const result = await response.json();
+      
+      // Record success
+      serviceDegradationManager.recordSuccess("serpapi");
+      return result;
+    },
+    // Fallback returns empty response structure
+    async () => {
+      serviceDegradationManager.recordFailure("serpapi", "Circuit breaker fallback triggered");
+      return {
+        organic_results: [],
+        people_also_ask: [],
+        related_searches: [],
+        search_information: {
+          total_results: "0",
+          time_taken_displayed: "0",
+        },
+      };
     }
-  });
-
-  const response = await fetch(url.toString());
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`SERPAPI error: ${response.status} - ${error}`);
-  }
-
-  return await response.json();
+  );
 }
 
 /**
@@ -185,6 +217,14 @@ async function makeSerpApiRequest(
 export async function searchGoogle(
   params: SearchParams
 ): Promise<SearchAnalytics> {
+  // Check if feature is available
+  if (!serviceDegradationManager.isFeatureAvailable("serpapi", "search-analytics")) {
+    const fallbackData = serviceDegradationManager.getFallbackData("serpapi", "searchResults");
+    if (fallbackData) {
+      return fallbackData as SearchAnalytics;
+    }
+  }
+
   try {
     const serpParams = {
       engine: "google",
@@ -655,15 +695,17 @@ const commonWords = [
  * Health check for SERPAPI
  */
 export async function healthCheck(): Promise<boolean> {
-  try {
-    const result = await searchGoogle({
-      query: "test",
-      num: 1,
-    });
+  return circuitBreakerManager.execute(
+    "serpapi-health-check",
+    async () => {
+      const result = await searchGoogle({
+        query: "test",
+        num: 1,
+      });
 
-    return result.organicResults.length > 0;
-  } catch (error) {
-    console.error("SERPAPI health check failed:", error);
-    return false;
-  }
+      return result.organicResults.length > 0;
+    },
+    // Fallback returns false to indicate service is down
+    async () => false
+  );
 }

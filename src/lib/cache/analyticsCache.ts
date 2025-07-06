@@ -43,6 +43,11 @@ class AnalyticsCache {
     compressionThreshold: 10 * 1024, // 10KB
   };
   
+  // FIXED: Add bounded cache configuration
+  private readonly MAX_CACHE_ENTRIES = 5000;
+  private readonly EVICTION_BATCH_SIZE = 100;
+  private readonly MEMORY_WARNING_THRESHOLD = 80 * 1024 * 1024; // 80MB
+  
   private cleanupTimer: NodeJS.Timeout | null = null;
 
   constructor(config?: Partial<CacheConfig>) {
@@ -110,6 +115,11 @@ class AnalyticsCache {
       analysisType,
     };
 
+    // FIXED: Check both memory and entry count limits
+    if (this.cache.size >= this.MAX_CACHE_ENTRIES) {
+      this.evictMultipleEntries();
+    }
+
     // Check memory limits before storing
     if (this.willExceedMemoryLimit(entry)) {
       this.evictLeastRecentlyUsed();
@@ -117,6 +127,11 @@ class AnalyticsCache {
 
     this.cache.set(key, entry);
     this.updateMemoryUsage();
+
+    // FIXED: Log memory warnings
+    if (this.stats.memoryUsage > this.MEMORY_WARNING_THRESHOLD) {
+      console.warn(`Analytics cache memory usage high: ${Math.round(this.stats.memoryUsage / 1024 / 1024)}MB`);
+    }
   }
 
   /**
@@ -261,6 +276,24 @@ class AnalyticsCache {
     if (oldestKey) {
       this.cache.delete(oldestKey);
     }
+  }
+
+  /**
+   * FIXED: Evict multiple entries when cache is full
+   */
+  private evictMultipleEntries(): void {
+    // Sort entries by timestamp (oldest first)
+    const entries = Array.from(this.cache.entries())
+      .sort(([, a], [, b]) => a.timestamp - b.timestamp);
+
+    // Remove the oldest batch
+    const entriesToRemove = entries.slice(0, this.EVICTION_BATCH_SIZE);
+    
+    for (const [key] of entriesToRemove) {
+      this.cache.delete(key);
+    }
+
+    console.log(`Evicted ${entriesToRemove.length} cache entries due to size limit`);
   }
 
   private updateMemoryUsage(): void {

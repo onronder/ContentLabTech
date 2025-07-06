@@ -102,8 +102,18 @@ export class WebSocketManager {
   private config: z.infer<typeof websocketConfigSchema>;
   private io?: SocketIOServer;
   private httpServer?: HTTPServer;
+  
+  // FIXED: Add bounded collections to prevent memory leaks
   private connections: Map<string, UserConnection> = new Map();
   private eventBuffer: Map<string, UpdateEvent[]> = new Map();
+  
+  // Memory management configuration
+  private readonly MAX_CONNECTIONS = 1000;
+  private readonly MAX_EVENT_BUFFER_SIZE = 5000;
+  private readonly MAX_EVENTS_PER_USER = 100;
+  private readonly CLEANUP_INTERVAL = 30000; // 30 seconds
+  private readonly CONNECTION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+  
   private metrics: ConnectionMetrics = {
     totalConnections: 0,
     activeConnections: 0,
@@ -113,8 +123,10 @@ export class WebSocketManager {
     errorsCount: 0,
   };
   private metricsInterval?: NodeJS.Timeout;
+  private cleanupInterval?: NodeJS.Timeout;
   private lastEventCount = 0;
   private isInitialized = false;
+  private startTime = Date.now();
 
   constructor(config: Partial<z.infer<typeof websocketConfigSchema>> = {}) {
     this.config = websocketConfigSchema.parse({
@@ -155,6 +167,9 @@ export class WebSocketManager {
       if (this.config.monitoring.enableMetrics) {
         this.startMetricsCollection();
       }
+
+      // Start cleanup process
+      this.startCleanupProcess();
 
       // Start HTTP server if we created it
       if (!httpServer && this.httpServer) {
@@ -349,6 +364,15 @@ export class WebSocketManager {
       clearInterval(this.metricsInterval);
     }
 
+    // FIXED: Stop cleanup process
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+    }
+
+    // FIXED: Clear all data structures
+    this.connections.clear();
+    this.eventBuffer.clear();
+
     // Close all connections
     if (this.io) {
       this.io.close();
@@ -425,6 +449,14 @@ export class WebSocketManager {
    */
   private handleConnection(socket: Socket): void {
     console.log(`New WebSocket connection: ${socket.id}`);
+
+    // FIXED: Check connection limit before accepting
+    if (this.connections.size >= this.MAX_CONNECTIONS) {
+      console.warn(`Connection limit reached (${this.MAX_CONNECTIONS}), rejecting new connection`);
+      socket.emit("error", { message: "Server at capacity, please try again later" });
+      socket.disconnect(true);
+      return;
+    }
 
     // Create connection record
     const connection: UserConnection = {
@@ -669,8 +701,85 @@ export class WebSocketManager {
    * Get start time for uptime calculation
    */
   private getStartTime(): number {
-    // This would be set when the server starts
-    return Date.now() - 60000; // Placeholder
+    return this.startTime;
+  }
+
+  /**
+   * FIXED: Start cleanup process to prevent memory leaks
+   */
+  private startCleanupProcess(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.performMemoryCleanup();
+    }, this.CLEANUP_INTERVAL);
+  }
+
+  /**
+   * FIXED: Comprehensive memory cleanup
+   */
+  private performMemoryCleanup(): void {
+    const now = new Date();
+    let cleanedConnections = 0;
+    let cleanedEvents = 0;
+
+    // Clean up dead connections
+    for (const [socketId, connection] of this.connections) {
+      const isInactive = now.getTime() - connection.lastActivity.getTime() > this.CONNECTION_TIMEOUT;
+      const isDisconnected = !connection.socket.connected;
+
+      if (isInactive || isDisconnected) {
+        this.connections.delete(socketId);
+        this.metrics.activeConnections--;
+        cleanedConnections++;
+      } else {
+        // Clean up old events in user queue (keep only recent ones)
+        if (connection.eventQueue.length > this.MAX_EVENTS_PER_USER) {
+          const eventsToRemove = connection.eventQueue.length - this.MAX_EVENTS_PER_USER;
+          connection.eventQueue.splice(0, eventsToRemove);
+          cleanedEvents += eventsToRemove;
+        }
+      }
+    }
+
+    // Clean up event buffer - remove old events
+    for (const [key, events] of this.eventBuffer) {
+      const oldEvents = events.filter(event => {
+        const eventTime = new Date(event.timestamp);
+        return now.getTime() - eventTime.getTime() > 24 * 60 * 60 * 1000; // 24 hours
+      });
+
+      if (oldEvents.length > 0) {
+        this.eventBuffer.set(key, events.filter(event => {
+          const eventTime = new Date(event.timestamp);
+          return now.getTime() - eventTime.getTime() <= 24 * 60 * 60 * 1000;
+        }));
+        cleanedEvents += oldEvents.length;
+      }
+
+      // Remove empty buffers
+      if (this.eventBuffer.get(key)?.length === 0) {
+        this.eventBuffer.delete(key);
+      }
+    }
+
+    // Limit total event buffer size
+    if (this.eventBuffer.size > this.MAX_EVENT_BUFFER_SIZE) {
+      const keysToRemove = Array.from(this.eventBuffer.keys()).slice(0, this.eventBuffer.size - this.MAX_EVENT_BUFFER_SIZE);
+      for (const key of keysToRemove) {
+        this.eventBuffer.delete(key);
+      }
+    }
+
+    if (cleanedConnections > 0 || cleanedEvents > 0) {
+      console.log(`WebSocket cleanup: removed ${cleanedConnections} connections, ${cleanedEvents} old events`);
+    }
+
+    // Log memory usage
+    const memoryUsage = process.memoryUsage();
+    const memoryUsageMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+    
+    if (memoryUsageMB > 512) {
+      console.warn(`High memory usage detected: ${memoryUsageMB}MB`);
+    }
   }
 }
 

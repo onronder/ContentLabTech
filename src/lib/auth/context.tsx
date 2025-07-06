@@ -144,20 +144,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return true;
   }, []);
 
-  // Enhanced loading state management
+  // Simplified loading state management
   const setLoadingWithTimeout = useCallback(
     (isLoading: boolean, operation: string): (() => void) | undefined => {
       debugLog(`Loading state change: ${operation}`, { isLoading });
       setLoading(isLoading);
 
       if (isLoading) {
-        // Set a safety timeout to prevent infinite loading - reduced timeout for better UX
+        // Shorter timeout for better UX
         const timeout = setTimeout(() => {
           console.warn(
             `[AuthContext] Loading timeout for operation: ${operation}`
           );
           setLoading(false);
-        }, 10000); // 10 second timeout (reduced from 15)
+        }, 3000); // Reduced to 3 seconds
 
         return () => clearTimeout(timeout);
       }
@@ -204,16 +204,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     initializationError,
   ]);
 
-  // Initialize auth state with enhanced error handling
+  // Simplified auth state initialization
   useEffect(() => {
     let mounted = true;
-    let cleanup: (() => void) | undefined;
 
     async function initializeAuth() {
       try {
         debugLog("Initializing auth state");
 
-        // Validate configuration first
+        // Quick validation - don't block initialization
         if (!validateSupabaseConfig()) {
           if (mounted) {
             setLoading(false);
@@ -221,7 +220,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           return;
         }
 
-        cleanup = setLoadingWithTimeout(true, "initialization");
+        // Start loading immediately
+        setLoading(true);
 
         const {
           data: { session },
@@ -245,14 +245,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setInitializationError("Failed to initialize authentication");
           setLoading(false);
         }
-      } finally {
-        cleanup?.();
       }
     }
 
     initializeAuth();
 
-    // Listen for auth changes with enhanced error handling
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -277,10 +275,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     return () => {
       mounted = false;
-      cleanup?.();
       subscription.unsubscribe();
     };
-  }, [validateSupabaseConfig, setLoadingWithTimeout]);
+  }, [validateSupabaseConfig]);
 
   // Load user teams when user signs in
   const loadUserTeams = async (userId: string) => {

@@ -56,7 +56,7 @@ export const AuthForm = ({
     lastUpdate: new Date().toISOString(),
   });
 
-  // Enhanced loading state management with debugging
+  // Simplified loading state management
   const updateLoadingState = useCallback(
     (newFormLoading: boolean, source: string) => {
       debugLog(`Loading state change from ${source}`, {
@@ -69,23 +69,20 @@ export const AuthForm = ({
     [formLoading, authLoading]
   );
 
-  // Safety mechanism: reset loading state after timeout with enhanced logging
+  // Simplified safety mechanism: shorter timeout, immediate reset
   useEffect(() => {
     if (formLoading) {
-      debugLog("Form loading timeout started", { timeout: 15000 });
       const timeout = setTimeout(() => {
-        console.warn(
-          "[AuthForm] Form loading timeout - resetting loading state"
-        );
-        updateLoadingState(false, "timeout");
-      }, 15000); // 15 second timeout (reduced from 30)
+        console.warn("[AuthForm] Form loading timeout - resetting");
+        setFormLoading(false);
+      }, 5000); // Reduced to 5 seconds
 
       return () => clearTimeout(timeout);
     }
     return undefined;
-  }, [formLoading, updateLoadingState]);
+  }, [formLoading]);
 
-  // Debug info updater
+  // Simplified debug info updater
   useEffect(() => {
     const inputsDisabled = authLoading || formLoading;
     setDebugInfo({
@@ -94,28 +91,12 @@ export const AuthForm = ({
       inputsDisabled,
       lastUpdate: new Date().toISOString(),
     });
-
-    if (inputsDisabled) {
-      debugLog("Inputs are disabled", { authLoading, formLoading });
-    }
   }, [authLoading, formLoading]);
 
-  // Enhanced loading state reset mechanism
+  // Immediate loading state reset on mount
   useEffect(() => {
-    const resetLoadingStates = () => {
-      if (authLoading || formLoading) {
-        debugLog("Resetting stuck loading states", {
-          authLoading,
-          formLoading,
-        });
-        updateLoadingState(false, "reset-mechanism");
-      }
-    };
-
-    // Reset loading states on component mount if they're stuck
-    const timer = setTimeout(resetLoadingStates, 1000);
-    return () => clearTimeout(timer);
-  }, []); // Only run on mount
+    setFormLoading(false);
+  }, []);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -253,36 +234,21 @@ export const AuthForm = ({
     [formData, mode]
   );
 
-  // Check form validity - simplified to avoid blocking input
+  // Simplified form validity check
   useEffect(() => {
-    try {
-      const requiredFields =
-        mode === "signup"
-          ? ["email", "password", "confirmPassword", "fullName"]
-          : ["email", "password"];
+    const requiredFields =
+      mode === "signup"
+        ? ["email", "password", "confirmPassword", "fullName"]
+        : ["email", "password"];
 
-      // Simplified validation: just check if required fields have values
-      // Only check validation errors if validation has been performed
-      const isValid = requiredFields.every(field => {
-        const value = formData[field as keyof typeof formData];
-        const validation = fieldValidation[field];
+    // Basic validation: just check if required fields have values
+    const isValid = requiredFields.every(field => {
+      const value = formData[field as keyof typeof formData];
+      return value && value.trim() !== "";
+    });
 
-        // Must have a value
-        if (!value || value.trim() === "") return false;
-
-        // If validation exists and has errors, it's invalid
-        if (validation && validation.errors && validation.errors.length > 0)
-          return false;
-
-        return true;
-      });
-
-      setIsFormValid(isValid);
-    } catch (error) {
-      console.error("[AuthForm] Error in form validity check:", error);
-      setIsFormValid(false);
-    }
-  }, [formData, fieldValidation, mode]);
+    setIsFormValid(isValid);
+  }, [formData, mode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

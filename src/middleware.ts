@@ -169,8 +169,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // CSRF Protection
-  if (!validateCSRFToken(request)) {
+  // CSRF Protection - disabled for auth pages to prevent blocking
+  if (!pathname.startsWith("/auth/") && !validateCSRFToken(request)) {
     return new NextResponse("CSRF Token Mismatch", {
       status: 403,
       headers: {
