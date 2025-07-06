@@ -14,6 +14,13 @@ export {
 export { metricsCollector } from "./metrics-collector";
 export { healthChecker } from "./health-checker";
 
+// Import for internal use
+import { logger } from "./logger";
+import { setupGlobalErrorHandling, errorTracker } from "./error-tracker";
+import { metricsCollector } from "./metrics-collector";
+import { healthChecker } from "./health-checker";
+import { setupMonitoringIntegration } from "./integration";
+
 // Performance monitoring
 export {
   withPerformanceMonitoring,
