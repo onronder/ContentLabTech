@@ -28,10 +28,7 @@ import {
   Archive,
   Trash2,
   ExternalLink,
-  Users,
-  TrendingUp,
   Clock,
-  Zap,
   Sparkles,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -73,7 +70,7 @@ interface ProjectCardProps {
 export const ProjectCard = ({
   project,
   variant = "grid",
-  onUpdate,
+  onUpdate: _onUpdate,
   onDelete,
 }: ProjectCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -147,7 +144,7 @@ export const ProjectCard = ({
                   {project.status}
                 </Badge>
               </div>
-              <p className="mt-1 text-sm text-gray-600 line-clamp-1">
+              <p className="mt-1 line-clamp-1 text-sm text-gray-600">
                 {project.description || "No description"}
               </p>
               <div className="mt-2 flex items-center space-x-6 text-xs text-gray-500">
@@ -232,7 +229,7 @@ export const ProjectCard = ({
 
   // Grid variant
   return (
-    <div className="group relative rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:shadow-lg hover:border-blue-200">
+    <div className="group relative rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-blue-200 hover:shadow-lg">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center space-x-3">
@@ -242,7 +239,7 @@ export const ProjectCard = ({
           <div className="min-w-0 flex-1">
             <Link
               href={`/projects/${project.id}`}
-              className="text-lg font-semibold text-gray-900 hover:text-blue-600 line-clamp-1"
+              className="line-clamp-1 text-lg font-semibold text-gray-900 hover:text-blue-600"
             >
               {project.name}
             </Link>
@@ -260,7 +257,7 @@ export const ProjectCard = ({
             <Button
               variant="ghost"
               size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
+              className="opacity-0 transition-opacity group-hover:opacity-100"
             >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
@@ -294,7 +291,7 @@ export const ProjectCard = ({
       </div>
 
       {/* Description */}
-      <p className="mb-4 text-sm text-gray-600 line-clamp-2">
+      <p className="mb-4 line-clamp-2 text-sm text-gray-600">
         {project.description || "No description provided"}
       </p>
 
@@ -315,11 +312,11 @@ export const ProjectCard = ({
 
       {/* Keywords */}
       <div className="mb-4">
-        <div className="flex items-center space-x-2 text-xs text-gray-500 mb-2">
+        <div className="mb-2 flex items-center space-x-2 text-xs text-gray-500">
           <Target className="h-3 w-3" />
           <span>Target Keywords</span>
         </div>
-        <p className="text-sm text-gray-700 line-clamp-2">
+        <p className="line-clamp-2 text-sm text-gray-700">
           {formatKeywords(project.target_keywords)}
         </p>
       </div>
@@ -364,7 +361,7 @@ export const ProjectCard = ({
 
       {/* AI Analysis Indicator */}
       {project.target_keywords && project.target_keywords.length > 0 && (
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100">
           <div className="flex items-center space-x-1 rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-700">
             <Sparkles className="h-3 w-3" />
             <span>AI Ready</span>

@@ -6,7 +6,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -203,7 +202,7 @@ export const CreateProjectModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <div className="rounded-lg bg-blue-50 p-2">
@@ -212,14 +211,18 @@ export const CreateProjectModal = ({
             <span>Create New Project</span>
           </DialogTitle>
           <DialogDescription>
-            Set up a new content project with comprehensive analysis and tracking
+            Set up a new content project with comprehensive analysis and
+            tracking
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs value={currentTab} onValueChange={setCurrentTab}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="basic" className="flex items-center space-x-2">
+              <TabsTrigger
+                value="basic"
+                className="flex items-center space-x-2"
+              >
                 <Globe className="h-4 w-4" />
                 <span>Basic Info</span>
               </TabsTrigger>
@@ -227,7 +230,10 @@ export const CreateProjectModal = ({
                 <Target className="h-4 w-4" />
                 <span>SEO & Keywords</span>
               </TabsTrigger>
-              <TabsTrigger value="competitive" className="flex items-center space-x-2">
+              <TabsTrigger
+                value="competitive"
+                className="flex items-center space-x-2"
+              >
                 <Users className="h-4 w-4" />
                 <span>Competitors</span>
               </TabsTrigger>
@@ -255,7 +261,10 @@ export const CreateProjectModal = ({
                   id="description"
                   value={formData.description}
                   onChange={e =>
-                    setFormData(prev => ({ ...prev, description: e.target.value }))
+                    setFormData(prev => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
                   }
                   placeholder="Describe your project goals and objectives..."
                   rows={3}
@@ -269,7 +278,10 @@ export const CreateProjectModal = ({
                   type="url"
                   value={formData.website_url}
                   onChange={e =>
-                    setFormData(prev => ({ ...prev, website_url: e.target.value }))
+                    setFormData(prev => ({
+                      ...prev,
+                      website_url: e.target.value,
+                    }))
                   }
                   placeholder="https://example.com"
                 />
@@ -281,7 +293,10 @@ export const CreateProjectModal = ({
                   id="target_audience"
                   value={formData.target_audience}
                   onChange={e =>
-                    setFormData(prev => ({ ...prev, target_audience: e.target.value }))
+                    setFormData(prev => ({
+                      ...prev,
+                      target_audience: e.target.value,
+                    }))
                   }
                   placeholder="Small business owners, marketing professionals..."
                 />
@@ -296,14 +311,16 @@ export const CreateProjectModal = ({
                     value={keywordInput}
                     onChange={e => setKeywordInput(e.target.value)}
                     placeholder="Add a keyword..."
-                    onKeyPress={e => e.key === "Enter" && (e.preventDefault(), addKeyword())}
+                    onKeyPress={e =>
+                      e.key === "Enter" && (e.preventDefault(), addKeyword())
+                    }
                   />
                   <Button type="button" onClick={addKeyword} variant="outline">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
                 {targetKeywords.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {targetKeywords.map(keyword => (
                       <Badge
                         key={keyword}
@@ -331,14 +348,16 @@ export const CreateProjectModal = ({
                     value={goalInput}
                     onChange={e => setGoalInput(e.target.value)}
                     placeholder="Add a content goal..."
-                    onKeyPress={e => e.key === "Enter" && (e.preventDefault(), addGoal())}
+                    onKeyPress={e =>
+                      e.key === "Enter" && (e.preventDefault(), addGoal())
+                    }
                   />
                   <Button type="button" onClick={addGoal} variant="outline">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
                 {contentGoals.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     {contentGoals.map(goal => (
                       <Badge
                         key={goal}
@@ -361,11 +380,12 @@ export const CreateProjectModal = ({
 
               <div className="rounded-lg bg-blue-50 p-4">
                 <div className="flex items-start space-x-3">
-                  <Sparkles className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <Sparkles className="mt-0.5 h-5 w-5 text-blue-600" />
                   <div>
                     <h4 className="font-medium text-blue-900">AI Analysis</h4>
                     <p className="text-sm text-blue-700">
-                      Adding keywords and goals enables advanced AI-powered content analysis and optimization recommendations.
+                      Adding keywords and goals enables advanced AI-powered
+                      content analysis and optimization recommendations.
                     </p>
                   </div>
                 </div>
@@ -380,14 +400,20 @@ export const CreateProjectModal = ({
                     value={competitorInput}
                     onChange={e => setCompetitorInput(e.target.value)}
                     placeholder="competitor.com"
-                    onKeyPress={e => e.key === "Enter" && (e.preventDefault(), addCompetitor())}
+                    onKeyPress={e =>
+                      e.key === "Enter" && (e.preventDefault(), addCompetitor())
+                    }
                   />
-                  <Button type="button" onClick={addCompetitor} variant="outline">
+                  <Button
+                    type="button"
+                    onClick={addCompetitor}
+                    variant="outline"
+                  >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
                 {competitors.length > 0 && (
-                  <div className="space-y-2 mt-2">
+                  <div className="mt-2 space-y-2">
                     {competitors.map(competitor => (
                       <div
                         key={competitor}
@@ -395,7 +421,9 @@ export const CreateProjectModal = ({
                       >
                         <div className="flex items-center space-x-3">
                           <Globe className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm font-medium">{competitor}</span>
+                          <span className="text-sm font-medium">
+                            {competitor}
+                          </span>
                         </div>
                         <button
                           type="button"
@@ -412,11 +440,14 @@ export const CreateProjectModal = ({
 
               <div className="rounded-lg bg-green-50 p-4">
                 <div className="flex items-start space-x-3">
-                  <Target className="h-5 w-5 text-green-600 mt-0.5" />
+                  <Target className="mt-0.5 h-5 w-5 text-green-600" />
                   <div>
-                    <h4 className="font-medium text-green-900">Competitive Intelligence</h4>
+                    <h4 className="font-medium text-green-900">
+                      Competitive Intelligence
+                    </h4>
                     <p className="text-sm text-green-700">
-                      Adding competitors enables SERP analysis, content gap identification, and competitive benchmarking.
+                      Adding competitors enables SERP analysis, content gap
+                      identification, and competitive benchmarking.
                     </p>
                   </div>
                 </div>
@@ -425,9 +456,9 @@ export const CreateProjectModal = ({
           </Tabs>
 
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <div className="flex items-start space-x-3">
-                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
                 <div>
                   <h4 className="font-medium text-red-900">Error</h4>
                   <p className="text-sm text-red-700">{error}</p>
@@ -447,7 +478,12 @@ export const CreateProjectModal = ({
             </div>
 
             <div className="flex items-center space-x-3">
-              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                disabled={loading}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={!isFormValid || loading}>

@@ -23,24 +23,15 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Filter,
-  X,
-  Calendar as CalendarIcon,
-  Tag,
-  User,
-  BarChart3,
-} from "lucide-react";
+import { Filter, X, Calendar as CalendarIcon } from "lucide-react";
+import { DateRange } from "react-day-picker";
 
 interface ContentFilters {
   status?: string | undefined;
   contentType?: string | undefined;
   projectId?: string | undefined;
   author?: string | undefined;
-  dateRange?: {
-    from: Date;
-    to: Date;
-  };
+  dateRange?: DateRange | undefined;
   minSeoScore?: number | undefined;
   tags?: string[];
 }
@@ -229,7 +220,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
                 className="h-8 justify-start text-left font-normal"
               >
                 <CalendarIcon className="mr-2 h-3 w-3" />
-                {filters.dateRange ? (
+                {filters.dateRange?.from && filters.dateRange?.to ? (
                   <>
                     {filters.dateRange.from.toLocaleDateString()} -{" "}
                     {filters.dateRange.to.toLocaleDateString()}
@@ -242,11 +233,8 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="range"
-                selected={{
-                  from: filters.dateRange?.from,
-                  to: filters.dateRange?.to,
-                }}
-                onSelect={(range: any) =>
+                selected={filters.dateRange}
+                onSelect={(range: DateRange | undefined) =>
                   onFiltersChange({
                     ...filters,
                     dateRange: range?.from && range?.to ? range : undefined,
@@ -311,7 +299,7 @@ export const ContentFilters: React.FC<ContentFiltersProps> = ({
               />
             </Badge>
           )}
-          {filters.dateRange && (
+          {filters.dateRange?.from && filters.dateRange?.to && (
             <Badge variant="secondary" className="flex items-center gap-1">
               Date: {filters.dateRange.from.toLocaleDateString()} -{" "}
               {filters.dateRange.to.toLocaleDateString()}

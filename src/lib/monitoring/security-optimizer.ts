@@ -3,21 +3,33 @@
  * Implements security measures and performance optimizations for Phase 3
  */
 
-import { logger } from './logger';
-import { errorTracker } from './error-tracker';
-import crypto from 'crypto';
+import { logger } from "./logger";
+import { errorTracker } from "./error-tracker";
+import crypto from "crypto";
 
 // Security configuration
 const SECURITY_CONFIG = {
   maxLogEntrySize: 10000, // 10KB
   maxApiCallsPerMinute: 100,
   sensitiveFields: [
-    'password', 'token', 'apiKey', 'secret', 'authorization',
-    'cookie', 'session', 'ssn', 'creditCard', 'bankAccount',
-    'email', 'phone', 'address', 'ip', 'userAgent'
+    "password",
+    "token",
+    "apiKey",
+    "secret",
+    "authorization",
+    "cookie",
+    "session",
+    "ssn",
+    "creditCard",
+    "bankAccount",
+    "email",
+    "phone",
+    "address",
+    "ip",
+    "userAgent",
   ],
-  allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || [],
-  monitoringTokens: new Set(process.env.MONITORING_TOKENS?.split(',') || []),
+  allowedOrigins: process.env["ALLOWED_ORIGINS"]?.split(",") || [],
+  monitoringTokens: new Set(process.env["MONITORING_TOKENS"]?.split(",") || []),
 };
 
 // Rate limiting storage
@@ -29,7 +41,7 @@ const performanceCache = new Map<string, { data: any; expiry: number }>();
 /**
  * Security middleware for monitoring endpoints
  */
-export function createSecurityMiddleware() {
+function createSecurityMiddleware() {
   return {
     validateOrigin,
     rateLimitCheck,
@@ -44,23 +56,28 @@ export function createSecurityMiddleware() {
  * Validate request origin
  */
 function validateOrigin(origin: string): boolean {
-  if (process.env.NODE_ENV === 'development') return true;
+  if (process.env.NODE_ENV === "development") return true;
   if (!origin) return false;
-  
-  return SECURITY_CONFIG.allowedOrigins.length === 0 || 
-         SECURITY_CONFIG.allowedOrigins.includes(origin);
+
+  return (
+    SECURITY_CONFIG.allowedOrigins.length === 0 ||
+    SECURITY_CONFIG.allowedOrigins.includes(origin)
+  );
 }
 
 /**
  * Rate limiting for monitoring endpoints
  */
-function rateLimitCheck(clientId: string): { allowed: boolean; remaining: number } {
+function rateLimitCheck(clientId: string): {
+  allowed: boolean;
+  remaining: number;
+} {
   const now = Date.now();
   const windowMs = 60 * 1000; // 1 minute
   const maxRequests = SECURITY_CONFIG.maxApiCallsPerMinute;
 
   const entry = rateLimitMap.get(clientId);
-  
+
   if (!entry || now > entry.resetTime) {
     rateLimitMap.set(clientId, {
       count: 1,
@@ -71,9 +88,9 @@ function rateLimitCheck(clientId: string): { allowed: boolean; remaining: number
 
   if (entry.count >= maxRequests) {
     logger.security({
-      type: 'suspicious',
-      action: 'rate_limit_exceeded',
-      details: { clientId, count: entry.count, maxRequests }
+      type: "suspicious",
+      action: "rate_limit_exceeded",
+      details: { clientId, count: entry.count, maxRequests },
     });
     return { allowed: false, remaining: 0 };
   }
@@ -86,47 +103,52 @@ function rateLimitCheck(clientId: string): { allowed: boolean; remaining: number
  * Sanitize input data to prevent injection attacks
  */
 function sanitizeInput(input: any): any {
-  if (typeof input === 'string') {
+  if (typeof input === "string") {
     return sanitizeString(input);
   }
-  
+
   if (Array.isArray(input)) {
     return input.map(item => sanitizeInput(item));
   }
-  
-  if (typeof input === 'object' && input !== null) {
+
+  if (typeof input === "object" && input !== null) {
     return sanitizeObject(input);
   }
-  
+
   return input;
 }
 
 function sanitizeString(str: string): string {
   return str
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '[SCRIPT_REMOVED]')
-    .replace(/javascript:/gi, 'javascript_removed:')
-    .replace(/on\w+\s*=/gi, 'event_removed=')
-    .replace(/data:(?!image\/)/gi, 'data_removed:')
+    .replace(
+      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+      "[SCRIPT_REMOVED]"
+    )
+    .replace(/javascript:/gi, "javascript_removed:")
+    .replace(/on\w+\s*=/gi, "event_removed=")
+    .replace(/data:(?!image\/)/gi, "data_removed:")
     .slice(0, SECURITY_CONFIG.maxLogEntrySize);
 }
 
 function sanitizeObject(obj: any): any {
-  if (typeof obj !== 'object' || obj === null) {
+  if (typeof obj !== "object" || obj === null) {
     return obj;
   }
 
   const sanitized: any = {};
   for (const [key, value] of Object.entries(obj)) {
     // Redact sensitive fields
-    if (SECURITY_CONFIG.sensitiveFields.some(field => 
-      key.toLowerCase().includes(field.toLowerCase())
-    )) {
-      sanitized[key] = '[REDACTED]';
+    if (
+      SECURITY_CONFIG.sensitiveFields.some(field =>
+        key.toLowerCase().includes(field.toLowerCase())
+      )
+    ) {
+      sanitized[key] = "[REDACTED]";
     } else {
       sanitized[key] = sanitizeInput(value);
     }
   }
-  
+
   return sanitized;
 }
 
@@ -134,9 +156,9 @@ function sanitizeObject(obj: any): any {
  * Authenticate monitoring requests
  */
 function authenticateMonitoringRequest(token?: string): boolean {
-  if (process.env.NODE_ENV === 'development') return true;
+  if (process.env.NODE_ENV === "development") return true;
   if (!token) return false;
-  
+
   return SECURITY_CONFIG.monitoringTokens.has(token);
 }
 
@@ -144,7 +166,7 @@ function authenticateMonitoringRequest(token?: string): boolean {
  * Validate content type for POST requests
  */
 function validateContentType(contentType?: string): boolean {
-  const allowedTypes = ['application/json', 'text/plain'];
+  const allowedTypes = ["application/json", "text/plain"];
   return !contentType || allowedTypes.some(type => contentType.includes(type));
 }
 
@@ -154,32 +176,32 @@ function validateContentType(contentType?: string): boolean {
 function preventDataExfiltration(data: any): any {
   const maxResponseSize = 1024 * 1024; // 1MB
   const serialized = JSON.stringify(data);
-  
+
   if (serialized.length > maxResponseSize) {
     logger.security({
-      type: 'suspicious',
-      action: 'large_response_blocked',
-      details: { 
+      type: "suspicious",
+      action: "large_response_blocked",
+      details: {
         responseSize: serialized.length,
-        maxSize: maxResponseSize
-      }
+        maxSize: maxResponseSize,
+      },
     });
-    
+
     return {
-      error: 'Response too large',
-      message: 'Data has been truncated for security reasons',
+      error: "Response too large",
+      message: "Data has been truncated for security reasons",
       truncated: true,
       originalSize: serialized.length,
     };
   }
-  
+
   return data;
 }
 
 /**
  * Performance optimization utilities
  */
-export function createPerformanceOptimizer() {
+function createPerformanceOptimizer() {
   return {
     cacheResponse,
     getCachedResponse,
@@ -193,10 +215,10 @@ export function createPerformanceOptimizer() {
 /**
  * Cache response data with TTL
  */
-function cacheResponse(key: string, data: any, ttlMs: number = 30000): void {
+function cacheResponse(key: string, data: any, ttlMs = 30000): void {
   const expiry = Date.now() + ttlMs;
   performanceCache.set(key, { data, expiry });
-  
+
   // Cleanup expired entries periodically
   if (performanceCache.size > 1000) {
     cleanupCache();
@@ -240,13 +262,16 @@ function cleanupCache(): void {
 function compressData(data: any): string {
   try {
     const jsonString = JSON.stringify(data);
-    const buffer = Buffer.from(jsonString, 'utf8');
-    
+    const buffer = Buffer.from(jsonString, "utf8");
+
     // Use simple compression for demonstration
     // In production, consider using zlib or similar
-    return buffer.toString('base64');
+    return buffer.toString("base64");
   } catch (error) {
-    logger.error('Data compression failed', error instanceof Error ? error : new Error(String(error)));
+    logger.error(
+      "Data compression failed",
+      error instanceof Error ? error : new Error(String(error))
+    );
     return JSON.stringify(data);
   }
 }
@@ -255,19 +280,22 @@ function compressData(data: any): string {
  * Batch multiple requests for efficiency
  */
 class RequestBatcher {
-  private batches = new Map<string, { 
-    requests: any[]; 
-    timer: NodeJS.Timeout;
-    resolver: (results: any[]) => void;
-  }>();
-  
+  private batches = new Map<
+    string,
+    {
+      requests: any[];
+      timer: NodeJS.Timeout;
+      resolver: (results: any[]) => void;
+    }
+  >();
+
   private batchSize = 10;
   private batchDelay = 100; // ms
 
   async batchRequest<T>(batchKey: string, request: T): Promise<any> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       let batch = this.batches.get(batchKey);
-      
+
       if (!batch) {
         batch = {
           requests: [],
@@ -276,28 +304,28 @@ class RequestBatcher {
         };
         this.batches.set(batchKey, batch);
       }
-      
+
       batch.requests.push({ request, resolve });
-      
+
       if (batch.requests.length >= this.batchSize) {
         clearTimeout(batch.timer);
         this.executeBatch(batchKey);
       }
     });
   }
-  
+
   private async executeBatch(batchKey: string): Promise<void> {
     const batch = this.batches.get(batchKey);
     if (!batch) return;
-    
+
     this.batches.delete(batchKey);
-    
+
     try {
       // Execute all requests in parallel
       const results = await Promise.all(
         batch.requests.map(({ request }) => this.processRequest(request))
       );
-      
+
       // Resolve all promises
       batch.requests.forEach(({ resolve }, index) => {
         resolve(results[index]);
@@ -305,11 +333,11 @@ class RequestBatcher {
     } catch (error) {
       // Reject all promises
       batch.requests.forEach(({ resolve }) => {
-        resolve({ error: 'Batch processing failed' });
+        resolve({ error: "Batch processing failed" });
       });
     }
   }
-  
+
   private async processRequest(request: any): Promise<any> {
     // Process individual request - implement based on request type
     return request;
@@ -332,7 +360,10 @@ function deferNonCriticalOperations(operations: (() => void)[]): void {
       try {
         op();
       } catch (error) {
-        logger.error('Deferred operation failed', error instanceof Error ? error : new Error(String(error)));
+        logger.error(
+          "Deferred operation failed",
+          error instanceof Error ? error : new Error(String(error))
+        );
       }
     });
   });
@@ -341,7 +372,7 @@ function deferNonCriticalOperations(operations: (() => void)[]): void {
 /**
  * Memory management utilities
  */
-export function createMemoryManager() {
+function createMemoryManager() {
   return {
     monitorMemoryUsage,
     gcOptimization,
@@ -356,14 +387,18 @@ export function createMemoryManager() {
 function monitorMemoryUsage(): void {
   const memUsage = process.memoryUsage();
   const memoryPercentage = (memUsage.heapUsed / memUsage.heapTotal) * 100;
-  
+
   if (memoryPercentage > 85) {
-    logger.warn('High memory usage detected', {
-      heapUsed: memUsage.heapUsed,
-      heapTotal: memUsage.heapTotal,
-      percentage: memoryPercentage,
-    }, ['performance', 'memory']);
-    
+    logger.warn(
+      "High memory usage detected",
+      {
+        heapUsed: memUsage.heapUsed,
+        heapTotal: memUsage.heapTotal,
+        percentage: memoryPercentage,
+      },
+      ["performance", "memory"]
+    );
+
     // Trigger cleanup
     deferNonCriticalOperations([
       () => cleanupCache(),
@@ -381,11 +416,14 @@ function gcOptimization(): void {
   if (global.gc) {
     global.gc();
   }
-  
+
   // Clear any circular references
   performanceCache.clear();
-  
-  logger.debug('Garbage collection optimization completed', {}, ['performance', 'gc']);
+
+  logger.debug("Garbage collection optimization completed", {}, [
+    "performance",
+    "gc",
+  ]);
 }
 
 /**
@@ -396,27 +434,34 @@ function memoryLeakDetection(): void {
     rateLimitMap: 10000,
     performanceCache: 1000,
   };
-  
+
   const issues = [];
-  
+
   if (rateLimitMap.size > thresholds.rateLimitMap) {
     issues.push(`Rate limit map size: ${rateLimitMap.size}`);
   }
-  
+
   if (performanceCache.size > thresholds.performanceCache) {
     issues.push(`Performance cache size: ${performanceCache.size}`);
   }
-  
+
   if (issues.length > 0) {
-    logger.warn('Potential memory leaks detected', {
-      issues,
-      recommendations: ['Consider increasing cleanup frequency', 'Check for circular references']
-    }, ['performance', 'memory-leak']);
-    
-    errorTracker.trackError(new Error('Memory leak detection triggered'), {
-      category: 'runtime',
-      severity: 'medium',
-      additional: { issues }
+    logger.warn(
+      "Potential memory leaks detected",
+      {
+        issues,
+        recommendations: [
+          "Consider increasing cleanup frequency",
+          "Check for circular references",
+        ],
+      },
+      ["performance", "memory-leak"]
+    );
+
+    errorTracker.trackError(new Error("Memory leak detection triggered"), {
+      category: "runtime",
+      severity: "medium",
+      additional: { issues },
     });
   }
 }
@@ -427,11 +472,15 @@ function memoryLeakDetection(): void {
 function cleanupResources(): void {
   cleanupCache();
   cleanupRateLimitMap();
-  
-  logger.debug('Resource cleanup completed', {
-    cacheSize: performanceCache.size,
-    rateLimitSize: rateLimitMap.size,
-  }, ['performance', 'cleanup']);
+
+  logger.debug(
+    "Resource cleanup completed",
+    {
+      cacheSize: performanceCache.size,
+      rateLimitSize: rateLimitMap.size,
+    },
+    ["performance", "cleanup"]
+  );
 }
 
 /**
@@ -452,29 +501,33 @@ function cleanupRateLimitMap(): void {
 function initializePerformanceMonitoring(): void {
   // Monitor memory usage every 5 minutes
   setInterval(monitorMemoryUsage, 5 * 60 * 1000);
-  
+
   // Cleanup resources every 10 minutes
   setInterval(cleanupResources, 10 * 60 * 1000);
-  
+
   // Memory leak detection every 30 minutes
   setInterval(memoryLeakDetection, 30 * 60 * 1000);
-  
-  logger.info('Performance monitoring initialized', {
-    memoryMonitoringInterval: '5 minutes',
-    resourceCleanupInterval: '10 minutes',
-    memoryLeakDetectionInterval: '30 minutes',
-  }, ['performance', 'initialization']);
+
+  logger.info(
+    "Performance monitoring initialized",
+    {
+      memoryMonitoringInterval: "5 minutes",
+      resourceCleanupInterval: "10 minutes",
+      memoryLeakDetectionInterval: "30 minutes",
+    },
+    ["performance", "initialization"]
+  );
 }
 
 // Initialize performance monitoring
-if (typeof window === 'undefined') {
+if (typeof window === "undefined") {
   initializePerformanceMonitoring();
 }
 
 /**
  * Security audit utilities
  */
-export function createSecurityAuditor() {
+function createSecurityAuditor() {
   return {
     auditLogEntry,
     validateApiAccess,
@@ -488,7 +541,7 @@ export function createSecurityAuditor() {
  */
 function auditLogEntry(entry: any): boolean {
   const issues = [];
-  
+
   // Check for potential sensitive data
   const serialized = JSON.stringify(entry);
   SECURITY_CONFIG.sensitiveFields.forEach(field => {
@@ -496,21 +549,21 @@ function auditLogEntry(entry: any): boolean {
       issues.push(`Potential sensitive field: ${field}`);
     }
   });
-  
+
   // Check entry size
   if (serialized.length > SECURITY_CONFIG.maxLogEntrySize) {
     issues.push(`Entry size exceeds limit: ${serialized.length} bytes`);
   }
-  
+
   if (issues.length > 0) {
     logger.security({
-      type: 'suspicious',
-      action: 'audit_log_entry_failed',
-      details: { issues }
+      type: "suspicious",
+      action: "audit_log_entry_failed",
+      details: { issues },
     });
     return false;
   }
-  
+
   return true;
 }
 
@@ -520,23 +573,29 @@ function auditLogEntry(entry: any): boolean {
 function validateApiAccess(clientId: string, endpoint: string): boolean {
   // Check for suspicious patterns
   const suspiciousPatterns = [
-    '/admin', '/config', '/debug', '/internal',
-    '..', '%2e%2e', 'script', 'eval'
+    "/admin",
+    "/config",
+    "/debug",
+    "/internal",
+    "..",
+    "%2e%2e",
+    "script",
+    "eval",
   ];
-  
-  const isSuspicious = suspiciousPatterns.some(pattern => 
+
+  const isSuspicious = suspiciousPatterns.some(pattern =>
     endpoint.toLowerCase().includes(pattern.toLowerCase())
   );
-  
+
   if (isSuspicious) {
     logger.security({
-      type: 'attack',
-      action: 'suspicious_endpoint_access',
-      details: { clientId, endpoint }
+      type: "attack",
+      action: "suspicious_endpoint_access",
+      details: { clientId, endpoint },
     });
     return false;
   }
-  
+
   return true;
 }
 
@@ -545,15 +604,15 @@ function validateApiAccess(clientId: string, endpoint: string): boolean {
  */
 function detectAnomalousPatterns(): void {
   // Analyze rate limit violations
-  const rateLimitViolations = Array.from(rateLimitMap.entries())
-    .filter(([, entry]) => entry.count >= SECURITY_CONFIG.maxApiCallsPerMinute)
-    .length;
-  
+  const rateLimitViolations = Array.from(rateLimitMap.entries()).filter(
+    ([, entry]) => entry.count >= SECURITY_CONFIG.maxApiCallsPerMinute
+  ).length;
+
   if (rateLimitViolations > 5) {
     logger.security({
-      type: 'attack',
-      action: 'multiple_rate_limit_violations',
-      details: { violations: rateLimitViolations }
+      type: "attack",
+      action: "multiple_rate_limit_violations",
+      details: { violations: rateLimitViolations },
     });
   }
 }
@@ -568,13 +627,13 @@ function generateSecurityReport(): any {
     cacheEntries: performanceCache.size,
     securityEvents: 0, // Would track security events in real implementation
     recommendations: [
-      'Review rate limit configurations',
-      'Monitor for unusual access patterns',
-      'Regular security audits recommended'
-    ]
+      "Review rate limit configurations",
+      "Monitor for unusual access patterns",
+      "Regular security audits recommended",
+    ],
   };
-  
-  logger.info('Security report generated', report, ['security', 'audit']);
+
+  logger.info("Security report generated", report, ["security", "audit"]);
   return report;
 }
 

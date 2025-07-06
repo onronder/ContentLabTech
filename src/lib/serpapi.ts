@@ -158,57 +158,64 @@ async function makeSerpApiRequest(
   endpoint: string,
   params: Record<string, unknown>
 ): Promise<SerpApiResponse> {
-  return circuitBreakerManager.execute(
-    "serpapi-request",
-    async () => {
-      const SERPAPI_API_KEY = process.env["SERPAPI_API_KEY"];
-      if (!SERPAPI_API_KEY) {
-        throw new Error("SERPAPI API key not configured");
-      }
-
-      const url = new URL(`https://serpapi.com/${endpoint}`);
-      url.searchParams.set("api_key", SERPAPI_API_KEY);
-
-      // Add all parameters
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          url.searchParams.set(key, String(value));
+  const result = await circuitBreakerManager
+    .getCircuitBreaker("serpapi-request")
+    .execute(
+      async () => {
+        const SERPAPI_API_KEY = process.env["SERPAPI_API_KEY"];
+        if (!SERPAPI_API_KEY) {
+          throw new Error("SERPAPI API key not configured");
         }
-      });
 
-      const response = await timeoutFetch(url.toString(), {
-        timeout: 15000, // 15 seconds timeout for SERPAPI
-        method: "GET",
-        headers: {
-          "User-Agent": "ContentLab-Nexus/1.0",
-        },
-      });
+        const url = new URL(`https://serpapi.com/${endpoint}`);
+        url.searchParams.set("api_key", SERPAPI_API_KEY);
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`SERPAPI error: ${response.status} - ${error}`);
+        // Add all parameters
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            url.searchParams.set(key, String(value));
+          }
+        });
+
+        const fetchResult = await timeoutFetch(url.toString(), {
+          timeout: 15000, // 15 seconds timeout for SERPAPI
+          method: "GET",
+          headers: {
+            "User-Agent": "ContentLab-Nexus/1.0",
+          },
+        });
+
+        if (!fetchResult.success || !fetchResult.data) {
+          throw fetchResult.error || new Error("SERPAPI request failed");
+        }
+
+        // Record success
+        serviceDegradationManager.recordSuccess("serpapi");
+        return fetchResult.data;
+      },
+      // Fallback returns empty response structure
+      async () => {
+        serviceDegradationManager.recordFailure(
+          "serpapi",
+          "Circuit breaker fallback triggered"
+        );
+        return {
+          organic_results: [],
+          people_also_ask: [],
+          related_searches: [],
+          search_information: {
+            total_results: "0",
+            time_taken_displayed: "0",
+          },
+        };
       }
+    );
 
-      const result = await response.json();
-      
-      // Record success
-      serviceDegradationManager.recordSuccess("serpapi");
-      return result;
-    },
-    // Fallback returns empty response structure
-    async () => {
-      serviceDegradationManager.recordFailure("serpapi", "Circuit breaker fallback triggered");
-      return {
-        organic_results: [],
-        people_also_ask: [],
-        related_searches: [],
-        search_information: {
-          total_results: "0",
-          time_taken_displayed: "0",
-        },
-      };
-    }
-  );
+  if (result.success && result.data) {
+    return result.data;
+  }
+
+  throw result.error || new Error("SERPAPI request failed");
 }
 
 /**
@@ -218,8 +225,13 @@ export async function searchGoogle(
   params: SearchParams
 ): Promise<SearchAnalytics> {
   // Check if feature is available
-  if (!serviceDegradationManager.isFeatureAvailable("serpapi", "search-analytics")) {
-    const fallbackData = serviceDegradationManager.getFallbackData("serpapi", "searchResults");
+  if (
+    !serviceDegradationManager.isFeatureAvailable("serpapi", "search-analytics")
+  ) {
+    const fallbackData = serviceDegradationManager.getFallbackData(
+      "serpapi",
+      "searchResults"
+    );
     if (fallbackData) {
       return fallbackData as SearchAnalytics;
     }
@@ -695,17 +707,24 @@ const commonWords = [
  * Health check for SERPAPI
  */
 export async function healthCheck(): Promise<boolean> {
-  return circuitBreakerManager.execute(
-    "serpapi-health-check",
-    async () => {
-      const result = await searchGoogle({
-        query: "test",
-        num: 1,
-      });
+  const result = await circuitBreakerManager
+    .getCircuitBreaker("serpapi-health-check")
+    .execute(
+      async () => {
+        const searchResult = await searchGoogle({
+          query: "test",
+          num: 1,
+        });
 
-      return result.organicResults.length > 0;
-    },
-    // Fallback returns false to indicate service is down
-    async () => false
-  );
+        return searchResult.organicResults.length > 0;
+      },
+      // Fallback returns false to indicate service is down
+      async () => false
+    );
+
+  if (result.success && result.data !== undefined) {
+    return result.data;
+  }
+
+  return false;
 }

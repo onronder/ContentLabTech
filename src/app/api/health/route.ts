@@ -41,47 +41,55 @@ const startTime = Date.now();
 
 export async function GET(request: NextRequest) {
   const checkStartTime = Date.now();
-  
+
   try {
     const { searchParams } = new URL(request.url);
-    const service = searchParams.get('service');
-    const format = searchParams.get('format') || 'json';
-    
+    const service = searchParams.get("service");
+    const format = searchParams.get("format") || "json";
+
     if (service) {
       // Check specific service using new health checker
       let result;
       switch (service.toLowerCase()) {
-        case 'redis':
+        case "redis":
           result = await healthChecker.checkRedis();
           break;
-        case 'supabase':
+        case "supabase":
           result = await healthChecker.checkSupabase();
           break;
-        case 'openai':
+        case "openai":
           result = await healthChecker.checkOpenAI();
           break;
-        case 'brightdata':
+        case "brightdata":
           result = await healthChecker.checkBrightData();
           break;
         default:
           return NextResponse.json(
-            { error: 'Invalid service name. Valid options: redis, supabase, openai, brightdata' },
+            {
+              error:
+                "Invalid service name. Valid options: redis, supabase, openai, brightdata",
+            },
             { status: 400 }
           );
       }
-      
-      const status = result.status === 'healthy' ? 200 : result.status === 'degraded' ? 200 : 503;
-      
-      if (format === 'plain') {
+
+      const status =
+        result.status === "healthy"
+          ? 200
+          : result.status === "degraded"
+            ? 200
+            : 503;
+
+      if (format === "plain") {
         return new NextResponse(result.status.toUpperCase(), {
           status,
           headers: {
-            'Content-Type': 'text/plain',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            "Content-Type": "text/plain",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
           },
         });
       }
-      
+
       return NextResponse.json(result, { status });
     }
 
@@ -111,20 +119,31 @@ export async function GET(request: NextRequest) {
     };
 
     // Get comprehensive health data
-    const systemHealth = comprehensiveSystemHealth.status === "fulfilled" 
-      ? comprehensiveSystemHealth.value 
-      : null;
+    const systemHealth =
+      comprehensiveSystemHealth.status === "fulfilled"
+        ? comprehensiveSystemHealth.value
+        : null;
 
     // Calculate overall status
     const checkValues = Object.values(checks);
-    const unhealthyCount = checkValues.filter(c => c.status === "unhealthy").length;
-    const degradedCount = checkValues.filter(c => c.status === "degraded").length;
+    const unhealthyCount = checkValues.filter(
+      c => c.status === "unhealthy"
+    ).length;
+    const degradedCount = checkValues.filter(
+      c => c.status === "degraded"
+    ).length;
     const healthyCount = checkValues.filter(c => c.status === "healthy").length;
 
     let overallStatus: "healthy" | "degraded" | "unhealthy";
-    if (unhealthyCount > 0 || (systemHealth && systemHealth.overall === "unhealthy")) {
+    if (
+      unhealthyCount > 0 ||
+      (systemHealth && systemHealth.overall === "unhealthy")
+    ) {
       overallStatus = "unhealthy";
-    } else if (degradedCount > 0 || (systemHealth && systemHealth.overall === "degraded")) {
+    } else if (
+      degradedCount > 0 ||
+      (systemHealth && systemHealth.overall === "degraded")
+    ) {
       overallStatus = "degraded";
     } else {
       overallStatus = "healthy";
@@ -147,24 +166,29 @@ export async function GET(request: NextRequest) {
 
     // Add comprehensive health data if available
     if (systemHealth) {
-      (result as any).detailedHealth = systemHealth;
+      (result as unknown as Record<string, unknown>)["detailedHealth"] =
+        systemHealth;
     }
 
     // Set appropriate HTTP status code
-    const statusCode = overallStatus === "healthy" ? 200 : 
-                      overallStatus === "degraded" ? 200 : 503;
+    const statusCode =
+      overallStatus === "healthy"
+        ? 200
+        : overallStatus === "degraded"
+          ? 200
+          : 503;
 
-    if (format === 'plain') {
+    if (format === "plain") {
       return new NextResponse(overallStatus.toUpperCase(), {
         status: statusCode,
         headers: {
-          'Content-Type': 'text/plain',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          "Content-Type": "text/plain",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
         },
       });
     }
 
-    return NextResponse.json(result, { 
+    return NextResponse.json(result, {
       status: statusCode,
       headers: {
         "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -172,35 +196,34 @@ export async function GET(request: NextRequest) {
         "X-Uptime": `${Date.now() - startTime}ms`,
       },
     });
-
   } catch (error) {
     console.error("Health check failed:", error);
-    
-    return NextResponse.json({
-      status: "unhealthy",
-      timestamp: new Date().toISOString(),
-      uptime: Date.now() - startTime,
-      error: error instanceof Error ? error.message : "Unknown error",
-      checks: {},
-      summary: { total: 0, healthy: 0, degraded: 0, unhealthy: 1 },
-    }, { 
-      status: 503,
-      headers: {
-        "Cache-Control": "no-cache, no-store, must-revalidate",
+
+    return NextResponse.json(
+      {
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
+        uptime: Date.now() - startTime,
+        error: error instanceof Error ? error.message : "Unknown error",
+        checks: {},
+        summary: { total: 0, healthy: 0, degraded: 0, unhealthy: 1 },
       },
-    });
+      {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+      }
+    );
   }
 }
 
 async function checkDatabase(): Promise<HealthCheck> {
   const startTime = Date.now();
-  
+
   try {
     // Test basic database connectivity
-    const { data, error } = await supabase
-      .from("teams")
-      .select("count")
-      .limit(1);
+    const { error } = await supabase.from("teams").select("count").limit(1);
 
     const responseTime = Date.now() - startTime;
 
@@ -227,7 +250,6 @@ async function checkDatabase(): Promise<HealthCheck> {
       message: "Database connectivity verified",
       responseTime,
     };
-
   } catch (error) {
     return {
       status: "unhealthy",
@@ -271,7 +293,6 @@ async function checkEnvironment(): Promise<HealthCheck> {
         featureFlags: envStatus.featureFlags,
       },
     };
-
   } catch (error) {
     return {
       status: "unhealthy",
@@ -291,7 +312,10 @@ async function checkCircuitBreakers(): Promise<HealthCheck> {
         details: {
           services: Object.entries(cbStatus.services)
             .filter(([, status]) => !status.healthy)
-            .reduce((acc, [name, status]) => ({ ...acc, [name]: status.status }), {}),
+            .reduce(
+              (acc, [name, status]) => ({ ...acc, [name]: status.status }),
+              {}
+            ),
         },
       };
     }
@@ -302,8 +326,13 @@ async function checkCircuitBreakers(): Promise<HealthCheck> {
         message: `${cbStatus.summary.degraded} external services degraded`,
         details: {
           services: Object.entries(cbStatus.services)
-            .filter(([, status]) => status.healthy && status.metrics.failureCount > 0)
-            .reduce((acc, [name, status]) => ({ ...acc, [name]: status.status }), {}),
+            .filter(
+              ([, status]) => status.healthy && status.metrics.failureCount > 0
+            )
+            .reduce(
+              (acc, [name, status]) => ({ ...acc, [name]: status.status }),
+              {}
+            ),
         },
       };
     }
@@ -316,7 +345,6 @@ async function checkCircuitBreakers(): Promise<HealthCheck> {
         healthyServices: cbStatus.summary.healthy,
       },
     };
-
   } catch (error) {
     return {
       status: "unhealthy",
@@ -366,7 +394,6 @@ async function checkMemory(): Promise<HealthCheck> {
         percentage: Math.round(memoryPercentage),
       },
     };
-
   } catch (error) {
     return {
       status: "unhealthy",
@@ -398,8 +425,8 @@ async function checkExternalServices(): Promise<HealthCheck> {
   });
 
   const requiredServices = services.filter(s => s.required);
-  const unavailableRequired = requiredServices.filter(s => 
-    !availableServices.find(a => a.name === s.name)
+  const unavailableRequired = requiredServices.filter(
+    s => !availableServices.find(a => a.name === s.name)
   );
 
   if (unavailableRequired.length > 0) {
@@ -433,7 +460,9 @@ async function checkExternalServices(): Promise<HealthCheck> {
   };
 }
 
-function getCheckResult(settledResult: PromiseSettledResult<HealthCheck>): HealthCheck {
+function getCheckResult(
+  settledResult: PromiseSettledResult<HealthCheck>
+): HealthCheck {
   if (settledResult.status === "fulfilled") {
     return settledResult.value;
   } else {

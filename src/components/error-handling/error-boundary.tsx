@@ -29,24 +29,29 @@ interface ErrorBoundaryProps {
 
 // Error logging service
 class ErrorLogger {
-  static logError(error: Error, errorInfo: ErrorInfo, context?: Record<string, unknown>) {
+  static logError(
+    error: Error,
+    errorInfo: ErrorInfo,
+    context?: Record<string, unknown>
+  ) {
     const errorData = {
       message: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
       timestamp: new Date().toISOString(),
-      userAgent: typeof window !== "undefined" ? window.navigator.userAgent : "unknown",
+      userAgent:
+        typeof window !== "undefined" ? window.navigator.userAgent : "unknown",
       url: typeof window !== "undefined" ? window.location.href : "unknown",
       context,
     };
 
     // Log to console in development
     if (process.env.NODE_ENV === "development") {
-      console.group("🚨 Error Boundary Caught Error");
-      console.error("Error:", error);
-      console.error("Error Info:", errorInfo);
-      console.error("Context:", context);
-      console.groupEnd();
+      console.error("🚨 Error Boundary Caught Error:", {
+        error,
+        errorInfo,
+        context,
+      });
     }
 
     // In production, you would send this to your error tracking service
@@ -73,7 +78,10 @@ class ErrorLogger {
   }
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   private retryTimeouts: NodeJS.Timeout[] = [];
 
   constructor(props: ErrorBoundaryProps) {
@@ -161,7 +169,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   private isRetryableError(error: Error | null): boolean {
     if (!error) return false;
-    
+
     // Network errors, temporary failures, etc.
     const retryableErrors = [
       "ChunkLoadError",
@@ -171,8 +179,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       "Failed to fetch",
     ];
 
-    return retryableErrors.some(pattern => 
-      error.message.includes(pattern) || error.name.includes(pattern)
+    return retryableErrors.some(
+      pattern => error.message.includes(pattern) || error.name.includes(pattern)
     );
   }
 
@@ -213,30 +221,31 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // Default fallback based on level and severity
     if (level === "page" || severity === "critical") {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="max-w-md w-full mx-auto p-6">
+        <div className="bg-background flex min-h-screen items-center justify-center">
+          <div className="mx-auto w-full max-w-md p-6">
             <div className="text-center">
-              <AlertTriangle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-              <h1 className="text-2xl font-bold text-foreground mb-2">
+              <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
+              <h1 className="text-foreground mb-2 text-2xl font-bold">
                 Something went wrong
               </h1>
               <p className="text-muted-foreground mb-6">
-                We encountered an unexpected error. Please try refreshing the page or go back to the dashboard.
+                We encountered an unexpected error. Please try refreshing the
+                page or go back to the dashboard.
               </p>
-              
+
               <div className="space-y-3">
-                <Button 
-                  onClick={this.handleRetry} 
+                <Button
+                  onClick={this.handleRetry}
                   className="w-full"
                   disabled={retryCount >= 3}
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   {retryCount >= 3 ? "Max retries reached" : "Try Again"}
                 </Button>
-                
-                <Button 
-                  onClick={this.handleGoHome} 
-                  variant="outline" 
+
+                <Button
+                  onClick={this.handleGoHome}
+                  variant="outline"
                   className="w-full"
                 >
                   <Home className="mr-2 h-4 w-4" />
@@ -246,10 +255,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
               {showDetails && error && (
                 <details className="mt-6 text-left">
-                  <summary className="cursor-pointer text-sm text-muted-foreground">
+                  <summary className="text-muted-foreground cursor-pointer text-sm">
                     Error Details (ID: {errorId})
                   </summary>
-                  <pre className="mt-2 text-xs bg-muted p-3 rounded overflow-auto max-h-40">
+                  <pre className="bg-muted mt-2 max-h-40 overflow-auto rounded p-3 text-xs">
                     {error.stack}
                   </pre>
                 </details>
@@ -262,30 +271,26 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // Component-level fallback
     return (
-      <div className="border border-red-200 bg-red-50 rounded-lg p-4 my-4">
+      <div className="my-4 rounded-lg border border-red-200 bg-red-50 p-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
             <div className="space-y-2">
               <p className="font-medium">This component encountered an error</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Error ID: {errorId}
               </p>
               <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={this.handleRetry}
                   disabled={retryCount >= 3}
                 >
                   <RefreshCw className="mr-1 h-3 w-3" />
                   Retry
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  onClick={this.handleReset}
-                >
+                <Button size="sm" variant="ghost" onClick={this.handleReset}>
                   Reset
                 </Button>
               </div>
@@ -306,23 +311,28 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 }
 
 // Specialized error boundaries for different contexts
-export const PageErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <ErrorBoundary level="page" showDetails={process.env.NODE_ENV === "development"}>
+export const PageErrorBoundary: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => (
+  <ErrorBoundary
+    level="page"
+    showDetails={process.env.NODE_ENV === "development"}
+  >
     {children}
   </ErrorBoundary>
 );
 
-export const FeatureErrorBoundary: React.FC<{ 
-  children: ReactNode; 
+export const FeatureErrorBoundary: React.FC<{
+  children: ReactNode;
   featureName: string;
 }> = ({ children, featureName }) => (
-  <ErrorBoundary 
+  <ErrorBoundary
     level="feature"
     onError={(error, errorInfo) => {
       ErrorLogger.logError(error, errorInfo, { feature: featureName });
     }}
     fallback={
-      <div className="border border-orange-200 bg-orange-50 rounded-lg p-4 my-4">
+      <div className="my-4 rounded-lg border border-orange-200 bg-orange-50 p-4">
         <Alert>
           <Bug className="h-4 w-4" />
           <AlertDescription>
@@ -330,7 +340,7 @@ export const FeatureErrorBoundary: React.FC<{
               <p className="font-medium">
                 The {featureName} feature is temporarily unavailable
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Please try refreshing the page or check back later.
               </p>
             </div>
@@ -343,11 +353,11 @@ export const FeatureErrorBoundary: React.FC<{
   </ErrorBoundary>
 );
 
-export const ComponentErrorBoundary: React.FC<{ 
+export const ComponentErrorBoundary: React.FC<{
   children: ReactNode;
   componentName?: string;
 }> = ({ children, componentName }) => (
-  <ErrorBoundary 
+  <ErrorBoundary
     level="component"
     onError={(error, errorInfo) => {
       ErrorLogger.logError(error, errorInfo, { component: componentName });
@@ -374,9 +384,12 @@ export function withErrorBoundary<P extends object>(
 
 // Hook for reporting errors manually
 export function useErrorReporting() {
-  const reportError = React.useCallback((error: Error, context?: Record<string, unknown>) => {
-    ErrorLogger.logError(error, { componentStack: "Manual report" }, context);
-  }, []);
+  const reportError = React.useCallback(
+    (error: Error, context?: Record<string, unknown>) => {
+      ErrorLogger.logError(error, { componentStack: "Manual report" }, context);
+    },
+    []
+  );
 
   return { reportError };
 }

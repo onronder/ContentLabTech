@@ -29,9 +29,9 @@ interface ExternalServicesHealthCheck {
   services: ExternalServiceCheck[];
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const startTime = Date.now();
-  
+
   try {
     // Define all external services to check
     const servicesToCheck = [
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
     ];
 
     // Run all checks in parallel
-    const checkPromises = servicesToCheck.map(async (service) => {
+    const checkPromises = servicesToCheck.map(async service => {
       try {
         return await service.check();
       } catch (error) {
@@ -97,9 +97,10 @@ export async function GET(request: NextRequest) {
     // Determine overall status
     let overallStatus: "healthy" | "degraded" | "unhealthy";
     const requiredServices = servicesToCheck.filter(s => s.required);
-    const requiredUnhealthy = services.filter(s => 
-      requiredServices.some(rs => rs.name === s.name) && 
-      (s.status === "unhealthy" || s.status === "not_configured")
+    const requiredUnhealthy = services.filter(
+      s =>
+        requiredServices.some(rs => rs.name === s.name) &&
+        (s.status === "unhealthy" || s.status === "not_configured")
     );
 
     if (requiredUnhealthy.length > 0) {
@@ -117,8 +118,12 @@ export async function GET(request: NextRequest) {
       services,
     };
 
-    const statusCode = overallStatus === "healthy" ? 200 : 
-                      overallStatus === "degraded" ? 200 : 503;
+    const statusCode =
+      overallStatus === "healthy"
+        ? 200
+        : overallStatus === "degraded"
+          ? 200
+          : 503;
 
     return NextResponse.json(result, {
       status: statusCode,
@@ -127,24 +132,32 @@ export async function GET(request: NextRequest) {
         "X-Health-Check-Duration": `${Date.now() - startTime}ms`,
       },
     });
-
   } catch (error) {
-    return NextResponse.json({
-      status: "unhealthy",
-      timestamp: new Date().toISOString(),
-      summary: { total: 0, healthy: 0, degraded: 0, unhealthy: 1, notConfigured: 0 },
-      services: [],
-      error: error instanceof Error ? error.message : "Unknown error",
-    }, { 
-      status: 503,
-      headers: { "Cache-Control": "no-cache, no-store, must-revalidate" }
-    });
+    return NextResponse.json(
+      {
+        status: "unhealthy",
+        timestamp: new Date().toISOString(),
+        summary: {
+          total: 0,
+          healthy: 0,
+          degraded: 0,
+          unhealthy: 1,
+          notConfigured: 0,
+        },
+        services: [],
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      {
+        status: 503,
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate" },
+      }
+    );
   }
 }
 
 async function checkOpenAI(): Promise<ExternalServiceCheck> {
   const apiKey = process.env["OPENAI_API_KEY"];
-  
+
   if (!apiKey) {
     return {
       name: "OpenAI",
@@ -155,12 +168,12 @@ async function checkOpenAI(): Promise<ExternalServiceCheck> {
   }
 
   const startTime = Date.now();
-  
+
   try {
     // Simple API call to check connectivity
     const result = await timeoutFetch("https://api.openai.com/v1/models", {
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       timeout: 10000,
       circuitBreaker: "openai",
@@ -174,7 +187,9 @@ async function checkOpenAI(): Promise<ExternalServiceCheck> {
         status: "unhealthy",
         responseTime,
         error: result.error ? result.error.message : "Unknown error",
-        circuitBreakerState: circuitBreakerManager.getCircuitBreaker("openai").getMetrics().state,
+        circuitBreakerState: circuitBreakerManager
+          .getCircuitBreaker("openai")
+          .getMetrics().state,
         lastChecked: new Date().toISOString(),
       };
     }
@@ -183,17 +198,20 @@ async function checkOpenAI(): Promise<ExternalServiceCheck> {
       name: "OpenAI",
       status: responseTime > 5000 ? "degraded" : "healthy",
       responseTime,
-      circuitBreakerState: circuitBreakerManager.getCircuitBreaker("openai").getMetrics().state,
+      circuitBreakerState: circuitBreakerManager
+        .getCircuitBreaker("openai")
+        .getMetrics().state,
       lastChecked: new Date().toISOString(),
     };
-
   } catch (error) {
     return {
       name: "OpenAI",
       status: "unhealthy",
       responseTime: Date.now() - startTime,
       error: error instanceof Error ? error.message : "Unknown error",
-      circuitBreakerState: circuitBreakerManager.getCircuitBreaker("openai").getMetrics().state,
+      circuitBreakerState: circuitBreakerManager
+        .getCircuitBreaker("openai")
+        .getMetrics().state,
       lastChecked: new Date().toISOString(),
     };
   }
@@ -203,7 +221,7 @@ async function checkBrightData(): Promise<ExternalServiceCheck> {
   const customerId = process.env["BRIGHTDATA_CUSTOMER_ID"];
   const zone = process.env["BRIGHTDATA_ZONE"];
   const password = process.env["BRIGHTDATA_PASSWORD"];
-  
+
   if (!customerId || !zone || !password) {
     return {
       name: "BrightData",
@@ -219,7 +237,9 @@ async function checkBrightData(): Promise<ExternalServiceCheck> {
     name: "BrightData",
     status: "healthy",
     responseTime: 0,
-    circuitBreakerState: circuitBreakerManager.getCircuitBreaker("brightdata").getMetrics().state,
+    circuitBreakerState: circuitBreakerManager
+      .getCircuitBreaker("brightdata")
+      .getMetrics().state,
     lastChecked: new Date().toISOString(),
   };
 }
@@ -227,7 +247,7 @@ async function checkBrightData(): Promise<ExternalServiceCheck> {
 async function checkGoogleAnalytics(): Promise<ExternalServiceCheck> {
   const clientId = process.env["GOOGLE_ANALYTICS_CLIENT_ID"];
   const clientSecret = process.env["GOOGLE_ANALYTICS_CLIENT_SECRET"];
-  
+
   if (!clientId || !clientSecret) {
     return {
       name: "Google Analytics",
@@ -243,7 +263,9 @@ async function checkGoogleAnalytics(): Promise<ExternalServiceCheck> {
     name: "Google Analytics",
     status: "healthy",
     responseTime: 0,
-    circuitBreakerState: circuitBreakerManager.getCircuitBreaker("google-analytics").getMetrics().state,
+    circuitBreakerState: circuitBreakerManager
+      .getCircuitBreaker("google-analytics")
+      .getMetrics().state,
     lastChecked: new Date().toISOString(),
   };
 }
@@ -251,7 +273,7 @@ async function checkGoogleAnalytics(): Promise<ExternalServiceCheck> {
 async function checkSupabase(): Promise<ExternalServiceCheck> {
   const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
   const key = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-  
+
   if (!url || !key) {
     return {
       name: "Supabase",
@@ -262,12 +284,12 @@ async function checkSupabase(): Promise<ExternalServiceCheck> {
   }
 
   const startTime = Date.now();
-  
+
   try {
     // Test Supabase API endpoint
     const result = await timeoutFetch(`${url}/rest/v1/`, {
       headers: {
-        "apikey": key,
+        apikey: key,
       },
       timeout: 5000,
       circuitBreaker: "supabase",
@@ -281,7 +303,9 @@ async function checkSupabase(): Promise<ExternalServiceCheck> {
         status: "unhealthy",
         responseTime,
         error: result.error ? result.error.message : "Unknown error",
-        circuitBreakerState: circuitBreakerManager.getCircuitBreaker("supabase").getMetrics().state,
+        circuitBreakerState: circuitBreakerManager
+          .getCircuitBreaker("supabase")
+          .getMetrics().state,
         lastChecked: new Date().toISOString(),
       };
     }
@@ -290,17 +314,20 @@ async function checkSupabase(): Promise<ExternalServiceCheck> {
       name: "Supabase",
       status: responseTime > 3000 ? "degraded" : "healthy",
       responseTime,
-      circuitBreakerState: circuitBreakerManager.getCircuitBreaker("supabase").getMetrics().state,
+      circuitBreakerState: circuitBreakerManager
+        .getCircuitBreaker("supabase")
+        .getMetrics().state,
       lastChecked: new Date().toISOString(),
     };
-
   } catch (error) {
     return {
       name: "Supabase",
       status: "unhealthy",
       responseTime: Date.now() - startTime,
       error: error instanceof Error ? error.message : "Unknown error",
-      circuitBreakerState: circuitBreakerManager.getCircuitBreaker("supabase").getMetrics().state,
+      circuitBreakerState: circuitBreakerManager
+        .getCircuitBreaker("supabase")
+        .getMetrics().state,
       lastChecked: new Date().toISOString(),
     };
   }

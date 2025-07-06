@@ -24,10 +24,7 @@ import {
   Sparkles,
   BarChart3,
   AlertTriangle,
-  PenTool,
   TrendingUp,
-  Lightbulb,
-  Target,
 } from "lucide-react";
 
 // Components

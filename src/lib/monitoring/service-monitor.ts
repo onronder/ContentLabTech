@@ -3,7 +3,10 @@
  * Comprehensive monitoring for all external services and system health
  */
 
-import { serviceDegradationManager, ServiceStatus } from "../resilience/service-degradation";
+import {
+  serviceDegradationManager,
+  ServiceStatus,
+} from "../resilience/service-degradation";
 import { circuitBreakerManager } from "../resilience/circuit-breaker";
 import { retryManager } from "../resilience/retry-manager";
 
@@ -11,7 +14,7 @@ export enum AlertSeverity {
   INFO = "info",
   WARNING = "warning",
   ERROR = "error",
-  CRITICAL = "critical"
+  CRITICAL = "critical",
 }
 
 export enum AlertType {
@@ -23,7 +26,7 @@ export enum AlertType {
   MEMORY_LEAK = "memory_leak",
   DATABASE_CONNECTION = "database_connection",
   API_RATE_LIMIT = "api_rate_limit",
-  SYSTEM_RESOURCE = "system_resource"
+  SYSTEM_RESOURCE = "system_resource",
 }
 
 export interface Alert {
@@ -121,10 +124,10 @@ export class ServiceMonitor {
         responseTime: 5000, // 5 seconds
         availability: 0.95, // 95%
         memoryUsage: 0.85, // 85%
-        cpuUsage: 0.80, // 80%
+        cpuUsage: 0.8, // 80%
       },
       notificationChannels: {},
-      ...config
+      ...config,
     };
 
     this.startMonitoring();
@@ -166,7 +169,7 @@ export class ServiceMonitor {
    */
   private async checkServiceHealth(): Promise<void> {
     const services = ["openai", "serpapi", "supabase", "redis"];
-    
+
     for (const serviceName of services) {
       try {
         await this.checkIndividualService(serviceName);
@@ -182,7 +185,7 @@ export class ServiceMonitor {
   private async checkIndividualService(serviceName: string): Promise<void> {
     const status = serviceDegradationManager.getServiceStatus(serviceName);
     const circuitBreaker = circuitBreakerManager.getCircuitBreaker(serviceName);
-    
+
     // Create service metrics
     const metrics: ServiceMetrics = {
       serviceName,
@@ -206,8 +209,13 @@ export class ServiceMonitor {
     serviceMetrics.push(metrics);
 
     // Trim old metrics
-    const cutoff = Date.now() - (this.config.metricsRetention * 24 * 60 * 60 * 1000);
-    while (serviceMetrics.length > 0 && serviceMetrics[0].uptime < cutoff) {
+    const cutoff =
+      Date.now() - this.config.metricsRetention * 24 * 60 * 60 * 1000;
+    while (
+      serviceMetrics.length > 0 &&
+      serviceMetrics[0] &&
+      serviceMetrics[0].uptime < cutoff
+    ) {
       serviceMetrics.shift();
     }
 
@@ -218,7 +226,10 @@ export class ServiceMonitor {
   /**
    * Check for service alerts
    */
-  private checkServiceAlerts(serviceName: string, metrics: ServiceMetrics): void {
+  private checkServiceAlerts(
+    serviceName: string,
+    metrics: ServiceMetrics
+  ): void {
     // Service down alert
     if (metrics.status === ServiceStatus.UNAVAILABLE) {
       this.createAlert({
@@ -227,7 +238,7 @@ export class ServiceMonitor {
         service: serviceName,
         title: `${serviceName} service is down`,
         description: `Service ${serviceName} is currently unavailable`,
-        details: { metrics }
+        details: { metrics },
       });
     }
 
@@ -239,7 +250,7 @@ export class ServiceMonitor {
         service: serviceName,
         title: `${serviceName} service is degraded`,
         description: `Service ${serviceName} is experiencing degraded performance`,
-        details: { metrics }
+        details: { metrics },
       });
     }
 
@@ -251,7 +262,7 @@ export class ServiceMonitor {
         service: serviceName,
         title: `High error rate for ${serviceName}`,
         description: `Error rate is ${(metrics.errorRate * 100).toFixed(2)}% (threshold: ${(this.config.alertThresholds.errorRate * 100).toFixed(2)}%)`,
-        details: { metrics }
+        details: { metrics },
       });
     }
 
@@ -263,7 +274,7 @@ export class ServiceMonitor {
         service: serviceName,
         title: `Slow response time for ${serviceName}`,
         description: `Average response time is ${metrics.responseTime.avg.toFixed(0)}ms (threshold: ${this.config.alertThresholds.responseTime}ms)`,
-        details: { metrics }
+        details: { metrics },
       });
     }
 
@@ -275,24 +286,25 @@ export class ServiceMonitor {
         service: serviceName,
         title: `Low availability for ${serviceName}`,
         description: `Availability is ${(metrics.availability * 100).toFixed(2)}% (threshold: ${(this.config.alertThresholds.availability * 100).toFixed(2)}%)`,
-        details: { metrics }
+        details: { metrics },
       });
     }
 
     // Circuit breaker open alert
     const circuitBreaker = circuitBreakerManager.getCircuitBreaker(serviceName);
-    if (circuitBreaker.getState() === "OPEN") {
+    const cbMetrics = circuitBreaker.getMetrics();
+    if (cbMetrics.state === "OPEN") {
       this.createAlert({
         severity: AlertSeverity.ERROR,
         type: AlertType.CIRCUIT_BREAKER_OPEN,
         service: serviceName,
         title: `Circuit breaker open for ${serviceName}`,
         description: `Circuit breaker for ${serviceName} is open due to repeated failures`,
-        details: { 
-          circuitBreakerState: circuitBreaker.getState(),
-          failureCount: circuitBreaker.getFailureCount(),
-          lastFailureTime: circuitBreaker.getLastFailureTime()
-        }
+        details: {
+          circuitBreakerState: cbMetrics.state,
+          failureCount: cbMetrics.failureCount,
+          lastFailureTime: cbMetrics.lastFailureTime,
+        },
       });
     }
   }
@@ -313,8 +325,13 @@ export class ServiceMonitor {
       this.systemMetrics.push(metrics);
 
       // Trim old metrics
-      const cutoff = Date.now() - (this.config.metricsRetention * 24 * 60 * 60 * 1000);
-      while (this.systemMetrics.length > 0 && this.systemMetrics[0].timestamp.getTime() < cutoff) {
+      const cutoff =
+        Date.now() - this.config.metricsRetention * 24 * 60 * 60 * 1000;
+      while (
+        this.systemMetrics.length > 0 &&
+        this.systemMetrics[0] &&
+        this.systemMetrics[0].timestamp.getTime() < cutoff
+      ) {
         this.systemMetrics.shift();
       }
 
@@ -337,7 +354,7 @@ export class ServiceMonitor {
         service: "system",
         title: "High memory usage",
         description: `Memory usage is ${(metrics.memory.percentage * 100).toFixed(1)}% (threshold: ${(this.config.alertThresholds.memoryUsage * 100).toFixed(1)}%)`,
-        details: { metrics: metrics.memory }
+        details: { metrics: metrics.memory },
       });
     }
 
@@ -349,19 +366,20 @@ export class ServiceMonitor {
         service: "system",
         title: "High CPU usage",
         description: `CPU usage is ${(metrics.cpu.usage * 100).toFixed(1)}% (threshold: ${(this.config.alertThresholds.cpuUsage * 100).toFixed(1)}%)`,
-        details: { metrics: metrics.cpu }
+        details: { metrics: metrics.cpu },
       });
     }
 
     // Database connection issues
-    if (metrics.database.errorRate > 0.1) { // 10% error rate
+    if (metrics.database.errorRate > 0.1) {
+      // 10% error rate
       this.createAlert({
         severity: AlertSeverity.ERROR,
         type: AlertType.DATABASE_CONNECTION,
         service: "database",
         title: "Database connection issues",
         description: `Database error rate is ${(metrics.database.errorRate * 100).toFixed(1)}%`,
-        details: { metrics: metrics.database }
+        details: { metrics: metrics.database },
       });
     }
   }
@@ -378,10 +396,10 @@ export class ServiceMonitor {
     details: Record<string, unknown>;
   }): void {
     const alertId = `${alertData.service}-${alertData.type}-${Date.now()}`;
-    
+
     // Check if similar alert already exists and is not resolved
     const existingAlert = Array.from(this.alerts.values()).find(
-      alert => 
+      alert =>
         alert.service === alertData.service &&
         alert.type === alertData.type &&
         !alert.resolved
@@ -399,7 +417,7 @@ export class ServiceMonitor {
       id: alertId,
       timestamp: new Date(),
       resolved: false,
-      ...alertData
+      ...alertData,
     };
 
     this.alerts.set(alertId, alert);
@@ -409,7 +427,9 @@ export class ServiceMonitor {
       this.sendNotification(alert);
     }
 
-    console.warn(`[ALERT] ${alert.severity.toUpperCase()}: ${alert.title} - ${alert.description}`);
+    console.warn(
+      `[ALERT] ${alert.severity.toUpperCase()}: ${alert.title} - ${alert.description}`
+    );
   }
 
   /**
@@ -418,7 +438,10 @@ export class ServiceMonitor {
   private async sendNotification(alert: Alert): Promise<void> {
     try {
       // Email notification
-      if (this.config.notificationChannels.email && this.config.notificationChannels.email.length > 0) {
+      if (
+        this.config.notificationChannels.email &&
+        this.config.notificationChannels.email.length > 0
+      ) {
         await this.sendEmailNotification(alert);
       }
 
@@ -439,16 +462,20 @@ export class ServiceMonitor {
   /**
    * Get service metrics
    */
-  getServiceMetrics(serviceName: string, timeRange?: { start: Date; end: Date }): ServiceMetrics[] {
+  getServiceMetrics(
+    serviceName: string,
+    timeRange?: { start: Date; end: Date }
+  ): ServiceMetrics[] {
     const metrics = this.metrics.get(serviceName) || [];
-    
+
     if (!timeRange) {
       return metrics;
     }
 
-    return metrics.filter(m => 
-      m.uptime >= timeRange.start.getTime() && 
-      m.uptime <= timeRange.end.getTime()
+    return metrics.filter(
+      m =>
+        m.uptime >= timeRange.start.getTime() &&
+        m.uptime <= timeRange.end.getTime()
     );
   }
 
@@ -460,9 +487,8 @@ export class ServiceMonitor {
       return this.systemMetrics;
     }
 
-    return this.systemMetrics.filter(m => 
-      m.timestamp >= timeRange.start && 
-      m.timestamp <= timeRange.end
+    return this.systemMetrics.filter(
+      m => m.timestamp >= timeRange.start && m.timestamp <= timeRange.end
     );
   }
 
@@ -520,7 +546,10 @@ export class ServiceMonitor {
     return Math.random() * 1000; // Placeholder
   }
 
-  private calculatePercentileResponseTime(serviceName: string, percentile: number): number {
+  private calculatePercentileResponseTime(
+    serviceName: string,
+    percentile: number
+  ): number {
     // Implement percentile calculation
     return Math.random() * 2000; // Placeholder
   }
@@ -551,7 +580,7 @@ export class ServiceMonitor {
         used: memUsage.heapUsed,
         free: memUsage.heapTotal - memUsage.heapUsed,
         total: memUsage.heapTotal,
-        percentage: memUsage.heapUsed / memUsage.heapTotal
+        percentage: memUsage.heapUsed / memUsage.heapTotal,
       };
     }
     return { used: 0, free: 0, total: 0, percentage: 0 };
@@ -596,8 +625,8 @@ export const serviceMonitor = new ServiceMonitor({
     responseTime: 5000,
     availability: 0.95,
     memoryUsage: 0.85,
-    cpuUsage: 0.80,
-  }
+    cpuUsage: 0.8,
+  },
 });
 
 // Auto-start monitoring in production

@@ -74,7 +74,7 @@ const ITEM_HEIGHT = 120; // Height of each competitor item in pixels
 
 const CATEGORY_COLORS = {
   direct: "bg-red-100 text-red-800",
-  indirect: "bg-yellow-100 text-yellow-800", 
+  indirect: "bg-yellow-100 text-yellow-800",
   emerging: "bg-blue-100 text-blue-800",
   aspirational: "bg-purple-100 text-purple-800",
 };
@@ -93,7 +93,9 @@ const THREAT_COLORS = {
   low: "text-green-600",
 };
 
-export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps> = ({
+export const VirtualizedCompetitorList: React.FC<
+  VirtualizedCompetitorListProps
+> = ({
   competitors,
   onCompetitorSelect,
   onCompetitorAction,
@@ -108,12 +110,15 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
 
   // Filter and sort competitors
   const filteredAndSortedCompetitors = useMemo(() => {
-    let filtered = competitors.filter(competitor => {
-      const matchesSearch = competitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           competitor.domain.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = categoryFilter === "all" || competitor.category === categoryFilter;
-      const matchesPriority = priorityFilter === "all" || competitor.priority === priorityFilter;
-      
+    const filtered = competitors.filter(competitor => {
+      const matchesSearch =
+        competitor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        competitor.domain.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory =
+        categoryFilter === "all" || competitor.category === categoryFilter;
+      const matchesPriority =
+        priorityFilter === "all" || competitor.priority === priorityFilter;
+
       return matchesSearch && matchesCategory && matchesPriority;
     });
 
@@ -166,12 +171,21 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
     });
 
     return filtered;
-  }, [competitors, searchTerm, categoryFilter, priorityFilter, sortBy, sortDirection]);
+  }, [
+    competitors,
+    searchTerm,
+    categoryFilter,
+    priorityFilter,
+    sortBy,
+    sortDirection,
+  ]);
 
   // Get change indicator icon
   const getChangeIcon = (indicator: string, _value: number) => {
-    if (indicator === "up") return <TrendingUp className="h-4 w-4 text-green-600" />;
-    if (indicator === "down") return <TrendingDown className="h-4 w-4 text-red-600" />;
+    if (indicator === "up")
+      return <TrendingUp className="h-4 w-4 text-green-600" />;
+    if (indicator === "down")
+      return <TrendingDown className="h-4 w-4 text-red-600" />;
     return <Minus className="h-4 w-4 text-gray-400" />;
   };
 
@@ -199,7 +213,7 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
   // Handle sort change
   const _handleSort = (field: string) => {
     if (sortBy === field) {
-      setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+      setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(field);
       setSortDirection("asc");
@@ -207,113 +221,125 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
   };
 
   // Render individual competitor item
-  const renderCompetitorItem = useCallback((competitor: CompetitorData, _index: number) => {
-    const totalAlerts = getTotalAlerts(competitor.alerts);
-    
-    return (
-      <div 
-        className="mx-2 mb-2 cursor-pointer rounded-lg border bg-white p-4 shadow-sm transition-all hover:shadow-md hover:border-blue-200"
-        onClick={() => onCompetitorSelect?.(competitor)}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <Globe className="h-5 w-5 text-gray-500" />
-            <div>
-              <h3 className="font-semibold text-gray-900">{competitor.name}</h3>
-              <p className="text-sm text-gray-500">{competitor.domain}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {getStatusIcon(competitor.status)}
-            <Badge className={CATEGORY_COLORS[competitor.category]}>
-              {competitor.category}
-            </Badge>
-            <Badge variant={PRIORITY_COLORS[competitor.priority]}>
-              {competitor.priority}
-            </Badge>
-          </div>
-        </div>
+  const renderCompetitorItem = useCallback(
+    (competitor: CompetitorData, _index: number) => {
+      const totalAlerts = getTotalAlerts(competitor.alerts);
 
-        {/* Metrics Grid */}
-        <div className="grid grid-cols-4 gap-4 mb-3">
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Traffic</p>
-            <p className="font-semibold text-sm">
-              {competitor.metrics.trafficEstimate.toLocaleString()}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Keywords</p>
-            <p className="font-semibold text-sm">
-              {competitor.metrics.rankingKeywords.toLocaleString()}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Avg Position</p>
-            <p className="font-semibold text-sm">
-              {competitor.metrics.averagePosition.toFixed(1)}
-            </p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Visibility</p>
-            <p className="font-semibold text-sm">
-              {competitor.metrics.visibilityScore}%
-            </p>
-          </div>
-        </div>
-
-        {/* Bottom Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {/* Threat Level */}
-            <div className="flex items-center gap-1">
-              <AlertTriangle className={`h-4 w-4 ${THREAT_COLORS[competitor.metrics.threatLevel]}`} />
-              <span className={`text-sm font-medium ${THREAT_COLORS[competitor.metrics.threatLevel]}`}>
-                {competitor.metrics.threatLevel}
-              </span>
-            </div>
-
-            {/* Change Indicator */}
-            <div className="flex items-center gap-1">
-              {getChangeIcon(competitor.metrics.changeIndicator, competitor.metrics.changeValue)}
-              <span className="text-sm text-gray-600">
-                {Math.abs(competitor.metrics.changeValue)}%
-              </span>
-            </div>
-
-            {/* Total Alerts */}
-            {totalAlerts > 0 && (
-              <div className="flex items-center gap-1">
-                <span className="text-sm text-gray-600">Alerts:</span>
-                <Badge variant="outline" className="text-xs">
-                  {totalAlerts}
-                </Badge>
+      return (
+        <div
+          className="mx-2 mb-2 cursor-pointer rounded-lg border bg-white p-4 shadow-sm transition-all hover:border-blue-200 hover:shadow-md"
+          onClick={() => onCompetitorSelect?.(competitor)}
+        >
+          {/* Header */}
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Globe className="h-5 w-5 text-gray-500" />
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  {competitor.name}
+                </h3>
+                <p className="text-sm text-gray-500">{competitor.domain}</p>
               </div>
-            )}
+            </div>
+            <div className="flex items-center gap-2">
+              {getStatusIcon(competitor.status)}
+              <Badge className={CATEGORY_COLORS[competitor.category]}>
+                {competitor.category}
+              </Badge>
+              <Badge variant={PRIORITY_COLORS[competitor.priority]}>
+                {competitor.priority}
+              </Badge>
+            </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCompetitorAction?.(competitor, "analyze");
-              }}
-            >
-              <BarChart3 className="h-3 w-3 mr-1" />
-              Analyze
-            </Button>
-            <span className="text-xs text-gray-500">
-              {competitor.metrics.lastAnalyzed.toLocaleDateString()}
-            </span>
+          {/* Metrics Grid */}
+          <div className="mb-3 grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Traffic</p>
+              <p className="text-sm font-semibold">
+                {competitor.metrics.trafficEstimate.toLocaleString()}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Keywords</p>
+              <p className="text-sm font-semibold">
+                {competitor.metrics.rankingKeywords.toLocaleString()}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Avg Position</p>
+              <p className="text-sm font-semibold">
+                {competitor.metrics.averagePosition.toFixed(1)}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-500">Visibility</p>
+              <p className="text-sm font-semibold">
+                {competitor.metrics.visibilityScore}%
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {/* Threat Level */}
+              <div className="flex items-center gap-1">
+                <AlertTriangle
+                  className={`h-4 w-4 ${THREAT_COLORS[competitor.metrics.threatLevel]}`}
+                />
+                <span
+                  className={`text-sm font-medium ${THREAT_COLORS[competitor.metrics.threatLevel]}`}
+                >
+                  {competitor.metrics.threatLevel}
+                </span>
+              </div>
+
+              {/* Change Indicator */}
+              <div className="flex items-center gap-1">
+                {getChangeIcon(
+                  competitor.metrics.changeIndicator,
+                  competitor.metrics.changeValue
+                )}
+                <span className="text-sm text-gray-600">
+                  {Math.abs(competitor.metrics.changeValue)}%
+                </span>
+              </div>
+
+              {/* Total Alerts */}
+              {totalAlerts > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="text-sm text-gray-600">Alerts:</span>
+                  <Badge variant="outline" className="text-xs">
+                    {totalAlerts}
+                  </Badge>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={e => {
+                  e.stopPropagation();
+                  onCompetitorAction?.(competitor, "analyze");
+                }}
+              >
+                <BarChart3 className="mr-1 h-3 w-3" />
+                Analyze
+              </Button>
+              <span className="text-xs text-gray-500">
+                {competitor.metrics.lastAnalyzed.toLocaleDateString()}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }, [onCompetitorSelect, onCompetitorAction]);
+      );
+    },
+    [onCompetitorSelect, onCompetitorAction]
+  );
 
   return (
     <div className={`space-y-4 ${className || ""}`}>
@@ -321,7 +347,9 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5 text-blue-600" />
-            Competitor Intelligence ({filteredAndSortedCompetitors.length} of {competitors.length})
+            Competitor Intelligence ({
+              filteredAndSortedCompetitors.length
+            } of {competitors.length})
           </CardTitle>
           <CardDescription>
             High-performance virtualized view of competitive intelligence data
@@ -331,13 +359,13 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
           {/* Filters and Search */}
           <div className="flex flex-wrap items-center gap-4">
             {/* Search */}
-            <div className="flex-1 min-w-64">
+            <div className="min-w-64 flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
                 <Input
                   placeholder="Search competitors..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={e => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -392,7 +420,9 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setSortDirection(prev => prev === "asc" ? "desc" : "asc")}
+              onClick={() =>
+                setSortDirection(prev => (prev === "asc" ? "desc" : "asc"))
+              }
             >
               {sortDirection === "asc" ? "↑" : "↓"}
             </Button>
@@ -405,14 +435,16 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
               itemHeight={ITEM_HEIGHT}
               containerHeight={containerHeight}
               renderItem={renderCompetitorItem}
-              getItemKey={(competitor) => competitor.id}
-              className="border rounded-lg bg-gray-50"
+              getItemKey={competitor => competitor.id}
+              className="rounded-lg border bg-gray-50"
             />
           ) : (
             <div className="py-12 text-center text-gray-500">
-              <Globe className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+              <Globe className="mx-auto mb-4 h-12 w-12 text-gray-300" />
               <p className="text-lg font-medium">No competitors found</p>
-              <p className="text-sm">Try adjusting your filters or search terms</p>
+              <p className="text-sm">
+                Try adjusting your filters or search terms
+              </p>
             </div>
           )}
         </CardContent>
@@ -424,7 +456,9 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Showing</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Total Showing
+                </p>
                 <p className="text-2xl font-bold text-blue-600">
                   {filteredAndSortedCompetitors.length}
                 </p>
@@ -438,9 +472,15 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">High Priority</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  High Priority
+                </p>
                 <p className="text-2xl font-bold text-red-600">
-                  {filteredAndSortedCompetitors.filter(c => c.priority === "critical" || c.priority === "high").length}
+                  {
+                    filteredAndSortedCompetitors.filter(
+                      c => c.priority === "critical" || c.priority === "high"
+                    ).length
+                  }
                 </p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-600" />
@@ -452,9 +492,15 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Active</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Active
+                </p>
                 <p className="text-2xl font-bold text-green-600">
-                  {filteredAndSortedCompetitors.filter(c => c.status === "active").length}
+                  {
+                    filteredAndSortedCompetitors.filter(
+                      c => c.status === "active"
+                    ).length
+                  }
                 </p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-600" />
@@ -466,11 +512,19 @@ export const VirtualizedCompetitorList: React.FC<VirtualizedCompetitorListProps>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Visibility</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  Avg Visibility
+                </p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {filteredAndSortedCompetitors.length > 0 
-                    ? Math.round(filteredAndSortedCompetitors.reduce((sum, c) => sum + c.metrics.visibilityScore, 0) / filteredAndSortedCompetitors.length)
-                    : 0}%
+                  {filteredAndSortedCompetitors.length > 0
+                    ? Math.round(
+                        filteredAndSortedCompetitors.reduce(
+                          (sum, c) => sum + c.metrics.visibilityScore,
+                          0
+                        ) / filteredAndSortedCompetitors.length
+                      )
+                    : 0}
+                  %
                 </p>
               </div>
               <BarChart3 className="h-8 w-8 text-purple-600" />

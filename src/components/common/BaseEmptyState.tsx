@@ -38,7 +38,7 @@ export const BaseEmptyState = ({
   icon: MainIcon,
   roleContent,
   role: propRole,
-  illustration,
+  illustration: _illustration,
   onCreateProject,
   className,
 }: BaseEmptyStateComponentProps) => {

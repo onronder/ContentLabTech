@@ -33,14 +33,10 @@ import {
   ExternalLink,
   Copy,
   Eye,
-  BarChart3,
   Clock,
-  Target,
-  Zap,
   FileText,
   Globe,
   TrendingUp,
-  Users,
   Calendar,
   Sparkles,
 } from "lucide-react";
@@ -52,7 +48,13 @@ interface ContentItem {
   title: string;
   content: string;
   url?: string;
-  content_type: "article" | "blog_post" | "landing_page" | "product_page" | "category_page" | "other";
+  content_type:
+    | "article"
+    | "blog_post"
+    | "landing_page"
+    | "product_page"
+    | "category_page"
+    | "other";
   status: "draft" | "published" | "archived" | "deleted";
   seo_score?: number;
   readability_score?: number;
@@ -213,7 +215,12 @@ export const ContentCard = ({
         <div className="flex items-center space-x-4">
           {content.seo_score && (
             <div className="text-center">
-              <div className={cn("text-sm font-semibold", getScoreColor(content.seo_score))}>
+              <div
+                className={cn(
+                  "text-sm font-semibold",
+                  getScoreColor(content.seo_score)
+                )}
+              >
                 {content.seo_score}
               </div>
               <div className="text-xs text-gray-500">SEO</div>
@@ -221,7 +228,12 @@ export const ContentCard = ({
           )}
           {content.readability_score && (
             <div className="text-center">
-              <div className={cn("text-sm font-semibold", getScoreColor(content.readability_score))}>
+              <div
+                className={cn(
+                  "text-sm font-semibold",
+                  getScoreColor(content.readability_score)
+                )}
+              >
                 {content.readability_score}
               </div>
               <div className="text-xs text-gray-500">Readability</div>
@@ -265,7 +277,8 @@ export const ContentCard = ({
             <AlertDialogHeader>
               <AlertDialogTitle>Delete Content</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete &quot;{content.title}&quot;? This action cannot be undone.
+                Are you sure you want to delete &quot;{content.title}&quot;?
+                This action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -285,7 +298,7 @@ export const ContentCard = ({
   }
 
   return (
-    <div className="group relative rounded-xl border border-gray-200 bg-white p-6 hover:shadow-md transition-shadow">
+    <div className="group relative rounded-xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-md">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
         <div className="flex items-center space-x-2">
@@ -341,8 +354,8 @@ export const ContentCard = ({
           {content.title}
         </h3>
         <p className="line-clamp-3 text-sm text-gray-600">
-          {content.meta_description || 
-           content.content.replace(/<[^>]*>/g, '').substring(0, 150) + '...'}
+          {content.meta_description ||
+            content.content.replace(/<[^>]*>/g, "").substring(0, 150) + "..."}
         </p>
       </div>
 
@@ -350,7 +363,7 @@ export const ContentCard = ({
       <div className="mb-4 space-y-2">
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span className="flex items-center space-x-1">
-            <Target className="h-3 w-3" />
+            <FileText className="h-3 w-3" />
             <span>{content.project.name}</span>
           </span>
           <span>{getContentTypeLabel(content.content_type)}</span>
@@ -362,9 +375,7 @@ export const ContentCard = ({
           </span>
           <span className="flex items-center space-x-1">
             <Clock className="h-3 w-3" />
-            <span>
-              {formatDistanceToNow(new Date(content.updated_at))} ago
-            </span>
+            <span>{formatDistanceToNow(new Date(content.updated_at))} ago</span>
           </span>
         </div>
       </div>
@@ -376,7 +387,12 @@ export const ContentCard = ({
             <div className="flex items-center space-x-1">
               <Sparkles className="h-3 w-3 text-blue-500" />
               <span className="text-xs text-gray-500">SEO:</span>
-              <span className={cn("text-xs font-semibold", getScoreColor(content.seo_score))}>
+              <span
+                className={cn(
+                  "text-xs font-semibold",
+                  getScoreColor(content.seo_score)
+                )}
+              >
                 {content.seo_score}/100
               </span>
             </div>
@@ -385,7 +401,12 @@ export const ContentCard = ({
             <div className="flex items-center space-x-1">
               <Eye className="h-3 w-3 text-green-500" />
               <span className="text-xs text-gray-500">Readability:</span>
-              <span className={cn("text-xs font-semibold", getScoreColor(content.readability_score))}>
+              <span
+                className={cn(
+                  "text-xs font-semibold",
+                  getScoreColor(content.readability_score)
+                )}
+              >
                 {content.readability_score}/100
               </span>
             </div>
@@ -398,11 +419,7 @@ export const ContentCard = ({
         <div className="mb-4">
           <div className="flex flex-wrap gap-1">
             {content.focus_keywords.slice(0, 3).map((keyword, index) => (
-              <Badge
-                key={index}
-                variant="secondary"
-                className="text-xs"
-              >
+              <Badge key={index} variant="secondary" className="text-xs">
                 {keyword}
               </Badge>
             ))}
@@ -430,9 +447,7 @@ export const ContentCard = ({
         {content.published_at && (
           <span className="flex items-center space-x-1">
             <Calendar className="h-3 w-3" />
-            <span>
-              {new Date(content.published_at).toLocaleDateString()}
-            </span>
+            <span>{new Date(content.published_at).toLocaleDateString()}</span>
           </span>
         )}
       </div>
@@ -442,7 +457,8 @@ export const ContentCard = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Content</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete &quot;{content.title}&quot;? This action cannot be undone.
+              Are you sure you want to delete &quot;{content.title}&quot;? This
+              action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

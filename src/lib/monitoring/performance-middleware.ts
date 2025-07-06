@@ -3,9 +3,9 @@
  * Transparent performance tracking for API endpoints
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { metricsCollector } from './metrics-collector';
-import crypto from 'crypto';
+import { NextRequest, NextResponse } from "next/server";
+import { metricsCollector } from "./metrics-collector";
+import * as crypto from "crypto";
 
 export interface RequestContext {
   traceId: string;
@@ -36,8 +36,10 @@ export function withPerformanceMonitoring(
       startTime,
       endpoint,
       method,
-      userAgent: req.headers.get('user-agent') || undefined,
-      requestSize,
+      ...(req.headers.get("user-agent") && {
+        userAgent: req.headers.get("user-agent")!,
+      }),
+      ...(requestSize && { requestSize }),
     };
 
     // Store active request
@@ -50,10 +52,10 @@ export function withPerformanceMonitoring(
       response = await handler(req);
     } catch (err) {
       error = err instanceof Error ? err : new Error(String(err));
-      
+
       // Create error response
       response = NextResponse.json(
-        { error: 'Internal Server Error', traceId },
+        { error: "Internal Server Error", traceId },
         { status: 500 }
       );
     } finally {
@@ -71,9 +73,9 @@ export function withPerformanceMonitoring(
       responseTime,
       statusCode: error ? 500 : response.status,
       timestamp: new Date().toISOString(),
-      userAgent: context.userAgent,
-      userId: context.userId,
-      requestSize: context.requestSize,
+      ...(context.userAgent && { userAgent: context.userAgent }),
+      ...(context.userId && { userId: context.userId }),
+      ...(context.requestSize && { requestSize: context.requestSize }),
       responseSize,
       traceId,
     });
@@ -85,16 +87,16 @@ export function withPerformanceMonitoring(
       headers: response.headers,
     });
 
-    enhancedResponse.headers.set('X-Response-Time', `${responseTime}ms`);
-    enhancedResponse.headers.set('X-Trace-ID', traceId);
-    enhancedResponse.headers.set('X-Timestamp', new Date().toISOString());
-    
+    enhancedResponse.headers.set("X-Response-Time", `${responseTime}ms`);
+    enhancedResponse.headers.set("X-Trace-ID", traceId);
+    enhancedResponse.headers.set("X-Timestamp", new Date().toISOString());
+
     // Add performance class based on response time
     const performanceClass = getPerformanceClass(responseTime);
-    enhancedResponse.headers.set('X-Performance-Class', performanceClass);
+    enhancedResponse.headers.set("X-Performance-Class", performanceClass);
 
     if (error) {
-      enhancedResponse.headers.set('X-Error', 'true');
+      enhancedResponse.headers.set("X-Error", "true");
     }
 
     return enhancedResponse;
@@ -122,9 +124,9 @@ export function withDatabaseMonitoring<T extends any[], R>(
     try {
       const result = await operation(...args);
       success = true;
-      
+
       // Try to extract rows affected if it's a standard database result
-      if (result && typeof result === 'object' && 'rowCount' in result) {
+      if (result && typeof result === "object" && "rowCount" in result) {
         rowsAffected = (result as any).rowCount;
       }
 
@@ -134,14 +136,14 @@ export function withDatabaseMonitoring<T extends any[], R>(
       throw error;
     } finally {
       const duration = Date.now() - startTime;
-      
+
       metricsCollector.recordDatabaseQuery({
         operation: context.operation,
         table: context.table,
         duration,
         success,
         timestamp: new Date().toISOString(),
-        rowsAffected,
+        ...(rowsAffected !== undefined && { rowsAffected }),
         queryHash: generateQueryHash(context.operation, context.table),
       });
     }
@@ -151,7 +153,7 @@ export function withDatabaseMonitoring<T extends any[], R>(
 export function withCacheMonitoring<T>(
   operation: () => Promise<T>,
   context: {
-    type: 'hit' | 'miss' | 'set' | 'evict' | 'delete';
+    type: "hit" | "miss" | "set" | "evict" | "delete";
     key: string;
     size?: number;
     ttl?: number;
@@ -161,14 +163,14 @@ export function withCacheMonitoring<T>(
 
   return operation().finally(() => {
     const duration = Date.now() - startTime;
-    
+
     metricsCollector.recordCacheOperation({
       type: context.type,
       key: context.key,
       duration,
       timestamp: new Date().toISOString(),
-      size: context.size,
-      ttl: context.ttl,
+      ...(context.size !== undefined && { size: context.size }),
+      ...(context.ttl !== undefined && { ttl: context.ttl }),
     });
   });
 }
@@ -177,10 +179,10 @@ export function withCacheMonitoring<T>(
 export function middleware(request: NextRequest) {
   // This function can be used in Next.js middleware
   const traceId = generateTraceId();
-  
+
   // Add trace ID to request headers
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-trace-id', traceId);
+  requestHeaders.set("x-trace-id", traceId);
 
   return NextResponse.next({
     request: {
@@ -191,20 +193,20 @@ export function middleware(request: NextRequest) {
 
 // Helper functions
 function generateTraceId(): string {
-  return crypto.randomBytes(16).toString('hex');
+  return crypto.randomBytes(16).toString("hex");
 }
 
 function generateQueryHash(operation: string, table: string): string {
   return crypto
-    .createHash('md5')
+    .createHash("md5")
     .update(`${operation}:${table}`)
-    .digest('hex')
+    .digest("hex")
     .substring(0, 8);
 }
 
 async function getRequestSize(req: NextRequest): Promise<number> {
   try {
-    const contentLength = req.headers.get('content-length');
+    const contentLength = req.headers.get("content-length");
     if (contentLength) {
       return parseInt(contentLength, 10);
     }
@@ -224,7 +226,7 @@ async function getRequestSize(req: NextRequest): Promise<number> {
 
 async function getResponseSize(response: NextResponse): Promise<number> {
   try {
-    const contentLength = response.headers.get('content-length');
+    const contentLength = response.headers.get("content-length");
     if (contentLength) {
       return parseInt(contentLength, 10);
     }
@@ -243,11 +245,11 @@ async function getResponseSize(response: NextResponse): Promise<number> {
 }
 
 function getPerformanceClass(responseTime: number): string {
-  if (responseTime < 100) return 'excellent';
-  if (responseTime < 300) return 'good';
-  if (responseTime < 1000) return 'average';
-  if (responseTime < 3000) return 'poor';
-  return 'critical';
+  if (responseTime < 100) return "excellent";
+  if (responseTime < 300) return "good";
+  if (responseTime < 1000) return "average";
+  if (responseTime < 3000) return "poor";
+  return "critical";
 }
 
 // Export active request tracker for monitoring
@@ -284,24 +286,29 @@ export function getRequestAnalytics(): RequestAnalytics {
   }
 
   const durations = requests.map(req => now - req.startTime);
-  const averageRequestTime = durations.reduce((a, b) => a + b, 0) / durations.length;
+  const averageRequestTime =
+    durations.reduce((a, b) => a + b, 0) / durations.length;
 
   const longestIndex = durations.indexOf(Math.max(...durations));
-  const longestRunningRequest = requests[longestIndex] ? {
-    traceId: requests[longestIndex].traceId,
-    duration: durations[longestIndex],
-    endpoint: requests[longestIndex].endpoint,
-  } : undefined;
+  const longestRunningRequest =
+    requests[longestIndex] && durations[longestIndex] !== undefined
+      ? {
+          traceId: requests[longestIndex].traceId,
+          duration: durations[longestIndex],
+          endpoint: requests[longestIndex].endpoint,
+        }
+      : undefined;
 
   const requestsByEndpoint: Record<string, number> = {};
   requests.forEach(req => {
-    requestsByEndpoint[req.endpoint] = (requestsByEndpoint[req.endpoint] || 0) + 1;
+    requestsByEndpoint[req.endpoint] =
+      (requestsByEndpoint[req.endpoint] || 0) + 1;
   });
 
   return {
     totalActiveRequests: requests.length,
     averageRequestTime,
-    longestRunningRequest,
+    ...(longestRunningRequest && { longestRunningRequest }),
     requestsByEndpoint,
   };
 }

@@ -10,11 +10,8 @@ import { cn } from "@/lib/utils";
 import {
   FolderOpen,
   TrendingUp,
-  Users,
-  Zap,
   Target,
   BarChart3,
-  Clock,
   Sparkles,
 } from "lucide-react";
 
@@ -90,9 +87,10 @@ export const ProjectStats = ({ projects, loading }: ProjectStatsProps) => {
       icon: TrendingUp,
       color: "text-green-600",
       bgColor: "bg-green-50",
-      change: stats.totalProjects > 0 
-        ? `${Math.round((stats.activeProjects / stats.totalProjects) * 100)}% active`
-        : null,
+      change:
+        stats.totalProjects > 0
+          ? `${Math.round((stats.activeProjects / stats.totalProjects) * 100)}% active`
+          : null,
     },
     {
       label: "Content Items",
@@ -100,9 +98,10 @@ export const ProjectStats = ({ projects, loading }: ProjectStatsProps) => {
       icon: BarChart3,
       color: "text-purple-600",
       bgColor: "bg-purple-50",
-      change: stats.avgContentPerProject > 0 
-        ? `${stats.avgContentPerProject} avg per project`
-        : null,
+      change:
+        stats.avgContentPerProject > 0
+          ? `${stats.avgContentPerProject} avg per project`
+          : null,
     },
     {
       label: "Competitors Tracked",
@@ -118,9 +117,10 @@ export const ProjectStats = ({ projects, loading }: ProjectStatsProps) => {
       icon: Sparkles,
       color: "text-pink-600",
       bgColor: "bg-pink-50",
-      change: stats.totalProjects > 0 
-        ? `${Math.round((stats.aiEnabledProjects / stats.totalProjects) * 100)}% of projects`
-        : null,
+      change:
+        stats.totalProjects > 0
+          ? `${Math.round((stats.aiEnabledProjects / stats.totalProjects) * 100)}% of projects`
+          : null,
     },
   ];
 
@@ -160,7 +160,7 @@ export const ProjectStats = ({ projects, loading }: ProjectStatsProps) => {
               <p className="text-sm font-medium text-gray-600">{item.label}</p>
               <p className="text-2xl font-bold text-gray-900">{item.value}</p>
               {item.change && (
-                <p className="text-xs text-gray-500 mt-1">{item.change}</p>
+                <p className="mt-1 text-xs text-gray-500">{item.change}</p>
               )}
             </div>
           </div>

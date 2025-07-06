@@ -6,7 +6,7 @@
 export enum ServiceStatus {
   HEALTHY = "healthy",
   DEGRADED = "degraded",
-  UNAVAILABLE = "unavailable"
+  UNAVAILABLE = "unavailable",
 }
 
 export interface ServiceState {
@@ -47,11 +47,11 @@ export class ServiceDegradationManager {
         "content-analysis",
         "keyword-strategy",
         "competitor-analysis",
-        "content-improvements"
+        "content-improvements",
       ],
       degradedFeatures: [
         "content-analysis", // Reduced complexity
-        "keyword-strategy"  // Basic recommendations only
+        "keyword-strategy", // Basic recommendations only
       ],
       fallbackData: {
         contentAnalysis: {
@@ -63,11 +63,12 @@ export class ServiceDegradationManager {
               impact: "medium",
               effort: "low",
               title: "Basic SEO Optimization",
-              description: "AI analysis temporarily unavailable. Please review content manually for SEO best practices."
-            }
-          ]
-        }
-      }
+              description:
+                "AI analysis temporarily unavailable. Please review content manually for SEO best practices.",
+            },
+          ],
+        },
+      },
     });
 
     // SERPAPI Service Configuration
@@ -80,18 +81,18 @@ export class ServiceDegradationManager {
         "competitor-rankings",
         "keyword-research",
         "search-analytics",
-        "trending-keywords"
+        "trending-keywords",
       ],
       degradedFeatures: [
-        "competitor-rankings" // Limited data only
+        "competitor-rankings", // Limited data only
       ],
       fallbackData: {
         searchResults: {
           organicResults: [],
           totalResults: 0,
-          message: "Search data temporarily unavailable"
-        }
-      }
+          message: "Search data temporarily unavailable",
+        },
+      },
     });
 
     // Supabase Service Configuration
@@ -104,12 +105,12 @@ export class ServiceDegradationManager {
         "database-queries",
         "realtime-updates",
         "file-storage",
-        "auth-operations"
+        "auth-operations",
       ],
       degradedFeatures: [
         "realtime-updates", // Disable realtime, use polling
-        "file-storage"      // Disable file uploads
-      ]
+        "file-storage", // Disable file uploads
+      ],
     });
 
     // Initialize service states
@@ -117,7 +118,7 @@ export class ServiceDegradationManager {
       this.services.set(serviceName, {
         status: ServiceStatus.HEALTHY,
         lastCheck: new Date(),
-        consecutiveFailures: 0
+        consecutiveFailures: 0,
       });
     }
   }
@@ -156,18 +157,18 @@ export class ServiceDegradationManager {
    */
   recordSuccess(serviceName: string): void {
     const state = this.services.get(serviceName);
-    
+
     if (!state) {
       console.warn(`Unknown service: ${serviceName}`);
       return;
     }
 
     const wasUnhealthy = state.status !== ServiceStatus.HEALTHY;
-    
+
     state.consecutiveFailures = 0;
     state.status = ServiceStatus.HEALTHY;
-    state.lastError = undefined;
-    state.degradedFeatures = undefined;
+    delete state.lastError;
+    delete state.degradedFeatures;
     state.lastCheck = new Date();
 
     this.services.set(serviceName, state);
@@ -218,20 +219,26 @@ export class ServiceDegradationManager {
   /**
    * Get service health summary
    */
-  getHealthSummary(): Record<string, {
-    status: ServiceStatus;
-    consecutiveFailures: number;
-    lastCheck: Date;
-    lastError?: string;
-    availableFeatures: string[];
-  }> {
-    const summary: Record<string, {
+  getHealthSummary(): Record<
+    string,
+    {
       status: ServiceStatus;
       consecutiveFailures: number;
       lastCheck: Date;
       lastError?: string;
       availableFeatures: string[];
-    }> = {};
+    }
+  > {
+    const summary: Record<
+      string,
+      {
+        status: ServiceStatus;
+        consecutiveFailures: number;
+        lastCheck: Date;
+        lastError?: string;
+        availableFeatures: string[];
+      }
+    > = {};
 
     for (const [serviceName, state] of this.services) {
       const config = this.configs.get(serviceName);
@@ -245,13 +252,18 @@ export class ServiceDegradationManager {
         }
       }
 
-      summary[serviceName] = {
+      const serviceSummary: any = {
         status: state.status,
         consecutiveFailures: state.consecutiveFailures,
         lastCheck: state.lastCheck,
-        lastError: state.lastError,
-        availableFeatures
+        availableFeatures,
       };
+
+      if (state.lastError !== undefined) {
+        serviceSummary.lastError = state.lastError;
+      }
+
+      summary[serviceName] = serviceSummary;
     }
 
     return summary;
@@ -285,12 +297,12 @@ export class ServiceDegradationManager {
     estimatedRecovery: string;
   } {
     const state = this.services.get(serviceName);
-    
+
     if (!state) {
       return {
         userMessage: "Service status unknown",
         alternativeActions: [],
-        estimatedRecovery: "Unknown"
+        estimatedRecovery: "Unknown",
       };
     }
 
@@ -301,9 +313,9 @@ export class ServiceDegradationManager {
           alternativeActions: [
             "Try refreshing the page",
             "Use basic features instead of advanced ones",
-            "Check back in a few minutes"
+            "Check back in a few minutes",
           ],
-          estimatedRecovery: "2-5 minutes"
+          estimatedRecovery: "2-5 minutes",
         };
 
       case ServiceStatus.UNAVAILABLE:
@@ -312,21 +324,24 @@ export class ServiceDegradationManager {
           alternativeActions: [
             "Use offline features",
             "Save your work and try again later",
-            "Contact support if the issue persists"
+            "Contact support if the issue persists",
           ],
-          estimatedRecovery: "5-15 minutes"
+          estimatedRecovery: "5-15 minutes",
         };
 
       default:
         return {
           userMessage: `${serviceName} is operating normally`,
           alternativeActions: [],
-          estimatedRecovery: "N/A"
+          estimatedRecovery: "N/A",
         };
     }
   }
 
-  private startServiceMonitoring(serviceName: string, config: DegradationConfig): void {
+  private startServiceMonitoring(
+    serviceName: string,
+    config: DegradationConfig
+  ): void {
     // Clear existing interval if any
     const existingInterval = this.checkIntervals.get(serviceName);
     if (existingInterval) {
@@ -353,13 +368,18 @@ export class ServiceDegradationManager {
           break;
 
         case "serpapi":
-          const { healthCheck: serpapiHealthCheck } = await import("../serpapi");
+          const { healthCheck: serpapiHealthCheck } = await import(
+            "../serpapi"
+          );
           isHealthy = await serpapiHealthCheck();
           break;
 
         case "supabase":
           const { supabase } = await import("../supabase/client");
-          const { data } = await supabase.from("profiles").select("id").limit(1);
+          const { data } = await supabase
+            .from("profiles")
+            .select("id")
+            .limit(1);
           isHealthy = data !== null;
           break;
 
@@ -374,14 +394,20 @@ export class ServiceDegradationManager {
         this.recordFailure(serviceName, "Health check failed");
       }
     } catch (error) {
-      this.recordFailure(serviceName, error instanceof Error ? error.message : "Unknown error");
+      this.recordFailure(
+        serviceName,
+        error instanceof Error ? error.message : "Unknown error"
+      );
     }
   }
 
-  private logServiceStatusChange(serviceName: string, state: ServiceState): void {
+  private logServiceStatusChange(
+    serviceName: string,
+    state: ServiceState
+  ): void {
     const timestamp = new Date().toISOString();
     const logMessage = `[${timestamp}] Service ${serviceName} status changed to ${state.status}`;
-    
+
     if (state.lastError) {
       console.warn(`${logMessage} - Error: ${state.lastError}`);
     } else {

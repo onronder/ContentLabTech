@@ -3,12 +3,16 @@
  * Integrates monitoring with existing error boundaries, retry systems, and API routes
  */
 
-import { logger } from './logger';
-import { errorTracker, setupGlobalErrorHandling } from './error-tracker';
-import { metricsCollector } from './metrics-collector';
-import { healthChecker } from './health-checker';
-import { withPerformanceMonitoring, withDatabaseMonitoring, withCacheMonitoring } from './performance-middleware';
-import { NextRequest, NextResponse } from 'next/server';
+import { logger } from "./logger";
+import { errorTracker, setupGlobalErrorHandling } from "./error-tracker";
+import { metricsCollector } from "./metrics-collector";
+import { healthChecker } from "./health-checker";
+import {
+  withPerformanceMonitoring,
+  withDatabaseMonitoring,
+  withCacheMonitoring,
+} from "./performance-middleware";
+import { NextRequest, NextResponse } from "next/server";
 
 // Integration setup function
 export function setupMonitoringIntegration() {
@@ -16,17 +20,24 @@ export function setupMonitoringIntegration() {
   setupGlobalErrorHandling();
 
   // Log system startup
-  logger.info('Monitoring system initialized', {
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    version: process.env.npm_package_version || '1.0.0',
-  }, ['startup', 'monitoring']);
+  logger.info(
+    "Monitoring system initialized",
+    {
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      version: process.env["npm_package_version"] || "1.0.0",
+    },
+    ["startup", "monitoring"]
+  );
 
   // Start periodic health checks
   startPeriodicHealthChecks();
 
   // Log successful integration
-  logger.info('Monitoring integration completed', {}, ['startup', 'integration']);
+  logger.info("Monitoring integration completed", {}, [
+    "startup",
+    "integration",
+  ]);
 }
 
 // Periodic health check scheduler
@@ -36,33 +47,45 @@ function startPeriodicHealthChecks() {
   setInterval(async () => {
     try {
       const systemHealth = await healthChecker.checkSystemHealth();
-      
-      logger.info('Periodic health check completed', {
-        overall: systemHealth.overall,
-        serviceCount: systemHealth.services.length,
-        healthyServices: systemHealth.services.filter(s => s.status === 'healthy').length,
-        uptime: systemHealth.uptime,
-      }, ['health-check', 'periodic']);
+
+      logger.info(
+        "Periodic health check completed",
+        {
+          overall: systemHealth.overall,
+          serviceCount: systemHealth.services.length,
+          healthyServices: systemHealth.services.filter(
+            s => s.status === "healthy"
+          ).length,
+          uptime: systemHealth.uptime,
+        },
+        ["health-check", "periodic"]
+      );
 
       // Track unhealthy services as errors
       systemHealth.services
-        .filter(service => service.status === 'unhealthy')
+        .filter(service => service.status === "unhealthy")
         .forEach(service => {
-          const error = new Error(`Service ${service.name} is unhealthy: ${service.message}`);
+          const error = new Error(
+            `Service ${service.service} is unhealthy: ${service.error || "Unknown error"}`
+          );
           errorTracker.trackError(error, {
-            category: 'network',
-            severity: 'high',
-            endpoint: service.name,
+            category: "network",
+            severity: "high",
+            endpoint: service.service,
             additional: {
               serviceStatus: service.status,
               responseTime: service.responseTime,
-              lastCheck: service.lastCheck,
+              timestamp: service.timestamp,
             },
           });
         });
-
     } catch (error) {
-      logger.error('Periodic health check failed', error instanceof Error ? error : new Error(String(error)), {}, ['health-check', 'error']);
+      logger.error(
+        "Periodic health check failed",
+        error instanceof Error ? error : new Error(String(error)),
+        {},
+        ["health-check", "error"]
+      );
     }
   }, HEALTH_CHECK_INTERVAL);
 }
@@ -72,27 +95,31 @@ export function withMonitoring<T extends any[], R>(
   handler: (...args: T) => Promise<R>,
   options: {
     name: string;
-    category?: 'api' | 'database' | 'cache' | 'external';
+    category?: "api" | "database" | "cache" | "external";
     trackPerformance?: boolean;
     trackErrors?: boolean;
-  } = { name: 'unknown', trackPerformance: true, trackErrors: true }
+  } = { name: "unknown", trackPerformance: true, trackErrors: true }
 ): (...args: T) => Promise<R> {
   return async (...args: T): Promise<R> => {
     const startTime = Date.now();
     const traceId = crypto.randomUUID();
-    
+
     try {
-      logger.debug(`Starting ${options.name}`, {
-        traceId,
-        category: options.category,
-        args: args.length,
-      }, ['monitoring', options.category || 'api']);
+      logger.debug(
+        `Starting ${options.name}`,
+        {
+          traceId,
+          category: options.category,
+          args: args.length,
+        },
+        ["monitoring", options.category || "api"]
+      );
 
       const result = await handler(...args);
-      
+
       if (options.trackPerformance) {
         const duration = Date.now() - startTime;
-        
+
         logger.performance({
           operation: options.name,
           duration,
@@ -100,30 +127,44 @@ export function withMonitoring<T extends any[], R>(
           details: {
             traceId,
             category: options.category,
-          }
+          },
         });
       }
 
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       if (options.trackErrors && error instanceof Error) {
+        const categoryMap = {
+          api: "business" as const,
+          database: "database" as const,
+          cache: "runtime" as const,
+          external: "network" as const,
+        };
+
         const errorId = errorTracker.trackError(error, {
-          category: options.category === 'api' ? 'business' : options.category || 'runtime',
+          category:
+            categoryMap[options.category as keyof typeof categoryMap] ||
+            "runtime",
           additional: {
             operation: options.name,
             duration,
             traceId,
-          }
+          },
         });
 
-        logger.error(`${options.name} failed`, error, {
-          errorId,
-          traceId,
-          duration,
-          category: options.category,
-        }, ['monitoring', 'error']);
+        logger.error(
+          `${options.name} failed`,
+          error,
+          {
+            errorId,
+            traceId,
+            duration,
+            category: options.category,
+          },
+          ["monitoring", "error"]
+        );
       }
 
       throw error;
@@ -137,19 +178,33 @@ export function monitorApiRoute(
 ): (req: NextRequest) => Promise<NextResponse> {
   return withPerformanceMonitoring(async (req: NextRequest) => {
     const endpoint = new URL(req.url).pathname;
-    
+
     try {
       const response = await handler(req);
-      
+
       // Track successful API call
-      logger.http({
+      const httpLogData: {
+        method: string;
+        url: string;
+        status: number;
+        responseTime: number;
+        userAgent?: string;
+        ip?: string;
+      } = {
         method: req.method,
         url: endpoint,
         status: response.status,
         responseTime: Date.now() - performance.now(),
-        userAgent: req.headers.get('user-agent') || undefined,
-        ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-      });
+      };
+
+      const userAgent = req.headers.get("user-agent");
+      if (userAgent) httpLogData.userAgent = userAgent;
+
+      const ip =
+        req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip");
+      if (ip) httpLogData.ip = ip;
+
+      logger.http(httpLogData);
 
       return response;
     } catch (error) {
@@ -158,12 +213,14 @@ export function monitorApiRoute(
         errorTracker.trackError(error, {
           endpoint,
           method: req.method,
-          category: 'business',
-          severity: 'medium',
+          category: "business",
+          severity: "medium",
           additional: {
-            userAgent: req.headers.get('user-agent'),
-            ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
-          }
+            userAgent: req.headers.get("user-agent"),
+            ip:
+              req.headers.get("x-forwarded-for") ||
+              req.headers.get("x-real-ip"),
+          },
         });
       }
 
@@ -183,7 +240,7 @@ export function monitorDatabaseOperation<T extends any[], R>(
   return withDatabaseMonitoring(
     withMonitoring(operation, {
       name: `DB: ${context.operation} on ${context.table}`,
-      category: 'database',
+      category: "database",
     }),
     context
   );
@@ -193,7 +250,7 @@ export function monitorDatabaseOperation<T extends any[], R>(
 export function monitorCacheOperation<T>(
   operation: () => Promise<T>,
   context: {
-    type: 'hit' | 'miss' | 'set' | 'evict' | 'delete';
+    type: "hit" | "miss" | "set" | "evict" | "delete";
     key: string;
     size?: number;
     ttl?: number;
@@ -202,7 +259,7 @@ export function monitorCacheOperation<T>(
   return withCacheMonitoring(
     withMonitoring(operation, {
       name: `Cache: ${context.type} ${context.key}`,
-      category: 'cache',
+      category: "cache",
     }),
     context
   );
@@ -215,7 +272,7 @@ export function monitorExternalService<T extends any[], R>(
 ): (...args: T) => Promise<R> {
   return withMonitoring(operation, {
     name: `External: ${serviceName}`,
-    category: 'external',
+    category: "external",
   });
 }
 
@@ -225,27 +282,37 @@ export function createMonitoredErrorBoundary(componentName: string) {
     static getDerivedStateFromError(error: Error) {
       const errorId = errorTracker.trackError(error, {
         endpoint: componentName,
-        category: 'runtime',
-        severity: 'high',
+        category: "runtime",
+        severity: "high",
         additional: {
-          type: 'react-error-boundary',
+          type: "react-error-boundary",
           component: componentName,
-        }
+        },
       });
 
-      logger.error('React error boundary caught error', error, {
-        errorId,
-        componentName,
-      }, ['react', 'error-boundary']);
+      logger.error(
+        "React error boundary caught error",
+        error,
+        {
+          errorId,
+          componentName,
+        },
+        ["react", "error-boundary"]
+      );
 
       return { hasError: true, errorId };
     }
 
     componentDidCatch(error: Error, errorInfo: any) {
-      logger.error('React error boundary additional info', error, {
-        componentStack: errorInfo.componentStack,
-        errorBoundary: componentName,
-      }, ['react', 'error-info']);
+      logger.error(
+        "React error boundary additional info",
+        error,
+        {
+          componentStack: errorInfo.componentStack,
+          errorBoundary: componentName,
+        },
+        ["react", "error-info"]
+      );
     }
   };
 }
@@ -260,7 +327,7 @@ export async function getMonitoringStatus() {
     ]);
 
     return {
-      status: 'healthy',
+      status: "healthy",
       timestamp: new Date().toISOString(),
       systemHealth,
       systemMetrics,
@@ -268,10 +335,13 @@ export async function getMonitoringStatus() {
       loggerConfig: logger.getConfig(),
     };
   } catch (error) {
-    logger.error('Failed to get monitoring status', error instanceof Error ? error : new Error(String(error)));
-    
+    logger.error(
+      "Failed to get monitoring status",
+      error instanceof Error ? error : new Error(String(error))
+    );
+
     return {
-      status: 'unhealthy',
+      status: "unhealthy",
       timestamp: new Date().toISOString(),
       error: error instanceof Error ? error.message : String(error),
     };
@@ -280,7 +350,7 @@ export async function getMonitoringStatus() {
 
 // Graceful shutdown
 export async function shutdownMonitoring() {
-  logger.info('Starting monitoring system shutdown', {}, ['shutdown']);
+  logger.info("Starting monitoring system shutdown", {}, ["shutdown"]);
 
   try {
     // Shutdown components
@@ -290,36 +360,44 @@ export async function shutdownMonitoring() {
       metricsCollector.shutdown(),
     ]);
 
-    console.log('Monitoring system shut down successfully');
+    console.log("Monitoring system shut down successfully");
   } catch (error) {
-    console.error('Error during monitoring shutdown:', error);
+    console.error("Error during monitoring shutdown:", error);
   }
 }
 
 // Process cleanup handlers
-process.on('SIGTERM', shutdownMonitoring);
-process.on('SIGINT', shutdownMonitoring);
+process.on("SIGTERM", shutdownMonitoring);
+process.on("SIGINT", shutdownMonitoring);
 
 // Integration with existing error boundaries
-export function enhanceErrorBoundary(errorBoundary: any, componentName: string) {
+export function enhanceErrorBoundary(
+  errorBoundary: any,
+  componentName: string
+) {
   const originalComponentDidCatch = errorBoundary.componentDidCatch;
-  
-  errorBoundary.componentDidCatch = function(error: Error, errorInfo: any) {
+
+  errorBoundary.componentDidCatch = function (error: Error, errorInfo: any) {
     // Track error with monitoring system
     const errorId = errorTracker.trackError(error, {
       endpoint: componentName,
-      category: 'runtime',
+      category: "runtime",
       additional: {
         componentStack: errorInfo.componentStack,
         errorInfo,
-      }
+      },
     });
 
-    logger.error('Enhanced error boundary caught error', error, {
-      errorId,
-      componentName,
-      errorInfo,
-    }, ['react', 'enhanced-error-boundary']);
+    logger.error(
+      "Enhanced error boundary caught error",
+      error,
+      {
+        errorId,
+        componentName,
+        errorInfo,
+      },
+      ["react", "enhanced-error-boundary"]
+    );
 
     // Call original handler if it exists
     if (originalComponentDidCatch) {
@@ -338,42 +416,42 @@ export function createPerformanceMiddleware() {
 
     // Skip monitoring for static assets and internal Next.js routes
     if (
-      pathname.startsWith('/_next/') ||
-      pathname.startsWith('/api/_') ||
-      pathname.includes('.') // Static files
+      pathname.startsWith("/_next/") ||
+      pathname.startsWith("/api/_") ||
+      pathname.includes(".") // Static files
     ) {
       return NextResponse.next();
     }
 
     try {
       const response = NextResponse.next();
-      
+
       // Track page load performance
       const duration = Date.now() - startTime;
-      
+
       logger.performance({
         operation: `Page: ${pathname}`,
         duration,
         success: true,
         details: {
           method: req.method,
-          userAgent: req.headers.get('user-agent'),
-        }
+          userAgent: req.headers.get("user-agent"),
+        },
       });
 
       return response;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       if (error instanceof Error) {
         errorTracker.trackError(error, {
           endpoint: pathname,
           method: req.method,
-          category: 'runtime',
+          category: "runtime",
           additional: {
             duration,
-            userAgent: req.headers.get('user-agent'),
-          }
+            userAgent: req.headers.get("user-agent"),
+          },
         });
       }
 
@@ -382,9 +460,4 @@ export function createPerformanceMiddleware() {
   };
 }
 
-export {
-  logger,
-  errorTracker,
-  metricsCollector,
-  healthChecker
-};
+export { logger, errorTracker, metricsCollector, healthChecker };

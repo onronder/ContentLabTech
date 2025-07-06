@@ -59,7 +59,6 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
-import type { CompetitiveContentAnalysis as CompetitiveContentAnalysisData } from "@/lib/competitive/types";
 
 interface CompetitiveContentAnalysisProps {
   projectId?: string;
@@ -179,7 +178,7 @@ export const CompetitiveContentAnalysis: React.FC<
     });
 
     return processedData;
-  }, [contentAnalysis, topicFilter, priorityFilter, sortBy]);
+  }, [contentAnalysis, topicFilter, priorityFilter, sortBy, _sortOrder]);
 
   // Process content quality metrics
   const contentQualityMetrics = useMemo((): ContentMetric[] => {

@@ -39,8 +39,11 @@ interface AnalyticsOverviewProps {
   timeRange: string;
 }
 
-export const AnalyticsOverview = ({ data, trends, timeRange }: AnalyticsOverviewProps) => {
-  const getTrendDirection = (current: number, previous: number) => {
+export const AnalyticsOverview = ({
+  data,
+  timeRange,
+}: AnalyticsOverviewProps) => {
+  const _getTrendDirection = (current: number, previous: number) => {
     if (current > previous) return "up";
     if (current < previous) return "down";
     return "stable";
@@ -127,7 +130,9 @@ export const AnalyticsOverview = ({ data, trends, timeRange }: AnalyticsOverview
             <Zap className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getScoreColor(data.avgSeoScore)}`}>
+            <div
+              className={`text-2xl font-bold ${getScoreColor(data.avgSeoScore)}`}
+            >
               {data.avgSeoScore}
               <span className="text-sm font-normal text-gray-500">/100</span>
             </div>
@@ -177,16 +182,21 @@ export const AnalyticsOverview = ({ data, trends, timeRange }: AnalyticsOverview
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">Overall Performance</span>
-              <span className={`text-lg font-semibold ${getScoreColor(data.avgPerformanceScore)}`}>
+              <span
+                className={`text-lg font-semibold ${getScoreColor(data.avgPerformanceScore)}`}
+              >
                 {data.avgPerformanceScore}/100
               </span>
             </div>
-            
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+
+            <div className="h-2 w-full rounded-full bg-gray-200">
+              <div
                 className={`h-2 rounded-full ${
-                  data.avgPerformanceScore >= 80 ? 'bg-green-500' :
-                  data.avgPerformanceScore >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  data.avgPerformanceScore >= 80
+                    ? "bg-green-500"
+                    : data.avgPerformanceScore >= 60
+                      ? "bg-yellow-500"
+                      : "bg-red-500"
                 }`}
                 style={{ width: `${data.avgPerformanceScore}%` }}
               />
@@ -227,20 +237,21 @@ export const AnalyticsOverview = ({ data, trends, timeRange }: AnalyticsOverview
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
-                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+              <div className="flex items-start space-x-3 rounded-lg bg-green-50 p-3">
+                <CheckCircle className="mt-0.5 h-4 w-4 text-green-600" />
                 <div className="text-sm">
                   <div className="font-medium text-green-900">
                     Content Performance Up 15%
                   </div>
                   <div className="text-green-700">
-                    Your content is performing better than last {timeRange === '7d' ? 'week' : 'month'}
+                    Your content is performing better than last{" "}
+                    {timeRange === "7d" ? "week" : "month"}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
-                <TrendingUp className="h-4 w-4 text-blue-600 mt-0.5" />
+              <div className="flex items-start space-x-3 rounded-lg bg-blue-50 p-3">
+                <TrendingUp className="mt-0.5 h-4 w-4 text-blue-600" />
                 <div className="text-sm">
                   <div className="font-medium text-blue-900">
                     SEO Opportunities Identified
@@ -252,11 +263,12 @@ export const AnalyticsOverview = ({ data, trends, timeRange }: AnalyticsOverview
               </div>
 
               {data.activeAlerts > 0 && (
-                <div className="flex items-start space-x-3 p-3 bg-yellow-50 rounded-lg">
-                  <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                <div className="flex items-start space-x-3 rounded-lg bg-yellow-50 p-3">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 text-yellow-600" />
                   <div className="text-sm">
                     <div className="font-medium text-yellow-900">
-                      {data.activeAlerts} Active Alert{data.activeAlerts > 1 ? 's' : ''}
+                      {data.activeAlerts} Active Alert
+                      {data.activeAlerts > 1 ? "s" : ""}
                     </div>
                     <div className="text-yellow-700">
                       Performance issues need attention
@@ -265,8 +277,8 @@ export const AnalyticsOverview = ({ data, trends, timeRange }: AnalyticsOverview
                 </div>
               )}
 
-              <div className="flex items-start space-x-3 p-3 bg-purple-50 rounded-lg">
-                <Zap className="h-4 w-4 text-purple-600 mt-0.5" />
+              <div className="flex items-start space-x-3 rounded-lg bg-purple-50 p-3">
+                <Zap className="mt-0.5 h-4 w-4 text-purple-600" />
                 <div className="text-sm">
                   <div className="font-medium text-purple-900">
                     AI Analysis Complete

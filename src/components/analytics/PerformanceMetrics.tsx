@@ -11,9 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Gauge,
   Zap,
-  Globe,
   Clock,
-  Eye,
   TrendingUp,
   AlertTriangle,
   CheckCircle,
@@ -56,10 +54,16 @@ interface PerformanceData {
   }>;
 }
 
-export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProps) => {
+export const PerformanceMetrics = ({
+  timeRange,
+  teamId,
+}: PerformanceMetricsProps) => {
   const [loading, setLoading] = useState(true);
-  const [performanceData, setPerformanceData] = useState<PerformanceData | null>(null);
-  const [selectedDevice, setSelectedDevice] = useState<"mobile" | "desktop">("mobile");
+  const [performanceData, setPerformanceData] =
+    useState<PerformanceData | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<"mobile" | "desktop">(
+    "mobile"
+  );
 
   useEffect(() => {
     loadPerformanceData();
@@ -91,7 +95,7 @@ export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProp
         overallScore: 78,
         trends: [
           { date: "2024-01-01", score: 72, lcp: 2.8, fid: 95, cls: 0.12 },
-          { date: "2024-01-08", score: 75, lcp: 2.6, fid: 90, cls: 0.10 },
+          { date: "2024-01-08", score: 75, lcp: 2.6, fid: 90, cls: 0.1 },
           { date: "2024-01-15", score: 78, lcp: 2.4, fid: 85, cls: 0.08 },
         ],
         recommendations: [
@@ -221,7 +225,7 @@ export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProp
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setSelectedDevice("mobile")}
-                className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm ${
+                className={`flex items-center space-x-1 rounded-md px-3 py-1 text-sm ${
                   selectedDevice === "mobile"
                     ? "bg-blue-100 text-blue-700"
                     : "text-gray-600 hover:bg-gray-100"
@@ -232,7 +236,7 @@ export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProp
               </button>
               <button
                 onClick={() => setSelectedDevice("desktop")}
-                className={`flex items-center space-x-1 px-3 py-1 rounded-md text-sm ${
+                className={`flex items-center space-x-1 rounded-md px-3 py-1 text-sm ${
                   selectedDevice === "desktop"
                     ? "bg-blue-100 text-blue-700"
                     : "text-gray-600 hover:bg-gray-100"
@@ -251,29 +255,31 @@ export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProp
             </div>
             <div className="flex-1">
               <div className="mb-2 flex items-center space-x-2">
-                <span className="text-sm text-gray-600">Overall Performance</span>
+                <span className="text-sm text-gray-600">
+                  Overall Performance
+                </span>
                 {performanceData.overallScore >= 90 ? (
-                  <Badge className="bg-green-50 text-green-700 border-green-200">
+                  <Badge className="border-green-200 bg-green-50 text-green-700">
                     Excellent
                   </Badge>
                 ) : performanceData.overallScore >= 70 ? (
-                  <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                  <Badge className="border-yellow-200 bg-yellow-50 text-yellow-700">
                     Good
                   </Badge>
                 ) : (
-                  <Badge className="bg-red-50 text-red-700 border-red-200">
+                  <Badge className="border-red-200 bg-red-50 text-red-700">
                     Needs Work
                   </Badge>
                 )}
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="h-2 w-full rounded-full bg-gray-200">
                 <div
                   className={`h-2 rounded-full ${
                     performanceData.overallScore >= 90
                       ? "bg-green-500"
                       : performanceData.overallScore >= 70
-                      ? "bg-yellow-500"
-                      : "bg-red-500"
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
                   }`}
                   style={{ width: `${performanceData.overallScore}%` }}
                 />
@@ -300,7 +306,10 @@ export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProp
                 <div className="text-2xl font-bold text-gray-900">
                   {formatMetricValue(metric, data.value)}
                 </div>
-                <Badge variant="outline" className={getStatusColor(data.status)}>
+                <Badge
+                  variant="outline"
+                  className={getStatusColor(data.status)}
+                >
                   {data.status.replace("-", " ")}
                 </Badge>
               </div>
@@ -325,7 +334,7 @@ export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProp
             {performanceData.recommendations.map((rec, index) => (
               <div
                 key={index}
-                className="flex items-start space-x-3 p-4 border border-gray-200 rounded-lg"
+                className="flex items-start space-x-3 rounded-lg border border-gray-200 p-4"
               >
                 <div className="flex-shrink-0">
                   {rec.impact === "high" ? (
@@ -337,23 +346,25 @@ export const PerformanceMetrics = ({ timeRange, teamId }: PerformanceMetricsProp
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center space-x-2 mb-1">
+                  <div className="mb-1 flex items-center space-x-2">
                     <Badge
                       variant="outline"
                       className={
                         rec.impact === "high"
                           ? "border-red-200 text-red-700"
                           : rec.impact === "medium"
-                          ? "border-yellow-200 text-yellow-700"
-                          : "border-blue-200 text-blue-700"
+                            ? "border-yellow-200 text-yellow-700"
+                            : "border-blue-200 text-blue-700"
                       }
                     >
                       {rec.impact} impact
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-900 mb-1">{rec.description}</p>
+                  <p className="mb-1 text-sm text-gray-900">
+                    {rec.description}
+                  </p>
                   <p className="text-xs text-gray-500">
-                    <TrendingUp className="inline h-3 w-3 mr-1" />
+                    <TrendingUp className="mr-1 inline h-3 w-3" />
                     {rec.savings}
                   </p>
                 </div>

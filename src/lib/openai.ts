@@ -9,12 +9,27 @@ import { circuitBreakerManager } from "./resilience/circuit-breaker";
 import { serviceDegradationManager } from "./resilience/service-degradation";
 import { retryManager } from "./resilience/retry-manager";
 
+// Create a fetch function that matches the expected signature
+const customFetch = (url: string, options?: RequestInit) => {
+  return timeoutFetch(url, options || {}).then(result => {
+    if (result.success && result.data) {
+      // Return a Response-like object
+      return new Response(JSON.stringify(result.data), {
+        status: result.status || 200,
+        statusText: "OK",
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    throw result.error || new Error("Request failed");
+  });
+};
+
 // Initialize OpenAI client with timeout configuration
 const openai = new OpenAI({
   apiKey: process.env["OPENAI_API_KEY"],
   timeout: 30000, // 30 seconds timeout
   maxRetries: 2,
-  fetch: timeoutFetch,
+  fetch: customFetch as any,
 });
 
 // Types for AI analysis
@@ -113,18 +128,24 @@ export async function analyzeContent(
   input: ContentAnalysisInput
 ): Promise<ContentOptimizationResult> {
   // Check if feature is available
-  if (!serviceDegradationManager.isFeatureAvailable("openai", "content-analysis")) {
-    const fallbackData = serviceDegradationManager.getFallbackData("openai", "contentAnalysis");
+  if (
+    !serviceDegradationManager.isFeatureAvailable("openai", "content-analysis")
+  ) {
+    const fallbackData = serviceDegradationManager.getFallbackData(
+      "openai",
+      "contentAnalysis"
+    );
     if (fallbackData) {
       return fallbackData as ContentOptimizationResult;
     }
     throw new Error("Content analysis service is currently unavailable");
   }
 
-  return circuitBreakerManager.execute(
-    "openai-content-analysis",
-    async () => {
-      const prompt = `
+  const result = await circuitBreakerManager
+    .getCircuitBreaker("openai-content-analysis")
+    .execute(
+      async () => {
+        const prompt = `
 Analyze this content for SEO optimization and provide detailed recommendations:
 
 Title: ${input.title}
@@ -143,66 +164,84 @@ Please provide a comprehensive analysis with:
 Format your response as valid JSON matching the ContentOptimizationResult interface.
 `;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert SEO content analyst. Provide detailed, actionable recommendations for content optimization. Always respond with valid JSON.",
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an expert SEO content analyst. Provide detailed, actionable recommendations for content optimization. Always respond with valid JSON.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 2000,
+        });
+
+        const response = completion.choices[0]?.message?.content;
+        if (!response) {
+          throw new Error("No response from OpenAI");
+        }
+
+        // Parse and validate the JSON response
+        const result = JSON.parse(response) as ContentOptimizationResult;
+
+        // Validate required fields
+        if (
+          !result.overallScore ||
+          !result.recommendations ||
+          !result.seoAnalysis
+        ) {
+          throw new Error("Invalid response format from OpenAI");
+        }
+
+        // Record success
+        serviceDegradationManager.recordSuccess("openai");
+        return result;
+      },
+      // Fallback with default response
+      async () => {
+        serviceDegradationManager.recordFailure(
+          "openai",
+          "Circuit breaker fallback triggered"
+        );
+        return {
+          overallScore: 0,
+          recommendations: [
+            {
+              type: "content" as const,
+              priority: "high" as const,
+              impact: "high" as const,
+              effort: "low" as const,
+              title: "AI Service Unavailable",
+              description:
+                "Content analysis service is temporarily unavailable. Please try again later.",
+            },
+          ],
+          seoAnalysis: {
+            titleOptimization: {
+              score: 0,
+              suggestions: ["Service unavailable"],
+            },
+            contentStructure: {
+              score: 0,
+              suggestions: ["Service unavailable"],
+            },
+            keywordDensity: { score: 0, suggestions: ["Service unavailable"] },
+            readability: { score: 0, suggestions: ["Service unavailable"] },
           },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      });
-
-      const response = completion.choices[0]?.message?.content;
-      if (!response) {
-        throw new Error("No response from OpenAI");
+        };
       }
+    );
 
-      // Parse and validate the JSON response
-      const result = JSON.parse(response) as ContentOptimizationResult;
+  if (result.success && result.data) {
+    return result.data;
+  }
 
-      // Validate required fields
-      if (
-        !result.overallScore ||
-        !result.recommendations ||
-        !result.seoAnalysis
-      ) {
-        throw new Error("Invalid response format from OpenAI");
-      }
-
-      // Record success
-      serviceDegradationManager.recordSuccess("openai");
-      return result;
-    },
-    // Fallback with default response
-    async () => {
-      serviceDegradationManager.recordFailure("openai", "Circuit breaker fallback triggered");
-      return {
-        overallScore: 0,
-        recommendations: [{
-          type: "content" as const,
-          priority: "high" as const,
-          impact: "high" as const,
-          effort: "low" as const,
-          title: "AI Service Unavailable",
-          description: "Content analysis service is temporarily unavailable. Please try again later.",
-        }],
-        seoAnalysis: {
-          titleOptimization: { score: 0, suggestions: ["Service unavailable"] },
-          contentStructure: { score: 0, suggestions: ["Service unavailable"] },
-          keywordDensity: { score: 0, suggestions: ["Service unavailable"] },
-          readability: { score: 0, suggestions: ["Service unavailable"] },
-        },
-      };
-    }
-  );
+  throw result.error || new Error("Content analysis failed");
 }
 
 /**
@@ -213,10 +252,11 @@ export async function generateKeywordStrategy(
   industry: string,
   competitorDomains?: string[]
 ): Promise<KeywordStrategy> {
-  return circuitBreakerManager.execute(
-    "openai-keyword-strategy",
-    async () => {
-      const prompt = `
+  const result = await circuitBreakerManager
+    .getCircuitBreaker("openai-keyword-strategy")
+    .execute(
+      async () => {
+        const prompt = `
 Generate a comprehensive keyword strategy for these target keywords in the ${industry} industry:
 
 Target Keywords: ${targetKeywords.join(", ")}
@@ -231,37 +271,43 @@ Please provide:
 Format your response as valid JSON matching the KeywordStrategy interface.
 `;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert SEO strategist. Generate comprehensive keyword strategies based on industry analysis and competitive intelligence.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.4,
-        max_tokens: 1500,
-      });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an expert SEO strategist. Generate comprehensive keyword strategies based on industry analysis and competitive intelligence.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.4,
+          max_tokens: 1500,
+        });
 
-      const response = completion.choices[0]?.message?.content;
-      if (!response) {
-        throw new Error("No response from OpenAI");
-      }
+        const response = completion.choices[0]?.message?.content;
+        if (!response) {
+          throw new Error("No response from OpenAI");
+        }
 
-      return JSON.parse(response) as KeywordStrategy;
-    },
-    // Fallback with default response
-    async () => ({
-      primaryKeywords: [],
-      semanticClusters: [],
-      contentGaps: [],
-    })
-  );
+        return JSON.parse(response) as KeywordStrategy;
+      },
+      // Fallback with default response
+      async () => ({
+        primaryKeywords: [],
+        semanticClusters: [],
+        contentGaps: [],
+      })
+    );
+
+  if (result.success && result.data) {
+    return result.data;
+  }
+
+  throw result.error || new Error("Keyword strategy generation failed");
 }
 
 /**
@@ -276,10 +322,11 @@ export async function analyzeCompetitor(
   }[],
   targetKeywords: string[]
 ): Promise<CompetitorAnalysis> {
-  return circuitBreakerManager.execute(
-    "openai-competitor-analysis",
-    async () => {
-      const prompt = `
+  const result = await circuitBreakerManager
+    .getCircuitBreaker("openai-competitor-analysis")
+    .execute(
+      async () => {
+        const prompt = `
 Analyze these competitor content samples for strategic insights:
 
 Competitor Content:
@@ -304,51 +351,57 @@ Provide analysis of:
 Format as valid JSON matching the CompetitorAnalysis interface.
 `;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert competitive intelligence analyst. Analyze competitor strategies and identify opportunities.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 1500,
-      });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an expert competitive intelligence analyst. Analyze competitor strategies and identify opportunities.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+        });
 
-      const response = completion.choices[0]?.message?.content;
-      if (!response) {
-        throw new Error("No response from OpenAI");
-      }
+        const response = completion.choices[0]?.message?.content;
+        if (!response) {
+          throw new Error("No response from OpenAI");
+        }
 
-      return JSON.parse(response) as CompetitorAnalysis;
-    },
-    // Fallback with default response
-    async () => ({
-      strengths: [],
-      weaknesses: [],
-      contentStrategy: {
-        topics: [],
-        format: [],
-        frequency: "Unknown",
+        return JSON.parse(response) as CompetitorAnalysis;
       },
-      seoStrategy: {
-        targetKeywords: [],
-        contentLength: 0,
-        linkingStrategy: [],
-      },
-      opportunities: {
-        contentGaps: [],
-        keywordOpportunities: [],
-        improvementAreas: [],
-      },
-    })
-  );
+      // Fallback with default response
+      async () => ({
+        strengths: [],
+        weaknesses: [],
+        contentStrategy: {
+          topics: [],
+          format: [],
+          frequency: "Unknown",
+        },
+        seoStrategy: {
+          targetKeywords: [],
+          contentLength: 0,
+          linkingStrategy: [],
+        },
+        opportunities: {
+          contentGaps: [],
+          keywordOpportunities: [],
+          improvementAreas: [],
+        },
+      })
+    );
+
+  if (result.success && result.data) {
+    return result.data;
+  }
+
+  throw result.error || new Error("Competitor analysis failed");
 }
 
 /**
@@ -385,10 +438,11 @@ export async function generateContentImprovements(
     conversionImprovement: number;
   };
 }> {
-  return circuitBreakerManager.execute(
-    "openai-content-improvements",
-    async () => {
-      const prompt = `
+  const result = await circuitBreakerManager
+    .getCircuitBreaker("openai-content-improvements")
+    .execute(
+      async () => {
+        const prompt = `
 Analyze this content's performance and generate specific improvement recommendations:
 
 Content Title: ${content.title}
@@ -408,40 +462,46 @@ Provide:
 Format as valid JSON.
 `;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an expert content optimization analyst. Provide data-driven improvement recommendations with predicted outcomes.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 1500,
-      });
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an expert content optimization analyst. Provide data-driven improvement recommendations with predicted outcomes.",
+            },
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+        });
 
-      const response = completion.choices[0]?.message?.content;
-      if (!response) {
-        throw new Error("No response from OpenAI");
-      }
+        const response = completion.choices[0]?.message?.content;
+        if (!response) {
+          throw new Error("No response from OpenAI");
+        }
 
-      return JSON.parse(response);
-    },
-    // Fallback with default response
-    async () => ({
-      improvements: [],
-      predictedOutcomes: {
-        rankingImprovements: [],
-        trafficIncrease: 0,
-        conversionImprovement: 0,
+        return JSON.parse(response);
       },
-    })
-  );
+      // Fallback with default response
+      async () => ({
+        improvements: [],
+        predictedOutcomes: {
+          rankingImprovements: [],
+          trafficIncrease: 0,
+          conversionImprovement: 0,
+        },
+      })
+    );
+
+  if (result.success && result.data) {
+    return result.data;
+  }
+
+  throw result.error || new Error("Content improvements generation failed");
 }
 
 /**
@@ -478,18 +538,25 @@ export function estimateTokensAndCost(
  * Health check for OpenAI API
  */
 export async function healthCheck(): Promise<boolean> {
-  return circuitBreakerManager.execute(
-    "openai-health-check",
-    async () => {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: "Hello" }],
-        max_tokens: 5,
-      });
+  const result = await circuitBreakerManager
+    .getCircuitBreaker("openai-health-check")
+    .execute(
+      async () => {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [{ role: "user", content: "Hello" }],
+          max_tokens: 5,
+        });
 
-      return !!completion.choices[0]?.message?.content;
-    },
-    // Fallback returns false to indicate service is down
-    async () => false
-  );
+        return !!completion.choices[0]?.message?.content;
+      },
+      // Fallback returns false to indicate service is down
+      async () => false
+    );
+
+  if (result.success && result.data !== undefined) {
+    return result.data;
+  }
+
+  return false;
 }

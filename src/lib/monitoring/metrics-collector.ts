@@ -68,7 +68,7 @@ export interface DatabaseMetric {
 }
 
 export interface CacheMetric {
-  type: 'hit' | 'miss' | 'set' | 'evict' | 'delete';
+  type: "hit" | "miss" | "set" | "evict" | "delete";
   key: string;
   duration?: number;
   timestamp: string;
@@ -96,13 +96,16 @@ export class MetricsCollector {
 
   constructor() {
     // Start cleanup timer
-    this.cleanupTimer = setInterval(() => this.cleanupOldMetrics(), this.CLEANUP_INTERVAL);
+    this.cleanupTimer = setInterval(
+      () => this.cleanupOldMetrics(),
+      this.CLEANUP_INTERVAL
+    );
   }
 
   recordApiCall(metric: PerformanceMetric): void {
     const key = `api_${this.sanitizeKey(metric.endpoint)}_${metric.method}`;
     const metrics = this.metrics.get(key) || [];
-    
+
     metrics.push({
       ...metric,
       timestamp: new Date().toISOString(),
@@ -116,17 +119,17 @@ export class MetricsCollector {
     this.metrics.set(key, metrics);
 
     // Also store in general API metrics
-    const allApiMetrics = this.metrics.get('api_all') || [];
+    const allApiMetrics = this.metrics.get("api_all") || [];
     allApiMetrics.push(metric);
     if (allApiMetrics.length > this.MAX_METRICS_PER_TYPE) {
       allApiMetrics.splice(0, allApiMetrics.length - this.MAX_METRICS_PER_TYPE);
     }
-    this.metrics.set('api_all', allApiMetrics);
+    this.metrics.set("api_all", allApiMetrics);
   }
 
   recordDatabaseQuery(metric: DatabaseMetric): void {
-    const metrics = this.metrics.get('database_queries') || [];
-    
+    const metrics = this.metrics.get("database_queries") || [];
+
     metrics.push({
       ...metric,
       timestamp: new Date().toISOString(),
@@ -136,12 +139,12 @@ export class MetricsCollector {
       metrics.splice(0, metrics.length - this.MAX_METRICS_PER_TYPE);
     }
 
-    this.metrics.set('database_queries', metrics);
+    this.metrics.set("database_queries", metrics);
   }
 
   recordCacheOperation(metric: CacheMetric): void {
-    const metrics = this.metrics.get('cache_operations') || [];
-    
+    const metrics = this.metrics.get("cache_operations") || [];
+
     metrics.push({
       ...metric,
       timestamp: new Date().toISOString(),
@@ -151,7 +154,7 @@ export class MetricsCollector {
       metrics.splice(0, metrics.length - this.MAX_METRICS_PER_TYPE);
     }
 
-    this.metrics.set('cache_operations', metrics);
+    this.metrics.set("cache_operations", metrics);
   }
 
   async getSystemMetrics(): Promise<SystemMetrics> {
@@ -167,7 +170,8 @@ export class MetricsCollector {
         percentage: (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
         heapUsed: memoryUsage.heapUsed,
         heapTotal: memoryUsage.heapTotal,
-        heapLimit: (process as any).constrainedMemory?.() || memoryUsage.heapTotal * 1.4,
+        heapLimit:
+          (process as any).constrainedMemory?.() || memoryUsage.heapTotal * 1.4,
         external: memoryUsage.external,
         arrayBuffers: memoryUsage.arrayBuffers,
       },
@@ -194,8 +198,9 @@ export class MetricsCollector {
   }
 
   private calculateApiMetrics() {
-    const allApiMetrics: PerformanceMetric[] = this.metrics.get('api_all') || [];
-    
+    const allApiMetrics: PerformanceMetric[] =
+      this.metrics.get("api_all") || [];
+
     if (allApiMetrics.length === 0) {
       return {
         apiResponseTimes: {},
@@ -224,12 +229,16 @@ export class MetricsCollector {
     });
 
     // Calculate throughput (requests per minute)
-    const recentMetrics = this.filterMetricsByTime(allApiMetrics, this.TIME_WINDOWS.FIVE_MINUTES);
+    const recentMetrics = this.filterMetricsByTime(
+      allApiMetrics,
+      this.TIME_WINDOWS.FIVE_MINUTES
+    );
     const throughput = (recentMetrics.length / 5) * 60; // Requests per minute
 
     return {
       apiResponseTimes: responseTimesByEndpoint,
-      averageResponseTime: responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
+      averageResponseTime:
+        responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
       p50ResponseTime: percentiles.p50,
       p95ResponseTime: percentiles.p95,
       p99ResponseTime: percentiles.p99,
@@ -240,8 +249,8 @@ export class MetricsCollector {
   }
 
   private calculateDatabaseMetrics() {
-    const dbMetrics = this.metrics.get('database_queries') || [];
-    
+    const dbMetrics = this.metrics.get("database_queries") || [];
+
     if (dbMetrics.length === 0) {
       return {
         connectionCount: 1,
@@ -260,9 +269,11 @@ export class MetricsCollector {
     return {
       connectionCount: 1, // This would come from actual connection pool
       queryCount: dbMetrics.length,
-      averageQueryTime: durations.length > 0 
-        ? durations.reduce((a: number, b: number) => a + b, 0) / durations.length 
-        : 0,
+      averageQueryTime:
+        durations.length > 0
+          ? durations.reduce((a: number, b: number) => a + b, 0) /
+            durations.length
+          : 0,
       slowQueries,
       errorCount,
       activeConnections: 1,
@@ -270,8 +281,8 @@ export class MetricsCollector {
   }
 
   private calculateCacheMetrics() {
-    const cacheOps = this.metrics.get('cache_operations') || [];
-    
+    const cacheOps = this.metrics.get("cache_operations") || [];
+
     if (cacheOps.length === 0) {
       return {
         hitRate: 0,
@@ -283,20 +294,19 @@ export class MetricsCollector {
       };
     }
 
-    const hits = cacheOps.filter((op: any) => op.type === 'hit').length;
-    const misses = cacheOps.filter((op: any) => op.type === 'miss').length;
-    const evictions = cacheOps.filter((op: any) => op.type === 'evict').length;
-    const sets = cacheOps.filter((op: any) => op.type === 'set').length;
+    const hits = cacheOps.filter((op: any) => op.type === "hit").length;
+    const misses = cacheOps.filter((op: any) => op.type === "miss").length;
+    const evictions = cacheOps.filter((op: any) => op.type === "evict").length;
+    const sets = cacheOps.filter((op: any) => op.type === "set").length;
 
     const total = hits + misses;
     const totalMemoryUsage = cacheOps
       .filter((op: any) => op.size)
       .reduce((acc: number, op: any) => acc + op.size, 0);
 
-    const ttls = cacheOps
-      .filter((op: any) => op.ttl)
-      .map((op: any) => op.ttl);
-    const avgTtl = ttls.length > 0 ? ttls.reduce((a, b) => a + b, 0) / ttls.length : 0;
+    const ttls = cacheOps.filter((op: any) => op.ttl).map((op: any) => op.ttl);
+    const avgTtl =
+      ttls.length > 0 ? ttls.reduce((a, b) => a + b, 0) / ttls.length : 0;
 
     return {
       hitRate: total > 0 ? (hits / total) * 100 : 0,
@@ -308,18 +318,26 @@ export class MetricsCollector {
     };
   }
 
-  private calculateMetricsForWindow(windowStart: number): Partial<SystemMetrics> {
+  private calculateMetricsForWindow(
+    windowStart: number
+  ): Partial<SystemMetrics> {
     const windowMetrics: any = {};
 
     // Filter API metrics for window
-    const apiMetrics = this.filterMetricsByTime(this.metrics.get('api_all') || [], Date.now() - windowStart);
+    const apiMetrics = this.filterMetricsByTime(
+      this.metrics.get("api_all") || [],
+      Date.now() - windowStart
+    );
     if (apiMetrics.length > 0) {
       const responseTimes = apiMetrics.map((m: any) => m.responseTime);
-      const errorCount = apiMetrics.filter((m: any) => m.statusCode >= 400).length;
+      const errorCount = apiMetrics.filter(
+        (m: any) => m.statusCode >= 400
+      ).length;
       const percentiles = this.calculatePercentiles(responseTimes);
 
       windowMetrics.performance = {
-        averageResponseTime: responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
+        averageResponseTime:
+          responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length,
         p50ResponseTime: percentiles.p50,
         p95ResponseTime: percentiles.p95,
         p99ResponseTime: percentiles.p99,
@@ -329,14 +347,20 @@ export class MetricsCollector {
     }
 
     // Filter database metrics for window
-    const dbMetrics = this.filterMetricsByTime(this.metrics.get('database_queries') || [], Date.now() - windowStart);
+    const dbMetrics = this.filterMetricsByTime(
+      this.metrics.get("database_queries") || [],
+      Date.now() - windowStart
+    );
     if (dbMetrics.length > 0) {
       const durations = dbMetrics.map((m: any) => m.duration);
-      const slowQueries = dbMetrics.filter((m: any) => m.duration > 1000).length;
+      const slowQueries = dbMetrics.filter(
+        (m: any) => m.duration > 1000
+      ).length;
 
       windowMetrics.database = {
         queryCount: dbMetrics.length,
-        averageQueryTime: durations.reduce((a, b) => a + b, 0) / durations.length,
+        averageQueryTime:
+          durations.reduce((a, b) => a + b, 0) / durations.length,
         slowQueries,
       };
     }
@@ -344,15 +368,19 @@ export class MetricsCollector {
     return windowMetrics;
   }
 
-  private calculatePercentiles(values: number[]): { p50: number; p95: number; p99: number } {
+  private calculatePercentiles(values: number[]): {
+    p50: number;
+    p95: number;
+    p99: number;
+  } {
     if (values.length === 0) return { p50: 0, p95: 0, p99: 0 };
-    
+
     const sorted = [...values].sort((a, b) => a - b);
     const getPercentile = (p: number) => {
       const index = Math.ceil((p / 100) * sorted.length) - 1;
-      return sorted[Math.max(0, index)];
+      return sorted[Math.max(0, index)] || 0;
     };
-    
+
     return {
       p50: getPercentile(50),
       p95: getPercentile(95),
@@ -389,7 +417,7 @@ export class MetricsCollector {
   }
 
   private sanitizeKey(key: string): string {
-    return key.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return key.replace(/[^a-zA-Z0-9_-]/g, "_");
   }
 
   getMetricsSummary(): Record<string, any> {
@@ -400,21 +428,27 @@ export class MetricsCollector {
         count: metrics.length,
         latest: metrics[metrics.length - 1],
         oldest: metrics[0],
-        timeSpan: metrics.length > 1 ? {
-          start: metrics[0]?.timestamp,
-          end: metrics[metrics.length - 1]?.timestamp,
-        } : null,
+        timeSpan:
+          metrics.length > 1
+            ? {
+                start: metrics[0]?.timestamp,
+                end: metrics[metrics.length - 1]?.timestamp,
+              }
+            : null,
       };
     }
 
     return summary;
   }
 
-  getMetricsForEndpoint(endpoint: string, method?: string): PerformanceMetric[] {
-    const key = method 
+  getMetricsForEndpoint(
+    endpoint: string,
+    method?: string
+  ): PerformanceMetric[] {
+    const key = method
       ? `api_${this.sanitizeKey(endpoint)}_${method}`
       : `api_${this.sanitizeKey(endpoint)}`;
-    
+
     return this.metrics.get(key) || [];
   }
 

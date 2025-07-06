@@ -67,16 +67,16 @@ export class Logger {
       maxRetries: 3,
       enableSanitization: true,
       sensitiveFields: [
-        'password',
-        'token',
-        'apiKey',
-        'secret',
-        'authorization',
-        'cookie',
-        'session',
-        'ssn',
-        'creditCard',
-        'bankAccount',
+        "password",
+        "token",
+        "apiKey",
+        "secret",
+        "authorization",
+        "cookie",
+        "session",
+        "ssn",
+        "creditCard",
+        "bankAccount",
       ],
       maxLogSize: 10000, // 10KB per log entry
       ...config,
@@ -99,29 +99,43 @@ export class Logger {
     this.log(LogLevel.WARN, message, context, tags);
   }
 
-  error(message: string, error?: Error, context?: Record<string, any>, tags?: string[]): void {
+  error(
+    message: string,
+    error?: Error,
+    context?: Record<string, any>,
+    tags?: string[]
+  ): void {
     const logContext = {
       ...context,
-      error: error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        cause: error.cause,
-      } : undefined,
+      error: error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause,
+          }
+        : undefined,
     };
 
     this.log(LogLevel.ERROR, message, logContext, tags, error?.stack);
   }
 
-  critical(message: string, error?: Error, context?: Record<string, any>, tags?: string[]): void {
+  critical(
+    message: string,
+    error?: Error,
+    context?: Record<string, any>,
+    tags?: string[]
+  ): void {
     const logContext = {
       ...context,
-      error: error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        cause: error.cause,
-      } : undefined,
+      error: error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause,
+          }
+        : undefined,
     };
 
     this.log(LogLevel.CRITICAL, message, logContext, tags, error?.stack);
@@ -137,35 +151,47 @@ export class Logger {
     ip?: string;
     userId?: string;
   }): void {
-    this.info('HTTP Request', {
-      type: 'http',
-      method: request.method,
-      url: request.url,
-      status: request.status,
-      responseTime: request.responseTime,
-      userAgent: request.userAgent,
-      ip: request.ip,
-      userId: request.userId,
-    }, ['http', 'request']);
+    this.info(
+      "HTTP Request",
+      {
+        type: "http",
+        method: request.method,
+        url: request.url,
+        status: request.status,
+        responseTime: request.responseTime,
+        userAgent: request.userAgent,
+        ip: request.ip,
+        userId: request.userId,
+      },
+      ["http", "request"]
+    );
   }
 
   security(event: {
-    type: 'auth' | 'access' | 'suspicious' | 'attack';
+    type: "auth" | "access" | "suspicious" | "attack";
     action: string;
     userId?: string;
     ip?: string;
     details?: Record<string, any>;
   }): void {
-    const level = event.type === 'attack' || event.type === 'suspicious' ? LogLevel.CRITICAL : LogLevel.WARN;
-    
-    this.log(level, `Security Event: ${event.action}`, {
-      type: 'security',
-      eventType: event.type,
-      action: event.action,
-      userId: event.userId,
-      ip: event.ip,
-      ...event.details,
-    }, ['security', event.type]);
+    const level =
+      event.type === "attack" || event.type === "suspicious"
+        ? LogLevel.CRITICAL
+        : LogLevel.WARN;
+
+    this.log(
+      level,
+      `Security Event: ${event.action}`,
+      {
+        type: "security",
+        eventType: event.type,
+        action: event.action,
+        userId: event.userId,
+        ip: event.ip,
+        ...event.details,
+      },
+      ["security", event.type]
+    );
   }
 
   performance(metric: {
@@ -175,14 +201,19 @@ export class Logger {
     details?: Record<string, any>;
   }): void {
     const level = metric.duration > 5000 ? LogLevel.WARN : LogLevel.INFO;
-    
-    this.log(level, `Performance: ${metric.operation}`, {
-      type: 'performance',
-      operation: metric.operation,
-      duration: metric.duration,
-      success: metric.success,
-      ...metric.details,
-    }, ['performance']);
+
+    this.log(
+      level,
+      `Performance: ${metric.operation}`,
+      {
+        type: "performance",
+        operation: metric.operation,
+        duration: metric.duration,
+        success: metric.success,
+        ...metric.details,
+      },
+      ["performance"]
+    );
   }
 
   business(event: {
@@ -191,13 +222,17 @@ export class Logger {
     userId?: string;
     details?: Record<string, any>;
   }): void {
-    this.info(`Business Event: ${event.action}`, {
-      type: 'business',
-      eventType: event.type,
-      action: event.action,
-      userId: event.userId,
-      ...event.details,
-    }, ['business', event.type]);
+    this.info(
+      `Business Event: ${event.action}`,
+      {
+        type: "business",
+        eventType: event.type,
+        action: event.action,
+        userId: event.userId,
+        ...event.details,
+      },
+      ["business", event.type]
+    );
   }
 
   private log(
@@ -212,22 +247,27 @@ export class Logger {
     }
 
     // Sanitize message and context
-    const sanitizedMessage = this.config.enableSanitization 
+    const sanitizedMessage = this.config.enableSanitization
       ? this.sanitizeString(message)
       : message;
-    
-    const sanitizedContext = this.config.enableSanitization && context
-      ? this.sanitizeObject(context)
-      : context;
 
-    const entry: LogEntry = {
+    const sanitizedContext =
+      this.config.enableSanitization && context
+        ? this.sanitizeObject(context)
+        : context;
+
+    const baseEntry = {
       level,
       message: sanitizedMessage,
       timestamp: new Date().toISOString(),
       context: sanitizedContext,
-      tags: tags ? [...new Set(tags)] : undefined, // Remove duplicates
-      stack: stack ? this.sanitizeString(stack) : undefined,
       source: this.getCallerInfo(),
+    };
+
+    const entry: LogEntry = {
+      ...baseEntry,
+      ...(tags && { tags: [...new Set(tags)] }), // Remove duplicates
+      ...(stack && { stack: this.sanitizeString(stack) }),
     };
 
     // Check log size
@@ -243,7 +283,7 @@ export class Logger {
 
     if (this.config.enableRemote) {
       this.buffer.push(entry);
-      
+
       if (this.buffer.length >= this.config.bufferSize) {
         this.flush();
       }
@@ -251,17 +291,17 @@ export class Logger {
   }
 
   private logToConsole(entry: LogEntry): void {
-    const levelNames = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL'];
+    const levelNames = ["DEBUG", "INFO", "WARN", "ERROR", "CRITICAL"];
     const levelName = levelNames[entry.level];
     const timestamp = new Date(entry.timestamp).toISOString();
-    
+
     const logMessage = `[${timestamp}] ${levelName}: ${entry.message}`;
     const logData = {
       ...entry.context,
       tags: entry.tags,
       source: entry.source,
     };
-    
+
     switch (entry.level) {
       case LogLevel.DEBUG:
         console.debug(logMessage, logData);
@@ -276,7 +316,7 @@ export class Logger {
       case LogLevel.CRITICAL:
         console.error(logMessage, logData);
         if (entry.stack) {
-          console.error('Stack trace:', entry.stack);
+          console.error("Stack trace:", entry.stack);
         }
         break;
     }
@@ -292,40 +332,44 @@ export class Logger {
 
     try {
       const response = await fetch(this.config.remoteEndpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'X-Log-Batch-Size': entries.length.toString(),
-          'X-Log-Timestamp': new Date().toISOString(),
+          "Content-Type": "application/json",
+          "X-Log-Batch-Size": entries.length.toString(),
+          "X-Log-Timestamp": new Date().toISOString(),
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           entries,
           metadata: {
-            service: 'contentlab-nexus',
-            version: process.env.npm_package_version || '1.0.0',
+            service: "contentlab-nexus",
+            version: process.env["npm_package_version"] || "1.0.0",
             environment: process.env.NODE_ENV,
-            hostname: process.env.HOSTNAME,
+            hostname: process.env["HOSTNAME"],
           },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`Remote logging failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Remote logging failed: ${response.status} ${response.statusText}`
+        );
       }
 
       this.retryCount = 0;
     } catch (error) {
-      console.error('Failed to send logs to remote endpoint:', error);
-      
+      console.error("Failed to send logs to remote endpoint:", error);
+
       // Re-add entries to buffer for retry if we haven't exceeded max retries
       if (this.retryCount < this.config.maxRetries) {
         this.buffer.unshift(...entries);
         this.retryCount++;
-        
+
         // Exponential backoff for retries
         setTimeout(() => this.flush(), Math.pow(2, this.retryCount) * 1000);
       } else {
-        console.error(`Max retries (${this.config.maxRetries}) exceeded, dropping ${entries.length} log entries`);
+        console.error(
+          `Max retries (${this.config.maxRetries}) exceeded, dropping ${entries.length} log entries`
+        );
         this.retryCount = 0;
       }
     }
@@ -333,14 +377,17 @@ export class Logger {
 
   private sanitizeString(str: string): string {
     // Remove potential script injection
-    let sanitized = str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '[SCRIPT_REMOVED]');
-    
+    let sanitized = str.replace(
+      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+      "[SCRIPT_REMOVED]"
+    );
+
     // Remove potential SQL injection patterns
-    sanitized = sanitized.replace(/('|(\\x27)|(\\x2D))+/gi, '[QUOTE_REMOVED]');
-    
+    sanitized = sanitized.replace(/('|(\\x27)|(\\x2D))+/gi, "[QUOTE_REMOVED]");
+
     // Replace potential sensitive patterns
     this.config.sensitiveFields.forEach(field => {
-      const regex = new RegExp(`"${field}"\\s*:\\s*"[^"]*"`, 'gi');
+      const regex = new RegExp(`"${field}"\\s*:\\s*"[^"]*"`, "gi");
       sanitized = sanitized.replace(regex, `"${field}":"[REDACTED]"`);
     });
 
@@ -348,8 +395,8 @@ export class Logger {
   }
 
   private sanitizeObject(obj: any): any {
-    if (typeof obj !== 'object' || obj === null) {
-      return typeof obj === 'string' ? this.sanitizeString(obj) : obj;
+    if (typeof obj !== "object" || obj === null) {
+      return typeof obj === "string" ? this.sanitizeString(obj) : obj;
     }
 
     if (Array.isArray(obj)) {
@@ -358,10 +405,12 @@ export class Logger {
 
     const sanitized: any = {};
     for (const [key, value] of Object.entries(obj)) {
-      if (this.config.sensitiveFields.some(field => 
-        key.toLowerCase().includes(field.toLowerCase())
-      )) {
-        sanitized[key] = '[REDACTED]';
+      if (
+        this.config.sensitiveFields.some(field =>
+          key.toLowerCase().includes(field.toLowerCase())
+        )
+      ) {
+        sanitized[key] = "[REDACTED]";
       } else {
         sanitized[key] = this.sanitizeObject(value);
       }
@@ -372,21 +421,25 @@ export class Logger {
 
   private getCallerInfo(): string {
     const stack = new Error().stack;
-    if (!stack) return 'unknown';
+    if (!stack) return "unknown";
 
-    const lines = stack.split('\n');
+    const lines = stack.split("\n");
     // Skip the first few lines to get to the actual caller
-    const callerLine = lines[4] || lines[3] || 'unknown';
-    
+    const callerLine = lines[4] || lines[3] || "unknown";
+
     // Extract file and line info
-    const match = callerLine.match(/\((.+):(\d+):(\d+)\)/) || callerLine.match(/at (.+):(\d+):(\d+)/);
+    const match =
+      callerLine.match(/\((.+):(\d+):(\d+)\)/) ||
+      callerLine.match(/at (.+):(\d+):(\d+)/);
     if (match) {
       const [, file, line] = match;
-      const fileName = file.split('/').pop() || file;
-      return `${fileName}:${line}`;
+      if (file && line) {
+        const fileName = file.split("/").pop() || file;
+        return `${fileName}:${line}`;
+      }
     }
 
-    return 'unknown';
+    return "unknown";
   }
 
   private startFlushTimer(): void {
@@ -429,7 +482,7 @@ export class Logger {
     } else if (!this.config.enableRemote && oldRemoteEnabled) {
       if (this.flushTimer) {
         clearInterval(this.flushTimer);
-        this.flushTimer = undefined;
+        delete (this as any).flushTimer;
       }
     }
   }
@@ -440,51 +493,69 @@ export class Logger {
 
   async shutdown(): Promise<void> {
     this.isShuttingDown = true;
-    
+
     if (this.flushTimer) {
       clearInterval(this.flushTimer);
     }
-    
+
     // Final flush
     await this.flush();
   }
 }
 
 // Global logger instance
-export const logger = new Logger({
-  level: process.env.NODE_ENV === 'production' ? LogLevel.INFO : LogLevel.DEBUG,
+const loggerConfig: Partial<LoggerConfig> = {
+  level: process.env.NODE_ENV === "production" ? LogLevel.INFO : LogLevel.DEBUG,
   enableConsole: true,
-  enableRemote: process.env.NODE_ENV === 'production',
-  remoteEndpoint: process.env.LOG_ENDPOINT,
+  enableRemote: process.env.NODE_ENV === "production",
+};
+
+if (process.env["LOG_ENDPOINT"]) {
+  loggerConfig.remoteEndpoint = process.env["LOG_ENDPOINT"];
+}
+
+export const logger = new Logger({
+  ...loggerConfig,
   sensitiveFields: [
-    'password',
-    'token',
-    'apiKey',
-    'secret',
-    'authorization',
-    'cookie',
-    'session',
-    'ssn',
-    'creditCard',
-    'bankAccount',
-    'email', // Optionally include email for GDPR compliance
+    "password",
+    "token",
+    "apiKey",
+    "secret",
+    "authorization",
+    "cookie",
+    "session",
+    "ssn",
+    "creditCard",
+    "bankAccount",
+    "email", // Optionally include email for GDPR compliance
   ],
 });
 
 // Convenience logging functions
 export const log = {
-  debug: (message: string, context?: Record<string, any>, tags?: string[]) => 
+  debug: (message: string, context?: Record<string, any>, tags?: string[]) =>
     logger.debug(message, context, tags),
-  info: (message: string, context?: Record<string, any>, tags?: string[]) => 
+  info: (message: string, context?: Record<string, any>, tags?: string[]) =>
     logger.info(message, context, tags),
-  warn: (message: string, context?: Record<string, any>, tags?: string[]) => 
+  warn: (message: string, context?: Record<string, any>, tags?: string[]) =>
     logger.warn(message, context, tags),
-  error: (message: string, error?: Error, context?: Record<string, any>, tags?: string[]) => 
-    logger.error(message, error, context, tags),
-  critical: (message: string, error?: Error, context?: Record<string, any>, tags?: string[]) => 
-    logger.critical(message, error, context, tags),
+  error: (
+    message: string,
+    error?: Error,
+    context?: Record<string, any>,
+    tags?: string[]
+  ) => logger.error(message, error, context, tags),
+  critical: (
+    message: string,
+    error?: Error,
+    context?: Record<string, any>,
+    tags?: string[]
+  ) => logger.critical(message, error, context, tags),
   http: (request: Parameters<typeof logger.http>[0]) => logger.http(request),
-  security: (event: Parameters<typeof logger.security>[0]) => logger.security(event),
-  performance: (metric: Parameters<typeof logger.performance>[0]) => logger.performance(metric),
-  business: (event: Parameters<typeof logger.business>[0]) => logger.business(event),
+  security: (event: Parameters<typeof logger.security>[0]) =>
+    logger.security(event),
+  performance: (metric: Parameters<typeof logger.performance>[0]) =>
+    logger.performance(metric),
+  business: (event: Parameters<typeof logger.business>[0]) =>
+    logger.business(event),
 };

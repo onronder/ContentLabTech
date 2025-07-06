@@ -3,51 +3,69 @@
  * Displays performance metrics with interactive charts
  */
 
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
-  Cell
-} from 'recharts';
-import { 
-  TrendingUp, 
-  Clock, 
-  AlertTriangle, 
-  Database, 
-  Cpu,
+  Cell,
+} from "recharts";
+import {
+  TrendingUp,
+  Clock,
+  AlertTriangle,
+  Database,
   RefreshCw,
-  Activity
-} from 'lucide-react';
+  Activity,
+} from "lucide-react";
 
 interface MetricsData {
   timestamp: string;
   current: {
-    memory: any;
-    performance: any;
-    database: any;
-    cache: any;
+    memory: {
+      percentage: number;
+      used: number;
+      total: number;
+    };
+    performance: {
+      errorRate: number;
+      p50ResponseTime: number;
+      p95ResponseTime: number;
+      p99ResponseTime: number;
+    };
+    database: {
+      connections: number;
+      queryTime: number;
+    };
+    cache: {
+      hitRate: number;
+      size: number;
+    };
   };
   trends: {
-    last5Minutes: any;
-    last1Hour: any;
-    last24Hours: any;
+    last5Minutes: Array<{ timestamp: string; value: number }>;
+    last1Hour: Array<{ timestamp: string; value: number }>;
+    last24Hours: Array<{ timestamp: string; value: number }>;
   };
   realtime: {
     activeRequests: number;
@@ -73,19 +91,19 @@ interface MetricsChartProps {
   className?: string;
 }
 
-export default function MetricsChart({ 
-  refreshInterval = 30000, 
-  className = '' 
+export default function MetricsChart({
+  refreshInterval = 30000,
+  className = "",
 }: MetricsChartProps) {
   const [metricsData, setMetricsData] = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [selectedTab, setSelectedTab] = useState('overview');
+  const [selectedTab, setSelectedTab] = useState("overview");
 
   const fetchMetricsData = async () => {
     try {
-      const response = await fetch('/api/metrics?type=performance');
+      const response = await fetch("/api/metrics?type=performance");
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -94,8 +112,8 @@ export default function MetricsChart({
       setError(null);
       setLastRefresh(new Date());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch metrics');
-      console.error('Metrics fetch failed:', err);
+      setError(err instanceof Error ? err.message : "Failed to fetch metrics");
+      console.error("Metrics fetch failed:", err);
     } finally {
       setLoading(false);
     }
@@ -113,68 +131,66 @@ export default function MetricsChart({
     return `${(ms / 60000).toFixed(1)}m`;
   };
 
-  const formatBytes = (bytes: number) => {
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    if (bytes === 0) return '0 B';
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
   const getAlertColor = (level: string) => {
     switch (level) {
-      case 'critical':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case "critical":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "warning":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
-        return 'bg-blue-100 text-blue-800 border-blue-200';
+        return "bg-blue-100 text-blue-800 border-blue-200";
     }
   };
 
   const prepareChartData = () => {
     if (!metricsData) return [];
-    
+
     // Create sample time series data (in real app, this would come from metrics)
     const now = new Date();
     const data = [];
-    
+
     for (let i = 23; i >= 0; i--) {
       const time = new Date(now.getTime() - i * 60000); // 1 minute intervals
       data.push({
-        time: time.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        time: time.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         responseTime: Math.floor(Math.random() * 200) + 100,
         requests: Math.floor(Math.random() * 50) + 10,
         errors: Math.floor(Math.random() * 5),
         memory: Math.floor(Math.random() * 20) + 60,
       });
     }
-    
+
     return data;
   };
 
   const prepareEndpointData = () => {
     if (!metricsData?.realtime.requestsByEndpoint) return [];
-    
-    return Object.entries(metricsData.realtime.requestsByEndpoint).map(([endpoint, count]) => ({
-      endpoint: endpoint.split('/').pop() || endpoint,
-      count,
-    }));
+
+    return Object.entries(metricsData.realtime.requestsByEndpoint).map(
+      ([endpoint, count]) => ({
+        endpoint: endpoint.split("/").pop() || endpoint,
+        count,
+      })
+    );
   };
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
   if (loading) {
     return (
       <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
+            <TrendingUp className="h-5 w-5" />
             Performance Metrics
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center h-64">
-            <RefreshCw className="w-6 h-6 animate-spin text-gray-500" />
+          <div className="flex h-64 items-center justify-center">
+            <RefreshCw className="h-6 w-6 animate-spin text-gray-500" />
           </div>
         </CardContent>
       </Card>
@@ -186,16 +202,14 @@ export default function MetricsChart({
       <Card className={className}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
+            <TrendingUp className="h-5 w-5" />
             Performance Metrics
           </CardTitle>
         </CardHeader>
         <CardContent>
           <Alert>
             <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>
-              Failed to load metrics: {error}
-            </AlertDescription>
+            <AlertDescription>Failed to load metrics: {error}</AlertDescription>
           </Alert>
         </CardContent>
       </Card>
@@ -214,16 +228,16 @@ export default function MetricsChart({
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5" />
+            <TrendingUp className="h-5 w-5" />
             Performance Metrics
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchMetricsData}
             disabled={loading}
           >
-            <RefreshCw className="w-4 h-4 mr-2" />
+            <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
         </CardTitle>
@@ -242,9 +256,9 @@ export default function MetricsChart({
 
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-4 gap-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Activity className="w-4 h-4 text-blue-600" />
+              <div className="rounded-lg bg-blue-50 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-blue-600" />
                   <span className="text-sm font-medium">Active Requests</span>
                 </div>
                 <div className="text-2xl font-bold text-blue-600">
@@ -252,9 +266,9 @@ export default function MetricsChart({
                 </div>
               </div>
 
-              <div className="bg-green-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-4 h-4 text-green-600" />
+              <div className="rounded-lg bg-green-50 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-medium">Avg Response</span>
                 </div>
                 <div className="text-2xl font-bold text-green-600">
@@ -262,9 +276,9 @@ export default function MetricsChart({
                 </div>
               </div>
 
-              <div className="bg-purple-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Database className="w-4 h-4 text-purple-600" />
+              <div className="rounded-lg bg-purple-50 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <Database className="h-4 w-4 text-purple-600" />
                   <span className="text-sm font-medium">Memory Usage</span>
                 </div>
                 <div className="text-2xl font-bold text-purple-600">
@@ -272,9 +286,9 @@ export default function MetricsChart({
                 </div>
               </div>
 
-              <div className="bg-orange-50 p-4 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="w-4 h-4 text-orange-600" />
+              <div className="rounded-lg bg-orange-50 p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
                   <span className="text-sm font-medium">Error Rate</span>
                 </div>
                 <div className="text-2xl font-bold text-orange-600">
@@ -291,16 +305,16 @@ export default function MetricsChart({
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="responseTime" 
-                    stroke="#8884d8" 
+                  <Line
+                    type="monotone"
+                    dataKey="responseTime"
+                    stroke="#8884d8"
                     name="Response Time (ms)"
                   />
-                  <Line 
-                    type="monotone" 
-                    dataKey="requests" 
-                    stroke="#82ca9d" 
+                  <Line
+                    type="monotone"
+                    dataKey="requests"
+                    stroke="#82ca9d"
                     name="Requests"
                   />
                 </LineChart>
@@ -311,17 +325,17 @@ export default function MetricsChart({
           <TabsContent value="performance" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="h-64">
-                <h4 className="text-sm font-medium mb-2">Response Times</h4>
+                <h4 className="mb-2 text-sm font-medium">Response Times</h4>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="time" />
                     <YAxis />
                     <Tooltip />
-                    <Line 
-                      type="monotone" 
-                      dataKey="responseTime" 
-                      stroke="#8884d8" 
+                    <Line
+                      type="monotone"
+                      dataKey="responseTime"
+                      stroke="#8884d8"
                       strokeWidth={2}
                     />
                   </LineChart>
@@ -329,17 +343,17 @@ export default function MetricsChart({
               </div>
 
               <div className="h-64">
-                <h4 className="text-sm font-medium mb-2">Memory Usage</h4>
+                <h4 className="mb-2 text-sm font-medium">Memory Usage</h4>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="time" />
                     <YAxis />
                     <Tooltip />
-                    <Line 
-                      type="monotone" 
-                      dataKey="memory" 
-                      stroke="#82ca9d" 
+                    <Line
+                      type="monotone"
+                      dataKey="memory"
+                      stroke="#82ca9d"
                       strokeWidth={2}
                     />
                   </LineChart>
@@ -353,19 +367,22 @@ export default function MetricsChart({
                 <div>
                   <span className="text-gray-500">P50 Response Time:</span>
                   <span className="ml-2 font-medium">
-                    {metricsData.current.performance.p50ResponseTime.toFixed(0)}ms
+                    {metricsData.current.performance.p50ResponseTime.toFixed(0)}
+                    ms
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-500">P95 Response Time:</span>
                   <span className="ml-2 font-medium">
-                    {metricsData.current.performance.p95ResponseTime.toFixed(0)}ms
+                    {metricsData.current.performance.p95ResponseTime.toFixed(0)}
+                    ms
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-500">P99 Response Time:</span>
                   <span className="ml-2 font-medium">
-                    {metricsData.current.performance.p99ResponseTime.toFixed(0)}ms
+                    {metricsData.current.performance.p99ResponseTime.toFixed(0)}
+                    ms
                   </span>
                 </div>
               </div>
@@ -375,7 +392,9 @@ export default function MetricsChart({
           <TabsContent value="endpoints" className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="h-64">
-                <h4 className="text-sm font-medium mb-2">Requests by Endpoint</h4>
+                <h4 className="mb-2 text-sm font-medium">
+                  Requests by Endpoint
+                </h4>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -383,13 +402,18 @@ export default function MetricsChart({
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                      label={({ name, percent }) =>
+                        `${name} ${((percent || 0) * 100).toFixed(0)}%`
+                      }
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="count"
                     >
                       {endpointData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
                       ))}
                     </Pie>
                     <Tooltip />
@@ -400,8 +424,11 @@ export default function MetricsChart({
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Active Endpoints</h4>
                 <div className="space-y-2">
-                  {endpointData.map((endpoint, index) => (
-                    <div key={endpoint.endpoint} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  {endpointData.map((endpoint, _index) => (
+                    <div
+                      key={endpoint.endpoint}
+                      className="flex items-center justify-between rounded bg-gray-50 p-2"
+                    >
                       <span className="text-sm">{endpoint.endpoint}</span>
                       <Badge variant="secondary">{endpoint.count}</Badge>
                     </div>
@@ -411,12 +438,25 @@ export default function MetricsChart({
             </div>
 
             {metricsData.realtime.longestRunningRequest && (
-              <div className="bg-yellow-50 p-4 rounded-lg">
-                <h4 className="text-sm font-medium mb-2">Longest Running Request</h4>
+              <div className="rounded-lg bg-yellow-50 p-4">
+                <h4 className="mb-2 text-sm font-medium">
+                  Longest Running Request
+                </h4>
                 <div className="text-sm">
-                  <div>Endpoint: {metricsData.realtime.longestRunningRequest.endpoint}</div>
-                  <div>Duration: {formatDuration(metricsData.realtime.longestRunningRequest.duration)}</div>
-                  <div>Trace ID: {metricsData.realtime.longestRunningRequest.traceId}</div>
+                  <div>
+                    Endpoint:{" "}
+                    {metricsData.realtime.longestRunningRequest.endpoint}
+                  </div>
+                  <div>
+                    Duration:{" "}
+                    {formatDuration(
+                      metricsData.realtime.longestRunningRequest.duration
+                    )}
+                  </div>
+                  <div>
+                    Trace ID:{" "}
+                    {metricsData.realtime.longestRunningRequest.traceId}
+                  </div>
                 </div>
               </div>
             )}
@@ -440,8 +480,8 @@ export default function MetricsChart({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Activity className="w-8 h-8 mx-auto mb-2" />
+              <div className="py-8 text-center text-gray-500">
+                <Activity className="mx-auto mb-2 h-8 w-8" />
                 <p>No alerts at this time</p>
               </div>
             )}

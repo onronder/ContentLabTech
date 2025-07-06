@@ -37,8 +37,6 @@ import {
   Search,
   Brain,
   Lightbulb,
-  ArrowRight,
-  Clock,
   DollarSign,
 } from "lucide-react";
 

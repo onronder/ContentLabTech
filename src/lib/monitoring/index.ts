@@ -16,10 +16,14 @@ export { healthChecker } from "./health-checker";
 
 // Import for internal use
 import { logger } from "./logger";
-import { setupGlobalErrorHandling, errorTracker } from "./error-tracker";
+import {
+  setupGlobalErrorHandling,
+  errorTracker,
+  ErrorContext,
+} from "./error-tracker";
 import { metricsCollector } from "./metrics-collector";
 import { healthChecker } from "./health-checker";
-import { setupMonitoringIntegration } from "./integration";
+import { setupMonitoringIntegration, getMonitoringStatus } from "./integration";
 
 // Performance monitoring
 export {
@@ -218,15 +222,15 @@ export const monitoringUtils = {
       type,
       action,
     };
-    
+
     if (userId) {
       businessData.userId = userId;
     }
-    
+
     if (details) {
       businessData.details = details;
     }
-    
+
     logger.business(businessData);
   },
 

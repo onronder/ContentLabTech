@@ -66,8 +66,10 @@ export class RetryManager {
         );
       },
       onRetry: (error: Error, attempt: number, nextDelay: number) => {
-        console.warn(`OpenAI retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`);
-      }
+        console.warn(
+          `OpenAI retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`
+        );
+      },
     });
 
     // SERPAPI Configuration - Conservative retries for search API
@@ -90,8 +92,10 @@ export class RetryManager {
         );
       },
       onRetry: (error: Error, attempt: number, nextDelay: number) => {
-        console.warn(`SERPAPI retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`);
-      }
+        console.warn(
+          `SERPAPI retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`
+        );
+      },
     });
 
     // Supabase Configuration - Fast retries for database operations
@@ -114,8 +118,10 @@ export class RetryManager {
         );
       },
       onRetry: (error: Error, attempt: number, nextDelay: number) => {
-        console.warn(`Supabase retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`);
-      }
+        console.warn(
+          `Supabase retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`
+        );
+      },
     });
 
     // Redis Configuration - Quick retries for cache operations
@@ -135,8 +141,10 @@ export class RetryManager {
         );
       },
       onRetry: (error: Error, attempt: number, nextDelay: number) => {
-        console.warn(`Redis retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`);
-      }
+        console.warn(
+          `Redis retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`
+        );
+      },
     });
 
     // External APIs Configuration - General web service retries
@@ -159,8 +167,10 @@ export class RetryManager {
         );
       },
       onRetry: (error: Error, attempt: number, nextDelay: number) => {
-        console.warn(`External API retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`);
-      }
+        console.warn(
+          `External API retry attempt ${attempt} after ${nextDelay}ms: ${error.message}`
+        );
+      },
     });
   }
 
@@ -184,17 +194,17 @@ export class RetryManager {
 
       try {
         const result = await operation();
-        
+
         return {
           success: true,
           result,
           attempts: attempt,
           totalTime: Date.now() - startTime,
-          retryHistory
+          retryHistory,
         };
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         // Check if this error is retryable
         if (!config.retryableErrors(lastError)) {
           return {
@@ -202,7 +212,7 @@ export class RetryManager {
             error: lastError,
             attempts: attempt,
             totalTime: Date.now() - startTime,
-            retryHistory
+            retryHistory,
           };
         }
 
@@ -213,13 +223,13 @@ export class RetryManager {
 
         // Calculate delay for next attempt
         const delay = this.calculateDelay(attempt, config);
-        
+
         // Add to retry history
         retryHistory.push({
           attempt,
           error: lastError.message,
           delay,
-          timestamp: new Date()
+          timestamp: new Date(),
         });
 
         // Call retry callback if provided
@@ -238,7 +248,7 @@ export class RetryManager {
       error: lastError,
       attempts: attempt,
       totalTime: Date.now() - startTime,
-      retryHistory
+      retryHistory,
     };
   }
 
@@ -264,14 +274,23 @@ export class RetryManager {
     let totalAttempts = 0;
 
     for (let i = 0; i < operations.length; i++) {
-      const result = await this.executeWithRetry(serviceName, operations[i], customConfig);
+      const operation = operations[i];
+      if (!operation) {
+        failed.push(new Error(`Operation at index ${i} is undefined`));
+        continue;
+      }
+      const result = await this.executeWithRetry(
+        serviceName,
+        operation,
+        customConfig
+      );
       totalAttempts += result.attempts;
 
       if (result.success && result.result !== undefined) {
         successful.push(result.result);
       } else if (result.error) {
         failed.push(result.error);
-        
+
         // Stop if failFast is enabled
         if (customConfig?.failFast) {
           break;
@@ -279,7 +298,10 @@ export class RetryManager {
       }
 
       // Check if we've met minimum success requirement
-      if (customConfig?.minSuccessCount && successful.length >= customConfig.minSuccessCount) {
+      if (
+        customConfig?.minSuccessCount &&
+        successful.length >= customConfig.minSuccessCount
+      ) {
         break;
       }
     }
@@ -288,7 +310,7 @@ export class RetryManager {
       successful,
       failed,
       totalAttempts,
-      totalTime: Date.now() - startTime
+      totalTime: Date.now() - startTime,
     };
   }
 
@@ -339,7 +361,7 @@ export class RetryManager {
     return {
       config,
       estimatedMaxTime: totalDelay,
-      estimatedTotalDelays: totalDelay
+      estimatedTotalDelays: totalDelay,
     };
   }
 
@@ -348,7 +370,7 @@ export class RetryManager {
    */
   async testRetryConfig(
     serviceName: string,
-    failureCount: number = 2,
+    failureCount = 2,
     customConfig?: Partial<RetryConfig>
   ): Promise<RetryResult<string>> {
     let attemptCount = 0;
@@ -368,8 +390,9 @@ export class RetryManager {
     serviceName: string,
     customConfig?: Partial<RetryConfig>
   ): RetryConfig {
-    const serviceConfig = this.serviceConfigs.get(serviceName) || this.defaultConfig;
-    
+    const serviceConfig =
+      this.serviceConfigs.get(serviceName) || this.defaultConfig;
+
     if (!customConfig) {
       return serviceConfig;
     }
@@ -378,17 +401,19 @@ export class RetryManager {
       ...serviceConfig,
       ...customConfig,
       // Merge retryableErrors function if both exist
-      retryableErrors: customConfig.retryableErrors || serviceConfig.retryableErrors
+      retryableErrors:
+        customConfig.retryableErrors || serviceConfig.retryableErrors,
     };
   }
 
   private calculateDelay(attempt: number, config: RetryConfig): number {
     // Calculate base delay with exponential backoff
-    let delay = config.baseDelay * Math.pow(config.backoffMultiplier, attempt - 1);
-    
+    let delay =
+      config.baseDelay * Math.pow(config.backoffMultiplier, attempt - 1);
+
     // Apply maximum delay cap
     delay = Math.min(delay, config.maxDelay);
-    
+
     // Add jitter if enabled (±25% randomization)
     if (config.jitter) {
       const jitterRange = delay * 0.25;
@@ -396,24 +421,26 @@ export class RetryManager {
       delay += jitterOffset;
       delay = Math.max(delay, 0); // Ensure non-negative
     }
-    
+
     return Math.round(delay);
   }
 
   private isRetryableError(error: Error): boolean {
     const errorMessage = error.message.toLowerCase();
-    
+
     // Common retryable error patterns
     const retryablePatterns = [
       "timeout",
       "network",
       "connection",
-      "502", "503", "504", // Server errors
+      "502",
+      "503",
+      "504", // Server errors
       "econnreset",
       "econnrefused",
       "enotfound",
       "rate limit",
-      "temporarily unavailable"
+      "temporarily unavailable",
     ];
 
     return retryablePatterns.some(pattern => errorMessage.includes(pattern));
@@ -427,7 +454,8 @@ export class RetryManager {
    * Update service configuration
    */
   updateServiceConfig(serviceName: string, config: Partial<RetryConfig>): void {
-    const currentConfig = this.serviceConfigs.get(serviceName) || this.defaultConfig;
+    const currentConfig =
+      this.serviceConfigs.get(serviceName) || this.defaultConfig;
     this.serviceConfigs.set(serviceName, { ...currentConfig, ...config });
   }
 
@@ -452,12 +480,16 @@ export async function withRetry<T>(
   operation: () => Promise<T>,
   config?: Partial<RetryConfig>
 ): Promise<T> {
-  const result = await retryManager.executeWithRetry(serviceName, operation, config);
-  
+  const result = await retryManager.executeWithRetry(
+    serviceName,
+    operation,
+    config
+  );
+
   if (result.success && result.result !== undefined) {
     return result.result;
   }
-  
+
   throw result.error || new Error("Retry operation failed");
 }
 

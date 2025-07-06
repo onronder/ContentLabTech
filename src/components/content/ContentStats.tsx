@@ -7,16 +7,7 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  FileText,
-  Eye,
-  TrendingUp,
-  Clock,
-  Target,
-  Sparkles,
-  BarChart3,
-  Users,
-} from "lucide-react";
+import { FileText, Eye, Target, Sparkles } from "lucide-react";
 
 interface ContentItem {
   id: string;
@@ -24,7 +15,13 @@ interface ContentItem {
   title: string;
   content: string;
   url?: string;
-  content_type: "article" | "blog_post" | "landing_page" | "product_page" | "category_page" | "other";
+  content_type:
+    | "article"
+    | "blog_post"
+    | "landing_page"
+    | "product_page"
+    | "category_page"
+    | "other";
   status: "draft" | "published" | "archived" | "deleted";
   seo_score?: number;
   readability_score?: number;
@@ -79,16 +76,30 @@ export const ContentStats = ({ content, loading }: ContentStatsProps) => {
       totalContent: content.length,
       publishedContent: published.length,
       draftContent: drafts.length,
-      avgSeoScore: withSeoScore.length > 0 
-        ? Math.round(withSeoScore.reduce((sum, c) => sum + (c.seo_score || 0), 0) / withSeoScore.length)
-        : 0,
-      avgReadabilityScore: withReadabilityScore.length > 0
-        ? Math.round(withReadabilityScore.reduce((sum, c) => sum + (c.readability_score || 0), 0) / withReadabilityScore.length)
-        : 0,
+      avgSeoScore:
+        withSeoScore.length > 0
+          ? Math.round(
+              withSeoScore.reduce((sum, c) => sum + (c.seo_score || 0), 0) /
+                withSeoScore.length
+            )
+          : 0,
+      avgReadabilityScore:
+        withReadabilityScore.length > 0
+          ? Math.round(
+              withReadabilityScore.reduce(
+                (sum, c) => sum + (c.readability_score || 0),
+                0
+              ) / withReadabilityScore.length
+            )
+          : 0,
       totalViews: content.reduce((sum, c) => sum + c.stats.views, 0),
-      avgEngagement: content.length > 0
-        ? Math.round(content.reduce((sum, c) => sum + c.stats.engagement, 0) / content.length)
-        : 0,
+      avgEngagement:
+        content.length > 0
+          ? Math.round(
+              content.reduce((sum, c) => sum + c.stats.engagement, 0) /
+                content.length
+            )
+          : 0,
       aiOptimizedContent: aiOptimized.length,
     };
   }, [content, loading]);
@@ -144,9 +155,7 @@ export const ContentStats = ({ content, loading }: ContentStatsProps) => {
           <div className="text-2xl font-bold text-gray-900">
             {stats.aiOptimizedContent}
           </div>
-          <div className="text-xs text-gray-500">
-            SEO score ≥ 70
-          </div>
+          <div className="text-xs text-gray-500">SEO score ≥ 70</div>
         </CardContent>
       </Card>
 

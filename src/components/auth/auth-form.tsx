@@ -31,9 +31,9 @@ interface AuthFormProps {
 // Development debugging helper
 const isDevelopment = process.env.NODE_ENV === "development";
 
-const debugLog = (message: string, data?: any) => {
+const debugLog = (message: string, data?: unknown) => {
   if (isDevelopment) {
-    console.log(`[AuthForm Debug] ${message}`, data);
+    console.warn(`[AuthForm Debug] ${message}`, data);
   }
 };
 
@@ -44,7 +44,7 @@ export const AuthForm = ({
 }: AuthFormProps) => {
   const { signIn, signUp, loading: authLoading } = useSupabaseAuth();
   const [formLoading, setFormLoading] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<{
+  const [_debugInfo, setDebugInfo] = useState<{
     authLoading: boolean;
     formLoading: boolean;
     inputsDisabled: boolean;

@@ -32,7 +32,13 @@ interface ContentItem {
   title: string;
   content: string;
   url?: string;
-  content_type: "article" | "blog_post" | "landing_page" | "product_page" | "category_page" | "other";
+  content_type:
+    | "article"
+    | "blog_post"
+    | "landing_page"
+    | "product_page"
+    | "category_page"
+    | "other";
   status: "draft" | "published" | "archived" | "deleted";
   seo_score?: number;
   readability_score?: number;
@@ -82,7 +88,9 @@ export const CreateContentModal = ({
     project_id: "",
   });
 
-  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([]);
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>(
+    []
+  );
   const [projectsLoading, setProjectsLoading] = useState(false);
 
   // Load projects when modal opens
@@ -90,14 +98,16 @@ export const CreateContentModal = ({
     if (open && currentTeam?.id) {
       loadProjects();
     }
-  }, [open, currentTeam?.id]);
+  }, [open, currentTeam?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadProjects = async () => {
     if (!currentTeam?.id) return;
 
     setProjectsLoading(true);
     try {
-      const response = await fetch(`/api/projects?teamId=${currentTeam.id}&limit=100`);
+      const response = await fetch(
+        `/api/projects?teamId=${currentTeam.id}&limit=100`
+      );
       if (response.ok) {
         const data = await response.json();
         setProjects(data.projects || []);
@@ -123,8 +133,11 @@ export const CreateContentModal = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
-          focus_keywords: formData.focus_keywords 
-            ? formData.focus_keywords.split(",").map(k => k.trim()).filter(Boolean)
+          focus_keywords: formData.focus_keywords
+            ? formData.focus_keywords
+                .split(",")
+                .map(k => k.trim())
+                .filter(Boolean)
             : [],
           team_id: currentTeam.id,
         }),
@@ -177,16 +190,20 @@ export const CreateContentModal = ({
             <Label htmlFor="project">Project</Label>
             <Select
               value={formData.project_id}
-              onValueChange={(value) =>
+              onValueChange={value =>
                 setFormData(prev => ({ ...prev, project_id: value }))
               }
               disabled={projectsLoading}
             >
               <SelectTrigger>
-                <SelectValue placeholder={projectsLoading ? "Loading projects..." : "Select a project"} />
+                <SelectValue
+                  placeholder={
+                    projectsLoading ? "Loading projects..." : "Select a project"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {projects.map((project) => (
+                {projects.map(project => (
                   <SelectItem key={project.id} value={project.id}>
                     {project.name}
                   </SelectItem>
@@ -202,7 +219,7 @@ export const CreateContentModal = ({
               <Input
                 id="title"
                 value={formData.title}
-                onChange={(e) =>
+                onChange={e =>
                   setFormData(prev => ({ ...prev, title: e.target.value }))
                 }
                 placeholder="Enter content title"
@@ -213,10 +230,10 @@ export const CreateContentModal = ({
               <Label htmlFor="content_type">Content Type</Label>
               <Select
                 value={formData.content_type}
-                onValueChange={(value) =>
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    content_type: value as typeof formData.content_type 
+                onValueChange={value =>
+                  setFormData(prev => ({
+                    ...prev,
+                    content_type: value as typeof formData.content_type,
                   }))
                 }
               >
@@ -241,7 +258,7 @@ export const CreateContentModal = ({
             <Textarea
               id="content"
               value={formData.content}
-              onChange={(e) =>
+              onChange={e =>
                 setFormData(prev => ({ ...prev, content: e.target.value }))
               }
               placeholder="Enter your content here..."
@@ -255,13 +272,13 @@ export const CreateContentModal = ({
               <Sparkles className="h-4 w-4 text-blue-500" />
               <Label className="text-sm font-medium">SEO Optimization</Label>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="meta_title">Meta Title</Label>
               <Input
                 id="meta_title"
                 value={formData.meta_title}
-                onChange={(e) =>
+                onChange={e =>
                   setFormData(prev => ({ ...prev, meta_title: e.target.value }))
                 }
                 placeholder="SEO title for search engines"
@@ -273,8 +290,11 @@ export const CreateContentModal = ({
               <Textarea
                 id="meta_description"
                 value={formData.meta_description}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, meta_description: e.target.value }))
+                onChange={e =>
+                  setFormData(prev => ({
+                    ...prev,
+                    meta_description: e.target.value,
+                  }))
                 }
                 placeholder="Brief description for search results"
                 rows={2}
@@ -286,8 +306,11 @@ export const CreateContentModal = ({
               <Input
                 id="focus_keywords"
                 value={formData.focus_keywords}
-                onChange={(e) =>
-                  setFormData(prev => ({ ...prev, focus_keywords: e.target.value }))
+                onChange={e =>
+                  setFormData(prev => ({
+                    ...prev,
+                    focus_keywords: e.target.value,
+                  }))
                 }
                 placeholder="keyword1, keyword2, keyword3"
               />
@@ -304,7 +327,7 @@ export const CreateContentModal = ({
               <Input
                 id="url"
                 value={formData.url}
-                onChange={(e) =>
+                onChange={e =>
                   setFormData(prev => ({ ...prev, url: e.target.value }))
                 }
                 placeholder="https://example.com/content"
@@ -315,10 +338,10 @@ export const CreateContentModal = ({
               <Label htmlFor="status">Status</Label>
               <Select
                 value={formData.status}
-                onValueChange={(value) =>
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    status: value as typeof formData.status 
+                onValueChange={value =>
+                  setFormData(prev => ({
+                    ...prev,
+                    status: value as typeof formData.status,
                   }))
                 }
               >
