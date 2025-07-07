@@ -114,6 +114,11 @@ function validateCSRFToken(request: NextRequest): boolean {
     return true;
   }
 
+  // Skip CSRF for projects API (uses session authentication)
+  if (request.nextUrl.pathname.startsWith("/api/projects")) {
+    return true;
+  }
+
   const tokenFromHeader = request.headers.get("x-csrf-token");
   const tokenFromCookie = request.cookies.get("csrf-token")?.value;
 

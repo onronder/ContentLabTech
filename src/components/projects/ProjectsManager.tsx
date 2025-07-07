@@ -128,7 +128,9 @@ export const ProjectsManager = () => {
       if (filters.status) params.append("status", filters.status);
       if (filters.search) params.append("search", filters.search);
 
-      const response = await fetch(`/api/projects?${params.toString()}`);
+      const response = await fetch(`/api/projects?${params.toString()}`, {
+        credentials: "include",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to load projects");
