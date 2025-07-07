@@ -200,6 +200,19 @@ export const ProjectsManager = () => {
         headers["Authorization"] = `Bearer ${session.access_token}`;
       }
 
+      // Add CSRF token from cookie
+      const csrfToken = document.cookie
+        .split("; ")
+        .find(row => row.startsWith("csrf-token="))
+        ?.split("=")[1];
+
+      if (csrfToken) {
+        headers["x-csrf-token"] = csrfToken;
+        console.log("🛡️ CSRF token added to request");
+      } else {
+        console.log("⚠️ No CSRF token found in cookies");
+      }
+
       const response = await fetch("/api/fix-team-assignments", {
         method: "POST",
         headers,

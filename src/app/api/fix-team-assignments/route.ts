@@ -16,22 +16,31 @@ const supabase = createClient(
 // Helper function to get authenticated user from request
 async function getAuthenticatedUser(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
+  console.log("🔍 Auth header:", authHeader ? "Present" : "Missing");
+
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.log("❌ No valid Bearer token found");
     return null;
   }
 
   const token = authHeader.replace("Bearer ", "");
+  console.log("🔑 Token length:", token.length);
 
   try {
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser(token);
+
+    console.log("👤 User from token:", user ? "Found" : "Not found");
+    console.log("🚨 Auth error:", error?.message || "None");
+
     if (error || !user) {
       return null;
     }
     return user;
   } catch (error) {
+    console.log("💥 Exception in getUser:", error);
     return null;
   }
 }
@@ -124,9 +133,17 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("🚀 POST /api/fix-team-assignments called");
+
     // Authenticate the request
     const authenticatedUser = await getAuthenticatedUser(request);
+    console.log(
+      "🔐 Authenticated user:",
+      authenticatedUser ? "Found" : "Not found"
+    );
+
     if (!authenticatedUser) {
+      console.log("❌ Authentication failed, returning 401");
       return NextResponse.json(
         { error: "Unauthorized - Please log in" },
         { status: 401 }
