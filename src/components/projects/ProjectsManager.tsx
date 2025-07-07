@@ -233,12 +233,6 @@ export const ProjectsManager = () => {
         console.log("🔄 Refreshing teams...");
         await refreshTeams();
         console.log("✅ Teams refreshed successfully");
-
-        // Force page refresh to ensure fresh session state
-        console.log("🔄 Forcing page refresh for fresh session...");
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
       } else {
         const errorData = await response.json();
         console.error("❌ Failed to create default team:", errorData);
