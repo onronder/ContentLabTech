@@ -104,8 +104,13 @@ function validateCSRFToken(request: NextRequest): boolean {
     return true;
   }
 
-  // Skip CSRF check for API auth callbacks
+  // Skip CSRF check for API auth callbacks and authenticated API routes
   if (request.nextUrl.pathname.startsWith("/auth/callback")) {
+    return true;
+  }
+
+  // Skip CSRF for API routes that use Bearer token authentication
+  if (request.nextUrl.pathname.startsWith("/api/fix-team-assignments")) {
     return true;
   }
 

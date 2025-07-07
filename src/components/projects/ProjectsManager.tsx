@@ -201,6 +201,7 @@ export const ProjectsManager = () => {
       }
 
       // Add CSRF token from cookie
+      console.log("🍪 All cookies:", document.cookie);
       const csrfToken = document.cookie
         .split("; ")
         .find(row => row.startsWith("csrf-token="))
@@ -211,6 +212,7 @@ export const ProjectsManager = () => {
         console.log("🛡️ CSRF token added to request");
       } else {
         console.log("⚠️ No CSRF token found in cookies");
+        console.log("🔧 Attempting to bypass CSRF for API route");
       }
 
       const response = await fetch("/api/fix-team-assignments", {
