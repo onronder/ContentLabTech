@@ -26,6 +26,9 @@ import {
   CSRFError,
 } from "@/lib/auth/authenticated-fetch";
 import { supabase } from "@/lib/supabase/client";
+import { useAdvancedFormValidation } from "@/hooks/use-advanced-form-validation";
+import { useLoadingStateManager } from "@/hooks/use-loading-state-manager";
+import { useFormErrorHandler } from "@/hooks/use-form-error-handler";
 import {
   Globe,
   Target,
@@ -77,18 +80,59 @@ export const CreateProjectModal = ({
   onProjectCreated,
 }: CreateProjectModalProps) => {
   const { currentTeam, session } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState("basic");
 
-  // Form state
-  const [formData, setFormData] = useState({
+  // Advanced form validation configuration
+  const formValidation = useAdvancedFormValidation({
+    fields: {
+      name: [
+        { type: 'required', message: 'Project name is required' },
+        { type: 'min', value: 2, message: 'Project name must be at least 2 characters' },
+        { type: 'max', value: 100, message: 'Project name must be less than 100 characters' }
+      ],
+      description: [
+        { type: 'max', value: 500, message: 'Description must be less than 500 characters' }
+      ],
+      website_url: [
+        { type: 'url', message: 'Please enter a valid URL' }
+      ],
+      target_audience: [
+        { type: 'max', value: 200, message: 'Target audience must be less than 200 characters' }
+      ]
+    },
+    validationTiming: 'hybrid',
+    debounceMs: 300
+  }, {
     name: "",
     description: "",
     website_url: "",
     target_audience: "",
   });
 
+  // Loading state management with steps
+  const loadingManager = useLoadingStateManager({
+    steps: [
+      { id: 'validation', label: 'Validating form data', weight: 1 },
+      { id: 'creation', label: 'Creating project', weight: 3 },
+      { id: 'finalization', label: 'Finalizing setup', weight: 1 }
+    ],
+    timeoutMs: 30000,
+    onStepComplete: (step) => console.log('✅ Completed:', step.label),
+    onStepFailed: (step, error) => console.error('❌ Failed:', step.label, error),
+    onComplete: (duration) => console.log('🎉 Project created in', duration, 'ms')
+  });
+
+  // Error handling
+  const errorHandler = useFormErrorHandler({
+    enableRecovery: true,
+    maxRetries: 2,
+    autoHideDelay: 8000,
+    onRetry: async (error) => {
+      console.log('🔄 Retrying after error:', error.category.userMessage.title);
+    }
+  });
+
+  // Dynamic arrays state
   const [targetKeywords, setTargetKeywords] = useState<string[]>([]);
   const [contentGoals, setContentGoals] = useState<string[]>([]);
   const [competitors, setCompetitors] = useState<string[]>([]);
@@ -97,24 +141,26 @@ export const CreateProjectModal = ({
   const [competitorInput, setCompetitorInput] = useState("");
 
   const resetForm = () => {
-    setFormData({
+    formValidation.setFormData({
       name: "",
       description: "",
       website_url: "",
       target_audience: "",
     });
+    formValidation.resetValidation();
     setTargetKeywords([]);
     setContentGoals([]);
     setCompetitors([]);
     setKeywordInput("");
     setGoalInput("");
     setCompetitorInput("");
-    setError(null);
+    errorHandler.clearAllErrors();
+    loadingManager.stopLoading();
     setCurrentTab("basic");
   };
 
   const handleClose = () => {
-    if (!loading) {
+    if (!loadingManager.isAnyLoading) {
       resetForm();
       onClose();
     }
@@ -164,17 +210,32 @@ export const CreateProjectModal = ({
     e.preventDefault();
     if (!currentTeam?.id) return;
 
-    setLoading(true);
-    setError(null);
+    // Start loading with step progression
+    loadingManager.startLoading('submitting');
+    errorHandler.clearAllErrors();
 
     try {
+      // Step 1: Validation
+      loadingManager.updateStep('validation', 'active');
+      const isFormValid = await formValidation.validateForm();
+      
+      if (!isFormValid) {
+        loadingManager.failCurrentStep(new Error('Form validation failed'));
+        return;
+      }
+      
+      loadingManager.completeCurrentStep();
+
+      // Step 2: Project Creation
+      loadingManager.updateStep('creation', 'active');
+      
       const payload = {
         teamId: currentTeam.id,
-        name: formData.name,
-        description: formData.description || undefined,
-        website_url: formData.website_url || undefined,
+        name: formValidation.formData.name,
+        description: formValidation.formData.description || undefined,
+        website_url: formValidation.formData.website_url || undefined,
         target_keywords: targetKeywords,
-        target_audience: formData.target_audience || undefined,
+        target_audience: formValidation.formData.target_audience || undefined,
         content_goals: contentGoals,
         competitors: competitors,
         settings: {},
@@ -184,12 +245,10 @@ export const CreateProjectModal = ({
       const authContext = {
         session,
         refreshSession: async () => {
-          // Refresh session if needed
           const {
             data: { session: newSession },
           } = await supabase.auth.getSession();
           if (newSession) {
-            // Session would be updated by auth context automatically
             console.log("🔄 Session refreshed for project creation");
           }
         },
@@ -209,31 +268,45 @@ export const CreateProjectModal = ({
         throw new Error(errorData.error || "Failed to create project");
       }
 
+      loadingManager.completeCurrentStep();
+
+      // Step 3: Finalization
+      loadingManager.updateStep('finalization', 'active');
+      
       const result = await response.json();
+      
+      loadingManager.completeCurrentStep();
+      
+      // Success handling
       onProjectCreated(result.project);
       resetForm();
+      
     } catch (err) {
       console.error("Error creating project:", err);
-
+      
+      // Use enhanced error handling
       if (err instanceof AuthenticationError) {
-        setError(
-          "Authentication failed. Please refresh the page and try again."
-        );
+        errorHandler.handleTypedError(err);
       } else if (err instanceof CSRFError) {
-        setError(
-          "Security validation failed. Please refresh the page and try again."
-        );
+        errorHandler.handleTypedError(err);
       } else {
-        setError(
-          err instanceof Error ? err.message : "Failed to create project"
-        );
+        errorHandler.addError(err, undefined, {
+          operation: 'project_creation',
+          teamId: currentTeam?.id
+        });
       }
-    } finally {
-      setLoading(false);
+      
+      // Fail current step if loading
+      if (loadingManager.isAnyLoading) {
+        loadingManager.failCurrentStep(err);
+      }
     }
   };
 
-  const isFormValid = formData.name.trim().length > 0;
+  // Form validity based on validation state
+  const isFormValid = formValidation.isValid && 
+    formValidation.formData.name.trim().length > 0 && 
+    !loadingManager.isAnyLoading;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -281,29 +354,36 @@ export const CreateProjectModal = ({
                 </Label>
                 <Input
                   id="name"
-                  value={formData.name}
-                  onChange={e =>
-                    setFormData(prev => ({ ...prev, name: e.target.value }))
-                  }
+                  value={formValidation.formData.name}
+                  onChange={e => formValidation.updateField('name', e.target.value)}
+                  onBlur={() => formValidation.handleFieldBlur('name')}
                   placeholder="Enter project name..."
                   required
+                  className={formValidation.shouldShowFieldErrors('name') ? 'border-red-500' : ''}
                 />
+                {formValidation.shouldShowFieldErrors('name') && (
+                  <p className="text-sm text-red-600">
+                    {formValidation.getFieldStatus('name').errors[0]}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
-                  value={formData.description}
-                  onChange={e =>
-                    setFormData(prev => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
+                  value={formValidation.formData.description}
+                  onChange={e => formValidation.updateField('description', e.target.value)}
+                  onBlur={() => formValidation.handleFieldBlur('description')}
                   placeholder="Describe your project goals and objectives..."
                   rows={3}
+                  className={formValidation.shouldShowFieldErrors('description') ? 'border-red-500' : ''}
                 />
+                {formValidation.shouldShowFieldErrors('description') && (
+                  <p className="text-sm text-red-600">
+                    {formValidation.getFieldStatus('description').errors[0]}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -311,30 +391,34 @@ export const CreateProjectModal = ({
                 <Input
                   id="website_url"
                   type="url"
-                  value={formData.website_url}
-                  onChange={e =>
-                    setFormData(prev => ({
-                      ...prev,
-                      website_url: e.target.value,
-                    }))
-                  }
+                  value={formValidation.formData.website_url}
+                  onChange={e => formValidation.updateField('website_url', e.target.value)}
+                  onBlur={() => formValidation.handleFieldBlur('website_url')}
                   placeholder="https://example.com"
+                  className={formValidation.shouldShowFieldErrors('website_url') ? 'border-red-500' : ''}
                 />
+                {formValidation.shouldShowFieldErrors('website_url') && (
+                  <p className="text-sm text-red-600">
+                    {formValidation.getFieldStatus('website_url').errors[0]}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="target_audience">Target Audience</Label>
                 <Input
                   id="target_audience"
-                  value={formData.target_audience}
-                  onChange={e =>
-                    setFormData(prev => ({
-                      ...prev,
-                      target_audience: e.target.value,
-                    }))
-                  }
+                  value={formValidation.formData.target_audience}
+                  onChange={e => formValidation.updateField('target_audience', e.target.value)}
+                  onBlur={() => formValidation.handleFieldBlur('target_audience')}
                   placeholder="Small business owners, marketing professionals..."
+                  className={formValidation.shouldShowFieldErrors('target_audience') ? 'border-red-500' : ''}
                 />
+                {formValidation.shouldShowFieldErrors('target_audience') && (
+                  <p className="text-sm text-red-600">
+                    {formValidation.getFieldStatus('target_audience').errors[0]}
+                  </p>
+                )}
               </div>
             </TabsContent>
 
@@ -490,25 +574,101 @@ export const CreateProjectModal = ({
             </TabsContent>
           </Tabs>
 
-          {error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <div className="flex items-start space-x-3">
-                <AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
-                <div>
-                  <h4 className="font-medium text-red-900">Error</h4>
-                  <p className="text-sm text-red-700">{error}</p>
+          {/* Global Error Display */}
+          {errorHandler.hasErrors && (
+            <div className="space-y-3">
+              {errorHandler.getGlobalErrors().map((error) => (
+                <div key={error.id} className="rounded-lg border border-red-200 bg-red-50 p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      <span className="text-lg">{error.category.userMessage.icon}</span>
+                      <div>
+                        <h4 className="font-medium text-red-900">
+                          {error.category.userMessage.title}
+                        </h4>
+                        <p className="text-sm text-red-700">
+                          {error.category.userMessage.message}
+                        </p>
+                        {error.category.userMessage.action && (
+                          <p className="text-sm text-red-600 mt-1">
+                            {error.category.userMessage.action}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {error.category.retryStrategy.canRetry && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => errorHandler.retryError(error.id)}
+                          disabled={errorHandler.isRecovering}
+                        >
+                          Retry
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => errorHandler.dismissError(error.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {/* Loading Progress Display */}
+          {loadingManager.isAnyLoading && (
+            <div className="rounded-lg bg-blue-50 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <Zap className="h-4 w-4 text-blue-600 animate-spin" />
+                  <span className="text-sm font-medium text-blue-900">
+                    {loadingManager.currentStepLabel}
+                  </span>
+                </div>
+                <span className="text-sm text-blue-600">
+                  {loadingManager.completionPercentage}%
+                </span>
               </div>
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${loadingManager.progress}%` }}
+                />
+              </div>
+              {loadingManager.formattedTimeRemaining && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Estimated time remaining: {loadingManager.formattedTimeRemaining}
+                </p>
+              )}
             </div>
           )}
 
           <div className="flex items-center justify-between border-t pt-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
-              {isFormValid && (
-                <>
+            <div className="flex items-center space-x-4 text-sm text-gray-500">
+              {isFormValid && !loadingManager.isAnyLoading && (
+                <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   <span>Ready to create</span>
-                </>
+                </div>
+              )}
+              
+              {formValidation.isValidating && (
+                <div className="flex items-center space-x-2">
+                  <Zap className="h-4 w-4 text-blue-500 animate-spin" />
+                  <span>Validating...</span>
+                </div>
+              )}
+              
+              {formValidation.validationProgress.total > 0 && (
+                <span className="text-xs text-gray-400">
+                  Validated: {formValidation.validationProgress.valid}/{formValidation.validationProgress.total}
+                </span>
               )}
             </div>
 
@@ -517,15 +677,18 @@ export const CreateProjectModal = ({
                 type="button"
                 variant="outline"
                 onClick={handleClose}
-                disabled={loading}
+                disabled={loadingManager.isAnyLoading}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!isFormValid || loading}>
-                {loading ? (
+              <Button 
+                type="submit" 
+                disabled={!isFormValid || loadingManager.isAnyLoading || formValidation.isValidating}
+              >
+                {loadingManager.isSubmitting ? (
                   <>
                     <Zap className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    {loadingManager.currentStepLabel || 'Creating...'}
                   </>
                 ) : (
                   <>

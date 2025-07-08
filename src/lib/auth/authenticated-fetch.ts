@@ -1,12 +1,20 @@
 /**
  * Production-Grade Authenticated Fetch Wrapper
- * Handles authentication, CSRF tokens, and error handling consistently
+ * Integrated with comprehensive error management and CSRF handling
  */
+
+import { productionErrorManager, ErrorCategory } from '@/lib/errors/production-error-manager';
+import { csrfManager } from '@/lib/auth/csrf-manager';
+import { productionAuthManager } from '@/lib/auth/production-auth-manager';
 
 interface AuthenticatedFetchOptions extends RequestInit {
   requireAuth?: boolean;
   includeCsrf?: boolean;
   retryOnAuth?: boolean;
+  maxRetries?: number;
+  retryDelay?: number;
+  onRetry?: (attempt: number, error: ErrorCategory) => void;
+  onProgress?: (progress: number, status: string) => void;
 }
 
 interface AuthContext {
@@ -14,7 +22,7 @@ interface AuthContext {
   refreshSession?: () => Promise<void>;
 }
 
-class AuthenticationError extends Error {
+export class AuthenticationError extends Error {
   constructor(
     message: string,
     public code = "AUTH_ERROR"
@@ -24,15 +32,26 @@ class AuthenticationError extends Error {
   }
 }
 
-class CSRFError extends Error {
+export class CSRFError extends Error {
   constructor(message = "CSRF token validation failed") {
     super(message);
     this.name = "CSRFError";
   }
 }
 
+export class NetworkError extends Error {
+  constructor(
+    message: string,
+    public status?: number,
+    public code = "NETWORK_ERROR"
+  ) {
+    super(message);
+    this.name = "NetworkError";
+  }
+}
+
 /**
- * Production-grade authenticated fetch that handles all auth scenarios
+ * Production-grade authenticated fetch with comprehensive error handling
  */
 export async function authenticatedFetch(
   url: string,
@@ -43,107 +62,207 @@ export async function authenticatedFetch(
     requireAuth = true,
     includeCsrf = true,
     retryOnAuth = true,
+    maxRetries = 3,
+    retryDelay = 1000,
+    onRetry,
+    onProgress,
     headers: customHeaders = {},
     ...fetchOptions
   } = options;
 
-  console.log(`🌐 Authenticated Fetch: ${fetchOptions.method || "GET"} ${url}`);
+  console.log(`🌐 Enhanced Fetch: ${fetchOptions.method || "GET"} ${url}`);
+  onProgress?.(10, 'Preparing request...');
 
-  // Build headers systematically
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(customHeaders as Record<string, string>),
+  let attemptCount = 0;
+  let lastError: ErrorCategory | null = null;
+
+  while (attemptCount <= maxRetries) {
+    try {
+      onProgress?.(20 + (attemptCount * 20), `Attempt ${attemptCount + 1}...`);
+
+      // Build headers systematically
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(customHeaders as Record<string, string>),
+      };
+
+      // 1. Add Authentication Headers
+      if (requireAuth && authContext?.session?.access_token) {
+        headers["Authorization"] = `Bearer ${authContext.session.access_token}`;
+        console.log("🔐 Bearer token added");
+      }
+
+      // 2. Add CSRF Token using enhanced manager
+      if (includeCsrf && typeof document !== "undefined") {
+        const csrfToken = csrfManager.getCSRFTokenFromBrowser();
+        if (csrfToken) {
+          headers["x-csrf-token"] = csrfToken;
+          console.log("🛡️ CSRF token added via manager");
+        } else if (requireAuth) {
+          console.warn("⚠️ CSRF token not found - this may cause issues");
+        }
+      }
+
+      onProgress?.(60, 'Sending request...');
+
+      // 3. Make the request with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+      const response = await fetch(url, {
+        ...fetchOptions,
+        headers,
+        credentials: "include",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      onProgress?.(80, 'Processing response...');
+
+      console.log(`📡 Response: ${response.status} ${response.statusText}`);
+
+      // 4. Handle specific error responses with production error manager
+      if (!response.ok) {
+        const errorResponse = await handleErrorResponse(response, url, attemptCount);
+        const errorCategory = productionErrorManager.categorizeError(errorResponse, {
+          url,
+          method: fetchOptions.method,
+          attempt: attemptCount + 1
+        });
+
+        // Log error metrics
+        productionErrorManager.logErrorMetrics(errorCategory);
+
+        // Check if we should retry
+        if (productionErrorManager.shouldRetry(errorCategory, attemptCount) && attemptCount < maxRetries) {
+          lastError = errorCategory;
+          const delay = productionErrorManager.getRetryDelay(errorCategory, attemptCount);
+          
+          console.log(`🔄 Retrying in ${delay}ms... (${attemptCount + 1}/${maxRetries})`);
+          onRetry?.(attemptCount + 1, errorCategory);
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          attemptCount++;
+          continue;
+        }
+
+        // No more retries, throw appropriate error
+        throwTypedError(errorCategory, response);
+      }
+
+      onProgress?.(100, 'Request completed successfully');
+      return response;
+
+    } catch (error) {
+      // Handle network errors and other exceptions
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutError = productionErrorManager.categorizeError(
+          new Error('Request timeout'), 
+          { url, method: fetchOptions.method, attempt: attemptCount + 1 }
+        );
+        
+        if (productionErrorManager.shouldRetry(timeoutError, attemptCount) && attemptCount < maxRetries) {
+          console.log(`⏱️ Request timeout, retrying... (${attemptCount + 1}/${maxRetries})`);
+          attemptCount++;
+          continue;
+        }
+        
+        throw new NetworkError('Request timeout', 408, 'TIMEOUT');
+      }
+
+      // Re-throw typed errors
+      if (error instanceof AuthenticationError || error instanceof CSRFError || error instanceof NetworkError) {
+        throw error;
+      }
+
+      // Categorize unknown errors
+      const errorCategory = productionErrorManager.categorizeError(error, {
+        url,
+        method: fetchOptions.method,
+        attempt: attemptCount + 1
+      });
+
+      productionErrorManager.logErrorMetrics(errorCategory);
+
+      if (productionErrorManager.shouldRetry(errorCategory, attemptCount) && attemptCount < maxRetries) {
+        lastError = errorCategory;
+        const delay = productionErrorManager.getRetryDelay(errorCategory, attemptCount);
+        
+        console.log(`🔄 Network error, retrying in ${delay}ms... (${attemptCount + 1}/${maxRetries})`);
+        onRetry?.(attemptCount + 1, errorCategory);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        attemptCount++;
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  // If we get here, all retries failed
+  if (lastError) {
+    throwTypedError(lastError, null);
+  }
+
+  throw new Error('Maximum retries exceeded');
+}
+
+/**
+ * Handle error responses and extract error information
+ */
+async function handleErrorResponse(response: Response, url: string, attempt: number): Promise<any> {
+  const status = response.status;
+  let errorData: any = {
+    status,
+    statusText: response.statusText,
+    url,
+    attempt: attempt + 1
   };
 
-  // 1. Add Authentication Headers
-  if (requireAuth && authContext?.session?.access_token) {
-    headers["Authorization"] = `Bearer ${authContext.session.access_token}`;
-    console.log("🔐 Bearer token added");
-  }
-
-  // 2. Add CSRF Token (production requirement)
-  if (includeCsrf && typeof document !== "undefined") {
-    const csrfToken = getCsrfToken();
-    if (csrfToken) {
-      headers["x-csrf-token"] = csrfToken;
-      console.log("🛡️ CSRF token added");
-    } else if (requireAuth) {
-      console.warn("⚠️ CSRF token not found - this may cause issues");
-    }
-  }
-
-  // 3. Make the request
-  const response = await fetch(url, {
-    ...fetchOptions,
-    headers,
-    credentials: "include", // Always include cookies for session-based auth
-  });
-
-  console.log(`📡 Response: ${response.status} ${response.statusText}`);
-
-  // 4. Handle authentication errors with proper retry logic
-  if (response.status === 401 && requireAuth && retryOnAuth) {
-    console.log("🔄 401 detected, attempting session refresh...");
-
-    if (authContext?.refreshSession) {
-      try {
-        await authContext.refreshSession();
-        console.log("✅ Session refreshed, retrying request...");
-
-        // Retry the request once with new session
-        return authenticatedFetch(
-          url,
-          { ...options, retryOnAuth: false },
-          authContext
-        );
-      } catch (refreshError) {
-        console.error("❌ Session refresh failed:", refreshError);
-        throw new AuthenticationError(
-          "Session expired and refresh failed. Please log in again.",
-          "SESSION_REFRESH_FAILED"
-        );
-      }
-    } else {
-      throw new AuthenticationError(
-        "Authentication required. Please log in.",
-        "AUTHENTICATION_REQUIRED"
-      );
-    }
-  }
-
-  // 5. Handle CSRF errors specifically
-  if (response.status === 403) {
+  try {
     const responseText = await response.text();
-    if (responseText.includes("CSRF")) {
-      throw new CSRFError(
-        "CSRF token validation failed. Please refresh the page."
-      );
-    }
-  }
-
-  // 6. Handle other HTTP errors
-  if (!response.ok && response.status >= 400) {
-    let errorMessage = `Request failed with status ${response.status}`;
-    let errorCode = "HTTP_ERROR";
-
+    
+    // Try to parse as JSON
     try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorData.message || errorMessage;
-      errorCode = errorData.code || errorCode;
+      const jsonData = JSON.parse(responseText);
+      errorData = { ...errorData, ...jsonData };
     } catch {
-      // Response is not JSON, use default message
+      // Not JSON, use as message
+      errorData.message = responseText;
     }
-
-    const error = new Error(errorMessage) as Error & {
-      code: string;
-      status: number;
-    };
-    error.code = errorCode;
-    error.status = response.status;
-    throw error;
+  } catch {
+    errorData.message = `HTTP ${status} error`;
   }
 
-  return response;
+  return errorData;
+}
+
+/**
+ * Throw appropriate typed error based on error category
+ */
+function throwTypedError(errorCategory: ErrorCategory, response: Response | null): never {
+  const userMessage = errorCategory.userMessage;
+  
+  switch (errorCategory.type) {
+    case 'authentication_expired':
+    case 'authentication_invalid':
+      throw new AuthenticationError(userMessage.message, errorCategory.code);
+      
+    case 'csrf_token_invalid':
+      throw new CSRFError(userMessage.message);
+      
+    case 'network_connectivity':
+      throw new NetworkError(userMessage.message, response?.status, errorCategory.code);
+      
+    default:
+      const error = new Error(userMessage.message) as Error & { code: string; status?: number };
+      error.code = errorCategory.code;
+      if (response) {
+        error.status = response.status;
+      }
+      throw error;
+  }
 }
 
 /**
@@ -220,4 +339,4 @@ export const authApi = {
   ) => authenticatedFetch(url, { ...options, method: "DELETE" }),
 };
 
-export { AuthenticationError, CSRFError };
+// Note: Error classes are already exported above
