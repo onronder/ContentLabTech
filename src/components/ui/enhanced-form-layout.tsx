@@ -10,20 +10,20 @@ import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Info, 
-  AlertCircle, 
-  CheckCircle, 
-  Eye, 
-  EyeOff, 
+import {
+  Info,
+  AlertCircle,
+  CheckCircle,
+  Eye,
+  EyeOff,
   HelpCircle,
   Zap,
-  Star
+  Star,
 } from "lucide-react";
 
 interface FormLayoutContextType {
-  layout: 'single' | 'two-column' | 'three-column' | 'auto';
-  spacing: 'compact' | 'comfortable' | 'relaxed';
+  layout: "single" | "two-column" | "three-column" | "auto";
+  spacing: "compact" | "comfortable" | "relaxed";
   showValidation: boolean;
   showOptionalBadges: boolean;
 }
@@ -43,9 +43,9 @@ interface FormSectionProps {
 interface FormRowProps {
   children: React.ReactNode;
   className?: string;
-  columns?: 1 | 2 | 3 | 'auto';
-  align?: 'start' | 'center' | 'end' | 'stretch';
-  spacing?: 'compact' | 'comfortable' | 'relaxed';
+  columns?: 1 | 2 | 3 | "auto";
+  align?: "start" | "center" | "end" | "stretch";
+  spacing?: "compact" | "comfortable" | "relaxed";
 }
 
 interface FormFieldProps {
@@ -60,7 +60,7 @@ interface FormFieldProps {
   className?: string;
   fieldClassName?: string;
   labelClassName?: string;
-  span?: 1 | 2 | 3 | 'full';
+  span?: 1 | 2 | 3 | "full";
   helpText?: string;
   tooltip?: string;
   badge?: React.ReactNode;
@@ -77,20 +77,22 @@ interface FormGroupProps {
   title?: string;
   description?: string;
   className?: string;
-  layout?: 'vertical' | 'horizontal' | 'inline';
-  spacing?: 'tight' | 'normal' | 'loose';
+  layout?: "vertical" | "horizontal" | "inline";
+  spacing?: "tight" | "normal" | "loose";
 }
 
 interface FieldValidationProps {
   error?: string | string[];
   warning?: string;
   success?: string;
+  id?: string;
   className?: string;
 }
 
 interface FieldHelpProps {
   text?: string;
   tooltip?: string;
+  id?: string;
   className?: string;
 }
 
@@ -120,10 +122,10 @@ interface SmartFieldGroupProps {
 }
 
 const FormLayoutContext = createContext<FormLayoutContextType>({
-  layout: 'single',
-  spacing: 'comfortable',
+  layout: "single",
+  spacing: "comfortable",
   showValidation: true,
-  showOptionalBadges: true
+  showOptionalBadges: true,
 });
 
 /**
@@ -131,24 +133,26 @@ const FormLayoutContext = createContext<FormLayoutContextType>({
  */
 export const FormLayoutProvider: React.FC<{
   children: React.ReactNode;
-  layout?: FormLayoutContextType['layout'];
-  spacing?: FormLayoutContextType['spacing'];
+  layout?: FormLayoutContextType["layout"];
+  spacing?: FormLayoutContextType["spacing"];
   showValidation?: boolean;
   showOptionalBadges?: boolean;
-}> = ({ 
-  children, 
-  layout = 'single',
-  spacing = 'comfortable',
+}> = ({
+  children,
+  layout = "single",
+  spacing = "comfortable",
   showValidation = true,
-  showOptionalBadges = true
+  showOptionalBadges = true,
 }) => {
   return (
-    <FormLayoutContext.Provider value={{
-      layout,
-      spacing,
-      showValidation,
-      showOptionalBadges
-    }}>
+    <FormLayoutContext.Provider
+      value={{
+        layout,
+        spacing,
+        showValidation,
+        showOptionalBadges,
+      }}
+    >
       {children}
     </FormLayoutContext.Provider>
   );
@@ -168,63 +172,72 @@ export const FormSection: React.FC<FormSectionProps> = ({
   defaultCollapsed = false,
   className,
   required = false,
-  badge
+  badge,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
   return (
     <div className={cn("space-y-4", className)}>
       {(title || description) && (
-        <div 
+        <div
           className={cn(
-            "border-b border-border/50 pb-3",
+            "border-border/50 border-b pb-3",
             collapsible && "cursor-pointer select-none"
           )}
           onClick={collapsible ? () => setIsCollapsed(!isCollapsed) : undefined}
           role={collapsible ? "button" : undefined}
           aria-expanded={collapsible ? !isCollapsed : undefined}
           tabIndex={collapsible ? 0 : undefined}
-          onKeyDown={collapsible ? (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setIsCollapsed(!isCollapsed);
-            }
-          } : undefined}
+          onKeyDown={
+            collapsible
+              ? e => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setIsCollapsed(!isCollapsed);
+                  }
+                }
+              : undefined
+          }
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               {icon && (
-                <div className="flex-shrink-0 p-2 rounded-lg bg-primary/10 text-primary">
+                <div className="bg-primary/10 text-primary flex-shrink-0 rounded-lg p-2">
                   {icon}
                 </div>
               )}
               <div>
                 <div className="flex items-center space-x-2">
-                  <h3 className="text-lg font-semibold text-foreground">
+                  <h3 className="text-foreground text-lg font-semibold">
                     {title}
-                    {required && <span className="text-destructive ml-1">*</span>}
+                    {required && (
+                      <span className="text-destructive ml-1">*</span>
+                    )}
                   </h3>
                   {badge}
                 </div>
                 {description && (
-                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                  <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
                     {description}
                   </p>
                 )}
               </div>
             </div>
-            
+
             {collapsible && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0"
-              >
-                <div className={cn(
-                  "w-4 h-4 transition-transform duration-200",
-                  isCollapsed && "rotate-180"
-                )}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <div
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    isCollapsed && "rotate-180"
+                  )}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
                     <polyline points="6,9 12,15 18,9" />
                   </svg>
                 </div>
@@ -233,11 +246,13 @@ export const FormSection: React.FC<FormSectionProps> = ({
           </div>
         </div>
       )}
-      
-      <div className={cn(
-        "transition-all duration-300 ease-in-out",
-        collapsible && isCollapsed && "hidden"
-      )}>
+
+      <div
+        className={cn(
+          "transition-all duration-300 ease-in-out",
+          collapsible && isCollapsed && "hidden"
+        )}
+      >
         {children}
       </div>
     </div>
@@ -250,36 +265,38 @@ export const FormSection: React.FC<FormSectionProps> = ({
 export const FormRow: React.FC<FormRowProps> = ({
   children,
   className,
-  columns = 'auto',
-  align = 'stretch',
-  spacing = 'comfortable'
+  columns = "auto",
+  align = "stretch",
+  spacing = "comfortable",
 }) => {
   const spacingClasses = {
-    compact: 'gap-3',
-    comfortable: 'gap-4',
-    relaxed: 'gap-6'
+    compact: "gap-3",
+    comfortable: "gap-4",
+    relaxed: "gap-6",
   };
 
   const alignClasses = {
-    start: 'items-start',
-    center: 'items-center', 
-    end: 'items-end',
-    stretch: 'items-stretch'
+    start: "items-start",
+    center: "items-center",
+    end: "items-end",
+    stretch: "items-stretch",
   };
 
   const getGridCols = () => {
-    if (columns === 'auto') return 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+    if (columns === "auto") return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
     return `grid-cols-${columns}`;
   };
 
   return (
-    <div className={cn(
-      "grid w-full",
-      getGridCols(),
-      spacingClasses[spacing],
-      alignClasses[align],
-      className
-    )}>
+    <div
+      className={cn(
+        "grid w-full",
+        getGridCols(),
+        spacingClasses[spacing],
+        alignClasses[align],
+        className
+      )}
+    >
       {children}
     </div>
   );
@@ -309,38 +326,33 @@ export const FormField: React.FC<FormFieldProps> = ({
   showCharacterCount = false,
   maxLength,
   currentLength = 0,
-  id
+  id,
 }) => {
   const { showValidation, showOptionalBadges } = useFormLayout();
   const [showPassword, setShowPassword] = useState(false);
-  
-  const hasError = error && (Array.isArray(error) ? error.length > 0 : error.length > 0);
+
+  const hasError =
+    error && (Array.isArray(error) ? error.length > 0 : error.length > 0);
   const hasWarning = warning && warning.length > 0;
   const hasSuccess = success && success.length > 0;
 
   const spanClasses = {
-    1: 'col-span-1',
-    2: 'col-span-2',
-    3: 'col-span-3',
-    full: 'col-span-full'
+    1: "col-span-1",
+    2: "col-span-2",
+    3: "col-span-3",
+    full: "col-span-full",
   };
 
   return (
-    <div className={cn(
-      "space-y-2",
-      spanClasses[span],
-      className
-    )}>
+    <div className={cn("space-y-2", spanClasses[span], className)}>
       {/* Field Label */}
       {label && (
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             {icon && (
-              <div className="flex-shrink-0 text-muted-foreground">
-                {icon}
-              </div>
+              <div className="text-muted-foreground flex-shrink-0">{icon}</div>
             )}
-            <Label 
+            <Label
               className={cn(
                 "text-sm font-medium",
                 hasError && "text-destructive",
@@ -350,17 +362,21 @@ export const FormField: React.FC<FormFieldProps> = ({
               htmlFor={id}
             >
               {label}
-              {required && <span className="text-destructive ml-1" aria-label="required">*</span>}
+              {required && (
+                <span className="text-destructive ml-1" aria-label="required">
+                  *
+                </span>
+              )}
             </Label>
-            
+
             {showOptionalBadges && optional && (
               <Badge variant="secondary" className="text-xs">
                 Optional
               </Badge>
             )}
-            
+
             {badge}
-            
+
             {tooltip && (
               <button
                 type="button"
@@ -368,36 +384,31 @@ export const FormField: React.FC<FormFieldProps> = ({
                 title={tooltip}
                 aria-label="More information"
               >
-                <HelpCircle className="w-4 h-4" />
+                <HelpCircle className="h-4 w-4" />
               </button>
             )}
           </div>
-          
+
           {actions && (
-            <div className="flex items-center space-x-2 text-sm">
-              {actions}
-            </div>
+            <div className="flex items-center space-x-2 text-sm">{actions}</div>
           )}
         </div>
       )}
 
       {/* Field Description */}
       {description && (
-        <p className="text-sm text-muted-foreground leading-relaxed">
+        <p className="text-muted-foreground text-sm leading-relaxed">
           {description}
         </p>
       )}
 
       {/* Field Input */}
-      <div className={cn(
-        "relative",
-        fieldClassName
-      )}>
+      <div className={cn("relative", fieldClassName)}>
         {children}
-        
+
         {/* Character Count */}
         {showCharacterCount && maxLength && (
-          <div className="absolute bottom-2 right-3 text-xs text-muted-foreground">
+          <div className="text-muted-foreground absolute right-3 bottom-2 text-xs">
             <CharacterCount current={currentLength} max={maxLength} />
           </div>
         )}
@@ -406,19 +417,19 @@ export const FormField: React.FC<FormFieldProps> = ({
       {/* Field Validation & Help */}
       <div className="space-y-1">
         {showValidation && (
-          <FieldValidation 
-            error={error}
-            warning={warning}
-            success={success}
-            id={id ? `${id}-validation` : undefined}
+          <FieldValidation
+            {...(error !== undefined && { error })}
+            {...(warning !== undefined && { warning })}
+            {...(success !== undefined && { success })}
+            {...(id && { id: `${id}-validation` })}
           />
         )}
-        
+
         {helpText && (
-          <FieldHelp 
-            text={helpText} 
-            tooltip={tooltip} 
-            id={id ? `${id}-help` : undefined}
+          <FieldHelp
+            text={helpText}
+            {...(tooltip && { tooltip })}
+            {...(id && { id: `${id}-help` })}
           />
         )}
       </div>
@@ -434,19 +445,19 @@ export const FormGroup: React.FC<FormGroupProps> = ({
   title,
   description,
   className,
-  layout = 'vertical',
-  spacing = 'normal'
+  layout = "vertical",
+  spacing = "normal",
 }) => {
   const layoutClasses = {
-    vertical: 'flex-col space-y-4',
-    horizontal: 'flex-row space-x-4',
-    inline: 'flex-row flex-wrap gap-4'
+    vertical: "flex-col space-y-4",
+    horizontal: "flex-row space-x-4",
+    inline: "flex-row flex-wrap gap-4",
   };
 
   const spacingClasses = {
-    tight: 'space-y-2',
-    normal: 'space-y-4',
-    loose: 'space-y-6'
+    tight: "space-y-2",
+    normal: "space-y-4",
+    loose: "space-y-6",
   };
 
   return (
@@ -454,23 +465,21 @@ export const FormGroup: React.FC<FormGroupProps> = ({
       {(title || description) && (
         <div>
           {title && (
-            <h4 className="text-base font-medium text-foreground">
-              {title}
-            </h4>
+            <h4 className="text-foreground text-base font-medium">{title}</h4>
           )}
           {description && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {description}
-            </p>
+            <p className="text-muted-foreground mt-1 text-sm">{description}</p>
           )}
         </div>
       )}
-      
-      <div className={cn(
-        "flex",
-        layoutClasses[layout],
-        layout === 'vertical' && spacingClasses[spacing]
-      )}>
+
+      <div
+        className={cn(
+          "flex",
+          layoutClasses[layout],
+          layout === "vertical" && spacingClasses[spacing]
+        )}
+      >
         {children}
       </div>
     </div>
@@ -480,34 +489,44 @@ export const FormGroup: React.FC<FormGroupProps> = ({
 /**
  * Field Validation Component
  */
-export const FieldValidation: React.FC<FieldValidationProps & { id?: string }> = ({
-  error,
-  warning,
-  success,
-  className,
-  id
-}) => {
+export const FieldValidation: React.FC<
+  FieldValidationProps & { id?: string }
+> = ({ error, warning, success, className, id }) => {
   const errors = Array.isArray(error) ? error : error ? [error] : [];
-  
+
   return (
-    <div className={cn("space-y-1", className)} id={id} role="alert" aria-live="polite">
+    <div
+      className={cn("space-y-1", className)}
+      id={id}
+      role="alert"
+      aria-live="polite"
+    >
       {errors.map((err, index) => (
-        <div key={index} className="flex items-start space-x-2 text-sm text-destructive">
-          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+        <div
+          key={index}
+          className="text-destructive flex items-start space-x-2 text-sm"
+        >
+          <AlertCircle
+            className="mt-0.5 h-4 w-4 flex-shrink-0"
+            aria-hidden="true"
+          />
           <span>{err}</span>
         </div>
       ))}
-      
+
       {warning && (
         <div className="flex items-start space-x-2 text-sm text-amber-600">
-          <Info className="w-4 h-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+          <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
           <span>{warning}</span>
         </div>
       )}
-      
+
       {success && (
         <div className="flex items-start space-x-2 text-sm text-green-600">
-          <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+          <CheckCircle
+            className="mt-0.5 h-4 w-4 flex-shrink-0"
+            aria-hidden="true"
+          />
           <span>{success}</span>
         </div>
       )}
@@ -522,13 +541,19 @@ export const FieldHelp: React.FC<FieldHelpProps & { id?: string }> = ({
   text,
   tooltip,
   className,
-  id
+  id,
 }) => {
   if (!text) return null;
 
   return (
-    <div className={cn("flex items-start space-x-2 text-sm text-muted-foreground", className)} id={id}>
-      <Info className="w-4 h-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+    <div
+      className={cn(
+        "text-muted-foreground flex items-start space-x-2 text-sm",
+        className
+      )}
+      id={id}
+    >
+      <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
       <span className="leading-relaxed">{text}</span>
       {tooltip && (
         <button
@@ -537,7 +562,7 @@ export const FieldHelp: React.FC<FieldHelpProps & { id?: string }> = ({
           title={tooltip}
           aria-label="Additional help"
         >
-          <HelpCircle className="w-4 h-4" />
+          <HelpCircle className="h-4 w-4" />
         </button>
       )}
     </div>
@@ -550,20 +575,22 @@ export const FieldHelp: React.FC<FieldHelpProps & { id?: string }> = ({
 export const CharacterCount: React.FC<CharacterCountProps> = ({
   current,
   max,
-  className
+  className,
 }) => {
   const percentage = (current / max) * 100;
   const isNearLimit = percentage > 80;
   const isOverLimit = current > max;
 
   return (
-    <span className={cn(
-      "tabular-nums transition-colors",
-      isOverLimit && "text-destructive",
-      isNearLimit && !isOverLimit && "text-amber-600",
-      !isNearLimit && "text-muted-foreground",
-      className
-    )}>
+    <span
+      className={cn(
+        "tabular-nums transition-colors",
+        isOverLimit && "text-destructive",
+        isNearLimit && !isOverLimit && "text-amber-600",
+        !isNearLimit && "text-muted-foreground",
+        className
+      )}
+    >
       {current}/{max}
     </span>
   );
@@ -576,7 +603,7 @@ export const ConditionalField: React.FC<ConditionalFieldProps> = ({
   children,
   show,
   animate = true,
-  className
+  className,
 }) => {
   const [shouldRender, setShouldRender] = useState(show);
 
@@ -589,18 +616,22 @@ export const ConditionalField: React.FC<ConditionalFieldProps> = ({
     } else {
       setShouldRender(false);
     }
+    // No cleanup needed for non-animated paths
+    return undefined;
   }, [show, animate]);
 
   if (!shouldRender) return null;
 
   return (
-    <div className={cn(
-      "transition-all duration-300 ease-in-out",
-      animate && !show && "opacity-0 translate-y-[-10px] scale-95",
-      animate && show && "opacity-100 translate-y-0 scale-100",
-      !animate && !show && "hidden",
-      className
-    )}>
+    <div
+      className={cn(
+        "transition-all duration-300 ease-in-out",
+        animate && !show && "translate-y-[-10px] scale-95 opacity-0",
+        animate && show && "translate-y-0 scale-100 opacity-100",
+        !animate && !show && "hidden",
+        className
+      )}
+    >
       {children}
     </div>
   );
@@ -614,7 +645,7 @@ export const SmartFieldGroup: React.FC<SmartFieldGroupProps> = ({
   title,
   adaptive = true,
   breakpoints = { sm: 1, md: 2, lg: 3 },
-  className
+  className,
 }) => {
   const [columns, setColumns] = useState(1);
 
@@ -629,28 +660,30 @@ export const SmartFieldGroup: React.FC<SmartFieldGroupProps> = ({
     };
 
     updateColumns();
-    window.addEventListener('resize', updateColumns);
-    return () => window.removeEventListener('resize', updateColumns);
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
   }, [adaptive, breakpoints]);
 
   return (
     <div className={cn("space-y-4", className)}>
       {title && (
-        <h4 className="text-base font-medium text-foreground flex items-center space-x-2">
+        <h4 className="text-foreground flex items-center space-x-2 text-base font-medium">
           <span>{title}</span>
           {adaptive && (
             <Badge variant="outline" className="text-xs">
-              <Zap className="w-3 h-3 mr-1" />
+              <Zap className="mr-1 h-3 w-3" />
               Adaptive
             </Badge>
           )}
         </h4>
       )}
-      
-      <div className={cn(
-        "grid gap-4",
-        `grid-cols-1 md:grid-cols-${Math.min(columns, 3)}`
-      )}>
+
+      <div
+        className={cn(
+          "grid gap-4",
+          `grid-cols-1 md:grid-cols-${Math.min(columns, 3)}`
+        )}
+      >
         {children}
       </div>
     </div>
@@ -660,21 +693,19 @@ export const SmartFieldGroup: React.FC<SmartFieldGroupProps> = ({
 /**
  * Priority Field Component
  */
-export const PriorityField: React.FC<FormFieldProps & { priority?: 'high' | 'medium' | 'low' }> = ({
-  priority = 'medium',
-  className,
-  ...props
-}) => {
+export const PriorityField: React.FC<
+  FormFieldProps & { priority?: "high" | "medium" | "low" }
+> = ({ priority = "medium", className, ...props }) => {
   const priorityStyles = {
-    high: 'ring-2 ring-red-200 bg-red-50/50',
-    medium: 'ring-1 ring-amber-200 bg-amber-50/50',
-    low: 'ring-1 ring-blue-200 bg-blue-50/50'
+    high: "ring-2 ring-red-200 bg-red-50/50",
+    medium: "ring-1 ring-amber-200 bg-amber-50/50",
+    low: "ring-1 ring-blue-200 bg-blue-50/50",
   };
 
   const priorityIcons = {
-    high: <Star className="w-4 h-4 text-red-500" />,
-    medium: <AlertCircle className="w-4 h-4 text-amber-500" />,
-    low: <Info className="w-4 h-4 text-blue-500" />
+    high: <Star className="h-4 w-4 text-red-500" />,
+    medium: <AlertCircle className="h-4 w-4 text-amber-500" />,
+    low: <Info className="h-4 w-4 text-blue-500" />,
   };
 
   return (
@@ -689,4 +720,3 @@ export const PriorityField: React.FC<FormFieldProps & { priority?: 'high' | 'med
     />
   );
 };
-
