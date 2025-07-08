@@ -3,17 +3,17 @@
  * Custom hooks for managing accessibility features in React components
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { 
-  FocusManager, 
-  announceToScreenReader, 
-  LiveRegionManager 
-} from '@/lib/utils/accessibility';
+import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  FocusManager,
+  announceToScreenReader,
+  LiveRegionManager,
+} from "@/lib/utils/accessibility";
 
 /**
  * Hook for managing focus trapping in modals/dialogs
  */
-export function useFocusTrap(isActive: boolean = false) {
+export function useFocusTrap(isActive = false) {
   const containerRef = useRef<HTMLElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -41,47 +41,50 @@ export function useFocusTrap(isActive: boolean = false) {
  * Hook for keyboard navigation with arrow keys
  */
 export function useKeyboardNavigation<T extends HTMLElement = HTMLElement>(
-  orientation: 'horizontal' | 'vertical' = 'horizontal'
+  orientation: "horizontal" | "vertical" = "horizontal"
 ) {
   const [activeIndex, setActiveIndex] = useState(0);
   const elementsRef = useRef<T[]>([]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    const elements = elementsRef.current;
-    if (elements.length === 0) return;
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      const elements = elementsRef.current;
+      if (elements.length === 0) return;
 
-    const isHorizontal = orientation === 'horizontal';
-    const nextKey = isHorizontal ? 'ArrowRight' : 'ArrowDown';
-    const prevKey = isHorizontal ? 'ArrowLeft' : 'ArrowUp';
+      const isHorizontal = orientation === "horizontal";
+      const nextKey = isHorizontal ? "ArrowRight" : "ArrowDown";
+      const prevKey = isHorizontal ? "ArrowLeft" : "ArrowUp";
 
-    let newIndex = activeIndex;
+      let newIndex = activeIndex;
 
-    switch (e.key) {
-      case nextKey:
-        newIndex = (activeIndex + 1) % elements.length;
-        e.preventDefault();
-        break;
-      case prevKey:
-        newIndex = activeIndex === 0 ? elements.length - 1 : activeIndex - 1;
-        e.preventDefault();
-        break;
-      case 'Home':
-        newIndex = 0;
-        e.preventDefault();
-        break;
-      case 'End':
-        newIndex = elements.length - 1;
-        e.preventDefault();
-        break;
-      default:
-        return;
-    }
+      switch (e.key) {
+        case nextKey:
+          newIndex = (activeIndex + 1) % elements.length;
+          e.preventDefault();
+          break;
+        case prevKey:
+          newIndex = activeIndex === 0 ? elements.length - 1 : activeIndex - 1;
+          e.preventDefault();
+          break;
+        case "Home":
+          newIndex = 0;
+          e.preventDefault();
+          break;
+        case "End":
+          newIndex = elements.length - 1;
+          e.preventDefault();
+          break;
+        default:
+          return;
+      }
 
-    if (newIndex !== activeIndex && elements[newIndex]) {
-      setActiveIndex(newIndex);
-      elements[newIndex].focus();
-    }
-  }, [activeIndex, orientation]);
+      if (newIndex !== activeIndex && elements[newIndex]) {
+        setActiveIndex(newIndex);
+        elements[newIndex]?.focus();
+      }
+    },
+    [activeIndex, orientation]
+  );
 
   const registerElement = useCallback((element: T | null, index: number) => {
     if (element) {
@@ -93,18 +96,18 @@ export function useKeyboardNavigation<T extends HTMLElement = HTMLElement>(
     activeIndex,
     setActiveIndex,
     handleKeyDown,
-    registerElement
+    registerElement,
   };
 }
 
 /**
  * Hook for managing ARIA live announcements
  */
-export function useAnnouncements(regionId: string = 'announcements') {
+export function useAnnouncements(regionId = "announcements") {
   const regionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    regionRef.current = LiveRegionManager.createRegion(regionId, 'polite');
+    regionRef.current = LiveRegionManager.createRegion(regionId, "polite");
 
     return () => {
       if (regionRef.current) {
@@ -113,13 +116,16 @@ export function useAnnouncements(regionId: string = 'announcements') {
     };
   }, [regionId]);
 
-  const announce = useCallback((message: string, priority: 'polite' | 'assertive' = 'polite') => {
-    if (priority === 'assertive') {
-      announceToScreenReader(message, 'assertive');
-    } else {
-      LiveRegionManager.announce(regionId, message);
-    }
-  }, [regionId]);
+  const announce = useCallback(
+    (message: string, priority: "polite" | "assertive" = "polite") => {
+      if (priority === "assertive") {
+        announceToScreenReader(message, "assertive");
+      } else {
+        LiveRegionManager.announce(regionId, message);
+      }
+    },
+    [regionId]
+  );
 
   const clear = useCallback(() => {
     LiveRegionManager.clear(regionId);
@@ -135,15 +141,15 @@ export function useReducedMotion() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     setPrefersReducedMotion(mediaQuery.matches);
 
     const handleChange = (e: MediaQueryListEvent) => {
       setPrefersReducedMotion(e.matches);
     };
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   return prefersReducedMotion;
@@ -156,15 +162,15 @@ export function useHighContrast() {
   const [prefersHighContrast, setPrefersHighContrast] = useState(false);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-contrast: high)');
+    const mediaQuery = window.matchMedia("(prefers-contrast: high)");
     setPrefersHighContrast(mediaQuery.matches);
 
     const handleChange = (e: MediaQueryListEvent) => {
       setPrefersHighContrast(e.matches);
     };
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   return prefersHighContrast;
@@ -195,16 +201,16 @@ export function useFocusVisible() {
       setIsFocusVisible(false);
     };
 
-    document.addEventListener('keydown', handleKeyDown, true);
-    document.addEventListener('mousedown', handleMouseDown, true);
-    document.addEventListener('focus', handleFocus, true);
-    document.addEventListener('blur', handleBlur, true);
+    document.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("mousedown", handleMouseDown, true);
+    document.addEventListener("focus", handleFocus, true);
+    document.addEventListener("blur", handleBlur, true);
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown, true);
-      document.removeEventListener('mousedown', handleMouseDown, true);
-      document.removeEventListener('focus', handleFocus, true);
-      document.removeEventListener('blur', handleBlur, true);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("mousedown", handleMouseDown, true);
+      document.removeEventListener("focus", handleFocus, true);
+      document.removeEventListener("blur", handleBlur, true);
     };
   }, [hadKeyboardEvent]);
 
@@ -214,7 +220,7 @@ export function useFocusVisible() {
 /**
  * Hook for managing ARIA expanded state
  */
-export function useAriaExpanded(initialExpanded: boolean = false) {
+export function useAriaExpanded(initialExpanded = false) {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
 
   const toggle = useCallback(() => {
@@ -235,7 +241,7 @@ export function useAriaExpanded(initialExpanded: boolean = false) {
     toggle,
     expand,
     collapse,
-    'aria-expanded': isExpanded
+    "aria-expanded": isExpanded,
   };
 }
 
@@ -245,37 +251,43 @@ export function useAriaExpanded(initialExpanded: boolean = false) {
 export function useAriaSelected<T = string>(
   options: T[],
   initialSelected?: T,
-  multiSelect: boolean = false
+  multiSelect = false
 ) {
   const [selected, setSelected] = useState<T | T[]>(
     multiSelect ? [] : initialSelected || options[0]
   );
 
-  const select = useCallback((option: T) => {
-    if (multiSelect) {
-      setSelected(prev => {
-        const prevArray = Array.isArray(prev) ? prev : [];
-        return prevArray.includes(option)
-          ? prevArray.filter(item => item !== option)
-          : [...prevArray, option];
-      });
-    } else {
-      setSelected(option);
-    }
-  }, [multiSelect]);
+  const select = useCallback(
+    (option: T) => {
+      if (multiSelect) {
+        setSelected(prev => {
+          const prevArray = Array.isArray(prev) ? prev : [];
+          return prevArray.includes(option)
+            ? prevArray.filter(item => item !== option)
+            : [...prevArray, option];
+        });
+      } else {
+        setSelected(option);
+      }
+    },
+    [multiSelect]
+  );
 
-  const isSelected = useCallback((option: T) => {
-    if (multiSelect) {
-      return Array.isArray(selected) && selected.includes(option);
-    }
-    return selected === option;
-  }, [selected, multiSelect]);
+  const isSelected = useCallback(
+    (option: T) => {
+      if (multiSelect) {
+        return Array.isArray(selected) && selected.includes(option);
+      }
+      return selected === option;
+    },
+    [selected, multiSelect]
+  );
 
   return {
     selected,
     select,
     isSelected,
-    setSelected
+    setSelected,
   };
 }
 
@@ -284,49 +296,60 @@ export function useAriaSelected<T = string>(
  */
 export function useRovingTabIndex<T extends HTMLElement = HTMLElement>(
   elements: T[],
-  initialIndex: number = 0
+  initialIndex = 0
 ) {
   const [activeIndex, setActiveIndex] = useState(initialIndex);
 
-  const getTabIndex = useCallback((index: number) => {
-    return index === activeIndex ? 0 : -1;
-  }, [activeIndex]);
+  const getTabIndex = useCallback(
+    (index: number) => {
+      return index === activeIndex ? 0 : -1;
+    },
+    [activeIndex]
+  );
 
-  const setActiveItem = useCallback((index: number) => {
-    if (index >= 0 && index < elements.length) {
-      setActiveIndex(index);
-      elements[index]?.focus();
-    }
-  }, [elements]);
+  const setActiveItem = useCallback(
+    (index: number) => {
+      if (index >= 0 && index < elements.length) {
+        setActiveIndex(index);
+        elements[index]?.focus();
+      }
+    },
+    [elements]
+  );
 
-  const handleKeyDown = useCallback((e: KeyboardEvent, currentIndex: number) => {
-    switch (e.key) {
-      case 'ArrowDown':
-      case 'ArrowRight':
-        e.preventDefault();
-        setActiveItem((currentIndex + 1) % elements.length);
-        break;
-      case 'ArrowUp':
-      case 'ArrowLeft':
-        e.preventDefault();
-        setActiveItem(currentIndex === 0 ? elements.length - 1 : currentIndex - 1);
-        break;
-      case 'Home':
-        e.preventDefault();
-        setActiveItem(0);
-        break;
-      case 'End':
-        e.preventDefault();
-        setActiveItem(elements.length - 1);
-        break;
-    }
-  }, [elements, setActiveItem]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent, currentIndex: number) => {
+      switch (e.key) {
+        case "ArrowDown":
+        case "ArrowRight":
+          e.preventDefault();
+          setActiveItem((currentIndex + 1) % elements.length);
+          break;
+        case "ArrowUp":
+        case "ArrowLeft":
+          e.preventDefault();
+          setActiveItem(
+            currentIndex === 0 ? elements.length - 1 : currentIndex - 1
+          );
+          break;
+        case "Home":
+          e.preventDefault();
+          setActiveItem(0);
+          break;
+        case "End":
+          e.preventDefault();
+          setActiveItem(elements.length - 1);
+          break;
+      }
+    },
+    [elements, setActiveItem]
+  );
 
   return {
     activeIndex,
     getTabIndex,
     setActiveItem,
-    handleKeyDown
+    handleKeyDown,
   };
 }
 
@@ -334,24 +357,31 @@ export function useRovingTabIndex<T extends HTMLElement = HTMLElement>(
  * Hook for detecting and announcing form validation errors
  */
 export function useFormValidationAnnouncements() {
-  const { announce } = useAnnouncements('form-validation');
+  const { announce } = useAnnouncements("form-validation");
 
-  const announceErrors = useCallback((errors: string[]) => {
-    if (errors.length === 0) return;
+  const announceErrors = useCallback(
+    (errors: string[]) => {
+      if (errors.length === 0) return;
 
-    const message = errors.length === 1
-      ? `Error: ${errors[0]}`
-      : `${errors.length} errors found: ${errors.join(', ')}`;
+      const message =
+        errors.length === 1
+          ? `Error: ${errors[0]}`
+          : `${errors.length} errors found: ${errors.join(", ")}`;
 
-    announce(message, 'assertive');
-  }, [announce]);
+      announce(message, "assertive");
+    },
+    [announce]
+  );
 
-  const announceSuccess = useCallback((message: string = 'Form submitted successfully') => {
-    announce(message, 'polite');
-  }, [announce]);
+  const announceSuccess = useCallback(
+    (message = "Form submitted successfully") => {
+      announce(message, "polite");
+    },
+    [announce]
+  );
 
   return {
     announceErrors,
-    announceSuccess
+    announceSuccess,
   };
 }
