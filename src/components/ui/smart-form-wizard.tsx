@@ -5,17 +5,30 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  createContext,
+  useContext,
+  useCallback,
+} from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Check, 
-  AlertTriangle, 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  AlertTriangle,
   Info,
   Lightbulb,
   Clock,
@@ -25,7 +38,7 @@ import {
   Bookmark,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
 } from "lucide-react";
 
 export interface WizardStep {
@@ -34,26 +47,26 @@ export interface WizardStep {
   description?: string;
   icon?: React.ReactNode;
   component: React.ComponentType<any>;
-  
+
   // Step behavior
   required: boolean;
   skippable: boolean;
   repeatable: boolean;
-  
+
   // Validation
   validate?: (data: any) => Promise<WizardValidationResult>;
-  
+
   // Dependencies
   dependsOn?: string[]; // Step IDs that must be completed first
   enables?: string[]; // Step IDs that this step unlocks
-  
+
   // Conditional logic
   condition?: (data: any) => boolean; // Show/hide step based on form data
-  
+
   // Completion estimates
   estimatedTime?: number; // minutes
-  complexity?: 'easy' | 'medium' | 'hard';
-  
+  complexity?: "easy" | "medium" | "hard";
+
   // Help and guidance
   helpContent?: React.ReactNode;
   tips?: string[];
@@ -62,7 +75,7 @@ export interface WizardStep {
     description: string;
     data: any;
   }>;
-  
+
   // Progress tracking
   substeps?: Array<{
     id: string;
@@ -85,25 +98,25 @@ export interface WizardContextValue {
   currentStep: WizardStep;
   steps: WizardStep[];
   completedSteps: Set<string>;
-  
+
   // Navigation
   goToStep: (stepId: string) => void;
   goNext: () => Promise<boolean>;
   goPrevious: () => void;
   skip: () => void;
-  
+
   // Data management
   data: any;
   updateData: (stepId: string, stepData: any) => void;
-  
+
   // Validation
   validateCurrentStep: () => Promise<WizardValidationResult>;
   validationResults: Record<string, WizardValidationResult>;
-  
+
   // Progress
   overallProgress: number;
   estimatedTimeRemaining: number;
-  
+
   // UI state
   showHelp: boolean;
   setShowHelp: (show: boolean) => void;
@@ -140,7 +153,7 @@ export interface StepHelpPanelProps {
 }
 
 export interface ProgressIndicatorProps {
-  variant?: 'linear' | 'circular' | 'steps';
+  variant?: "linear" | "circular" | "steps";
   showLabels?: boolean;
   showTimeEstimate?: boolean;
   className?: string;
@@ -170,12 +183,14 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
   showStepNumbers = true,
   showTimeEstimates = true,
   adaptiveNavigation = true,
-  className
+  className,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [data, setData] = useState(initialData);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
-  const [validationResults, setValidationResults] = useState<Record<string, WizardValidationResult>>({});
+  const [validationResults, setValidationResults] = useState<
+    Record<string, WizardValidationResult>
+  >({});
   const [showHelp, setShowHelp] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -193,13 +208,15 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
   // Calculate overall progress
   const overallProgress = useMemo(() => {
     if (visibleSteps.length === 0) return 0;
-    
+
     const requiredSteps = visibleSteps.filter(step => step.required);
-    const completedRequiredSteps = requiredSteps.filter(step => 
+    const completedRequiredSteps = requiredSteps.filter(step =>
       completedSteps.has(step.id)
     );
-    
-    return Math.round((completedRequiredSteps.length / requiredSteps.length) * 100);
+
+    return Math.round(
+      (completedRequiredSteps.length / requiredSteps.length) * 100
+    );
   }, [visibleSteps, completedSteps]);
 
   // Calculate estimated time remaining
@@ -211,92 +228,110 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
   }, [visibleSteps, currentStepIndex]);
 
   // Check if step dependencies are met
-  const canAccessStep = useCallback((stepId: string): boolean => {
-    const step = steps.find(s => s.id === stepId);
-    if (!step || !step.dependsOn) return true;
-    
-    return step.dependsOn.every(depId => completedSteps.has(depId));
-  }, [steps, completedSteps]);
+  const canAccessStep = useCallback(
+    (stepId: string): boolean => {
+      const step = steps.find(s => s.id === stepId);
+      if (!step || !step.dependsOn) return true;
+
+      return step.dependsOn.every(depId => completedSteps.has(depId));
+    },
+    [steps, completedSteps]
+  );
 
   // Update form data
-  const updateData = useCallback((stepId: string, stepData: any) => {
-    setData((prev: any) => {
-      const newData = { ...prev, [stepId]: stepData };
-      onDataChange?.(newData);
-      return newData;
-    });
-  }, [onDataChange]);
+  const updateData = useCallback(
+    (stepId: string, stepData: any) => {
+      setData((prev: any) => {
+        const newData = { ...prev, [stepId]: stepData };
+        onDataChange?.(newData);
+        return newData;
+      });
+    },
+    [onDataChange]
+  );
 
   // Validate current step
-  const validateCurrentStep = useCallback(async (): Promise<WizardValidationResult> => {
-    if (!currentStep || !currentStep.validate) {
-      return {
-        isValid: true,
-        errors: [],
-        warnings: [],
-        suggestions: [],
-        completionScore: 100
-      };
-    }
-    
-    const result = await currentStep.validate(data);
-    setValidationResults(prev => ({
-      ...prev,
-      [currentStep.id]: result
-    }));
-    
-    return result;
-  }, [currentStep, data]);
+  const validateCurrentStep =
+    useCallback(async (): Promise<WizardValidationResult> => {
+      if (!currentStep || !currentStep.validate) {
+        return {
+          isValid: true,
+          errors: [],
+          warnings: [],
+          suggestions: [],
+          completionScore: 100,
+        };
+      }
+
+      const result = await currentStep.validate(data);
+      setValidationResults(prev => ({
+        ...prev,
+        [currentStep.id]: result,
+      }));
+
+      return result;
+    }, [currentStep, data]);
 
   // Navigation functions
-  const goToStep = useCallback((stepId: string) => {
-    const stepIndex = visibleSteps.findIndex(step => step.id === stepId);
-    if (stepIndex === -1) return;
-    
-    if (!canAccessStep(stepId)) {
-      console.warn(`Cannot access step ${stepId} - dependencies not met`);
-      return;
-    }
-    
-    setCurrentStepIndex(stepIndex);
-    onStepChange?.(stepIndex, stepId);
-  }, [visibleSteps, canAccessStep, onStepChange]);
+  const goToStep = useCallback(
+    (stepId: string) => {
+      const stepIndex = visibleSteps.findIndex(step => step.id === stepId);
+      if (stepIndex === -1) return;
+
+      if (!canAccessStep(stepId)) {
+        console.warn(`Cannot access step ${stepId} - dependencies not met`);
+        return;
+      }
+
+      setCurrentStepIndex(stepIndex);
+      onStepChange?.(stepIndex, stepId);
+    },
+    [visibleSteps, canAccessStep, onStepChange]
+  );
 
   const goNext = useCallback(async (): Promise<boolean> => {
     if (!currentStep) return false;
-    
+
     // Validate current step
     const validation = await validateCurrentStep();
-    
+
     if (!validation.isValid && currentStep.required) {
       return false;
     }
-    
+
     // Mark step as completed if valid
     if (validation.isValid) {
       setCompletedSteps(prev => new Set([...prev, currentStep.id]));
     }
-    
+
     // Check if this is the last step
     if (currentStepIndex >= visibleSteps.length - 1) {
       // Complete the wizard
       onComplete(data);
       return true;
     }
-    
+
     // Move to next step
     const nextStep = visibleSteps[currentStepIndex + 1];
     if (nextStep) {
       setCurrentStepIndex(prev => prev + 1);
       onStepChange?.(currentStepIndex + 1, nextStep.id);
     }
-    
+
     return true;
-  }, [currentStep, currentStepIndex, visibleSteps, validateCurrentStep, data, onComplete, onStepChange]);
+  }, [
+    currentStep,
+    currentStepIndex,
+    visibleSteps,
+    validateCurrentStep,
+    data,
+    onComplete,
+    onStepChange,
+  ]);
 
   const goPrevious = useCallback(() => {
     if (!allowBackNavigation || currentStepIndex <= 0) return;
-    
+
     const prevStep = visibleSteps[currentStepIndex - 1];
     if (prevStep) {
       setCurrentStepIndex(prev => prev - 1);
@@ -306,7 +341,7 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
 
   const skip = useCallback(() => {
     if (!currentStep || !currentStep.skippable) return;
-    
+
     const nextStep = visibleSteps[currentStepIndex + 1];
     if (nextStep) {
       setCurrentStepIndex(prev => prev + 1);
@@ -317,7 +352,14 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
   // Context value
   const contextValue: WizardContextValue = {
     currentStepIndex,
-    currentStep: currentStep || { id: '', title: '', component: () => null, required: false, skippable: false, repeatable: false },
+    currentStep: currentStep || {
+      id: "",
+      title: "",
+      component: () => null,
+      required: false,
+      skippable: false,
+      repeatable: false,
+    },
     steps: visibleSteps,
     completedSteps,
     goToStep,
@@ -333,7 +375,7 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
     showHelp,
     setShowHelp,
     showPreview,
-    setShowPreview
+    setShowPreview,
   };
 
   // Auto-validate when data changes
@@ -342,9 +384,10 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
       const timeoutId = setTimeout(() => {
         validateCurrentStep();
       }, 500);
-      
+
       return () => clearTimeout(timeoutId);
     }
+    return undefined;
   }, [data, currentStep, validateCurrentStep]);
 
   return (
@@ -352,19 +395,19 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
       <div className={cn("space-y-6", className)}>
         {/* Progress Indicator */}
         {showProgress && (
-          <ProgressIndicator 
+          <ProgressIndicator
             variant="steps"
             showLabels={showStepNumbers}
             showTimeEstimate={showTimeEstimates}
           />
         )}
-        
+
         {/* Step Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-4">
           <div className="lg:col-span-3">
             <StepContent />
           </div>
-          
+
           {/* Help Panel */}
           {showHelp && currentStep && (
             <div className="lg:col-span-1">
@@ -372,7 +415,7 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
             </div>
           )}
         </div>
-        
+
         {/* Navigation */}
         <StepNavigation />
       </div>
@@ -384,20 +427,20 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
  * Progress Indicator Component
  */
 export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
-  variant = 'steps',
+  variant = "steps",
   showLabels = true,
   showTimeEstimate = true,
-  className
+  className,
 }) => {
-  const { 
-    steps, 
-    currentStepIndex, 
-    completedSteps, 
-    overallProgress, 
-    estimatedTimeRemaining 
+  const {
+    steps,
+    currentStepIndex,
+    completedSteps,
+    overallProgress,
+    estimatedTimeRemaining,
   } = useWizard();
 
-  if (variant === 'linear') {
+  if (variant === "linear") {
     return (
       <div className={cn("space-y-2", className)}>
         <div className="flex justify-between text-sm">
@@ -406,8 +449,8 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
         </div>
         <Progress value={overallProgress} className="h-2" />
         {showTimeEstimate && (
-          <div className="text-sm text-muted-foreground text-right">
-            <Clock className="inline w-4 h-4 mr-1" />
+          <div className="text-muted-foreground text-right text-sm">
+            <Clock className="mr-1 inline h-4 w-4" />
             {estimatedTimeRemaining} min remaining
           </div>
         )}
@@ -419,68 +462,86 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
     <div className={cn("space-y-4", className)}>
       {/* Step Indicators */}
       <div className="relative">
-        <div className="absolute top-4 left-0 w-full h-0.5 bg-muted">
-          <div 
-            className="h-full bg-primary transition-all duration-500"
-            style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
+        <div className="bg-muted absolute top-4 left-0 h-0.5 w-full">
+          <div
+            className="bg-primary h-full transition-all duration-500"
+            style={{
+              width: `${(currentStepIndex / (steps.length - 1)) * 100}%`,
+            }}
           />
         </div>
-        
-        <div className="relative flex justify-between" role="progressbar" aria-valuenow={currentStepIndex + 1} aria-valuemin={1} aria-valuemax={steps.length}>
+
+        <div
+          className="relative flex justify-between"
+          role="progressbar"
+          aria-valuenow={currentStepIndex + 1}
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+        >
           {steps.map((step, index) => {
             const isActive = index === currentStepIndex;
             const isCompleted = completedSteps.has(step.id);
             const isAccessible = index <= currentStepIndex;
-            
+
             return (
-              <div
-                key={step.id}
-                className="flex flex-col items-center group"
-              >
+              <div key={step.id} className="group flex flex-col items-center">
                 {/* Step Circle */}
-                <div className={cn(
-                  "flex items-center justify-center w-8 h-8 rounded-full border-2 transition-all duration-200",
-                  "relative z-10 bg-background",
-                  isActive && "border-primary bg-primary text-primary-foreground scale-110 shadow-lg",
-                  isCompleted && !isActive && "border-green-500 bg-green-500 text-white",
-                  !isActive && !isCompleted && isAccessible && "border-muted-foreground/50 hover:border-primary",
-                  !isAccessible && "border-muted-foreground/30 opacity-50"
-                )}>
+                <div
+                  className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-200",
+                    "bg-background relative z-10",
+                    isActive &&
+                      "border-primary bg-primary text-primary-foreground scale-110 shadow-lg",
+                    isCompleted &&
+                      !isActive &&
+                      "border-green-500 bg-green-500 text-white",
+                    !isActive &&
+                      !isCompleted &&
+                      isAccessible &&
+                      "border-muted-foreground/50 hover:border-primary",
+                    !isAccessible && "border-muted-foreground/30 opacity-50"
+                  )}
+                >
                   {step.icon ? (
-                    <div className="w-4 h-4" aria-hidden="true">
+                    <div className="h-4 w-4" aria-hidden="true">
                       {step.icon}
                     </div>
                   ) : isCompleted ? (
-                    <Check className="w-4 h-4" aria-hidden="true" />
+                    <Check className="h-4 w-4" aria-hidden="true" />
                   ) : (
                     <span className="text-xs font-medium" aria-hidden="true">
                       {index + 1}
                     </span>
                   )}
                 </div>
-                
+
                 {/* Step Label */}
                 {showLabels && (
-                  <div className="mt-2 text-center max-w-24">
-                    <div className={cn(
-                      "text-xs font-medium transition-colors duration-200",
-                      isActive && "text-primary",
-                      isCompleted && !isActive && "text-green-600",
-                      !isActive && !isCompleted && isAccessible && "text-muted-foreground",
-                      !isAccessible && "text-muted-foreground/50"
-                    )}>
+                  <div className="mt-2 max-w-24 text-center">
+                    <div
+                      className={cn(
+                        "text-xs font-medium transition-colors duration-200",
+                        isActive && "text-primary",
+                        isCompleted && !isActive && "text-green-600",
+                        !isActive &&
+                          !isCompleted &&
+                          isAccessible &&
+                          "text-muted-foreground",
+                        !isAccessible && "text-muted-foreground/50"
+                      )}
+                    >
                       {step.title}
                     </div>
-                    
+
                     {/* Step Status */}
-                    <div className="flex items-center justify-center mt-1 space-x-1">
+                    <div className="mt-1 flex items-center justify-center space-x-1">
                       {step.required && (
-                        <Badge variant="outline" className="text-xs px-1 py-0">
+                        <Badge variant="outline" className="px-1 py-0 text-xs">
                           Required
                         </Badge>
                       )}
                       {step.estimatedTime && showTimeEstimate && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-muted-foreground text-xs">
                           {step.estimatedTime}m
                         </span>
                       )}
@@ -492,17 +553,17 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
           })}
         </div>
       </div>
-      
+
       {/* Overall Progress */}
       <div className="flex items-center justify-between text-sm">
         <span className="flex items-center space-x-2">
-          <Target className="w-4 h-4" />
+          <Target className="h-4 w-4" />
           <span>{overallProgress}% Complete</span>
         </span>
-        
+
         {showTimeEstimate && (
-          <span className="flex items-center space-x-2 text-muted-foreground">
-            <Clock className="w-4 h-4" />
+          <span className="text-muted-foreground flex items-center space-x-2">
+            <Clock className="h-4 w-4" />
             <span>{estimatedTimeRemaining} min remaining</span>
           </span>
         )}
@@ -516,37 +577,48 @@ export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({
  */
 export const StepContent: React.FC<StepContentProps> = ({
   className,
-  showHelp = false
+  showHelp = false,
 }) => {
   const { currentStep, validationResults } = useWizard();
-  
+
   if (!currentStep) {
     return (
       <Card className={cn("", className)}>
-        <div className="p-4 text-center text-muted-foreground">
+        <div className="text-muted-foreground p-4 text-center">
           No step available
         </div>
       </Card>
     );
   }
-  
+
   const validation = validationResults[currentStep.id];
   const StepComponent = currentStep.component;
 
   return (
-    <Card className={cn("", className)} role="main" aria-labelledby="step-title">
+    <Card
+      className={cn("", className)}
+      role="main"
+      aria-labelledby="step-title"
+    >
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <CardTitle id="step-title" className="flex items-center space-x-3">
               {currentStep.icon && (
-                <div className="p-2 rounded-lg bg-primary/10 text-primary" aria-hidden="true">
+                <div
+                  className="bg-primary/10 text-primary rounded-lg p-2"
+                  aria-hidden="true"
+                >
                   {currentStep.icon}
                 </div>
               )}
               <span>{currentStep.title}</span>
               {currentStep.required && (
-                <Badge variant="destructive" className="text-xs" aria-label="Required step">
+                <Badge
+                  variant="destructive"
+                  className="text-xs"
+                  aria-label="Required step"
+                >
                   Required
                 </Badge>
               )}
@@ -555,30 +627,33 @@ export const StepContent: React.FC<StepContentProps> = ({
               <CardDescription>{currentStep.description}</CardDescription>
             )}
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {currentStep.estimatedTime && (
               <Badge variant="outline" className="flex items-center space-x-1">
-                <Clock className="w-3 h-3" />
+                <Clock className="h-3 w-3" />
                 <span>{currentStep.estimatedTime}m</span>
               </Badge>
             )}
-            
+
             {currentStep.complexity && (
-              <Badge variant="secondary" className="flex items-center space-x-1">
-                <Sparkles className="w-3 h-3" />
+              <Badge
+                variant="secondary"
+                className="flex items-center space-x-1"
+              >
+                <Sparkles className="h-3 w-3" />
                 <span className="capitalize">{currentStep.complexity}</span>
               </Badge>
             )}
           </div>
         </div>
-        
+
         {/* Validation Feedback */}
         {validation && (
           <div className="space-y-2">
             {validation.errors.length > 0 && (
-              <div className="flex items-start space-x-2 text-sm text-destructive">
-                <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <div className="text-destructive flex items-start space-x-2 text-sm">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <div>
                   {validation.errors.map((error, index) => (
                     <div key={index}>{error}</div>
@@ -586,10 +661,10 @@ export const StepContent: React.FC<StepContentProps> = ({
                 </div>
               </div>
             )}
-            
+
             {validation.warnings.length > 0 && (
               <div className="flex items-start space-x-2 text-sm text-amber-600">
-                <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <Info className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <div>
                   {validation.warnings.map((warning, index) => (
                     <div key={index}>{warning}</div>
@@ -597,10 +672,10 @@ export const StepContent: React.FC<StepContentProps> = ({
                 </div>
               </div>
             )}
-            
+
             {validation.suggestions.length > 0 && (
               <div className="flex items-start space-x-2 text-sm text-blue-600">
-                <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <Lightbulb className="mt-0.5 h-4 w-4 flex-shrink-0" />
                 <div>
                   {validation.suggestions.map((suggestion, index) => (
                     <div key={index}>{suggestion}</div>
@@ -611,7 +686,7 @@ export const StepContent: React.FC<StepContentProps> = ({
           </div>
         )}
       </CardHeader>
-      
+
       <CardContent>
         <StepComponent />
       </CardContent>
@@ -624,28 +699,26 @@ export const StepContent: React.FC<StepContentProps> = ({
  */
 export const StepHelpPanel: React.FC<StepHelpPanelProps> = ({
   step,
-  className
+  className,
 }) => {
   return (
     <Card className={cn("", className)}>
       <CardHeader>
         <CardTitle className="flex items-center space-x-2 text-base">
-          <Info className="w-4 h-4" />
+          <Info className="h-4 w-4" />
           <span>Help & Tips</span>
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent className="space-y-4">
         {step.helpContent && (
-          <div className="prose prose-sm">
-            {step.helpContent}
-          </div>
+          <div className="prose prose-sm">{step.helpContent}</div>
         )}
-        
+
         {step.tips && step.tips.length > 0 && (
           <div>
-            <h4 className="font-medium mb-2 flex items-center space-x-2">
-              <Lightbulb className="w-4 h-4" />
+            <h4 className="mb-2 flex items-center space-x-2 font-medium">
+              <Lightbulb className="h-4 w-4" />
               <span>Tips</span>
             </h4>
             <ul className="space-y-1 text-sm">
@@ -658,15 +731,15 @@ export const StepHelpPanel: React.FC<StepHelpPanelProps> = ({
             </ul>
           </div>
         )}
-        
+
         {step.examples && step.examples.length > 0 && (
           <div>
-            <h4 className="font-medium mb-2">Examples</h4>
+            <h4 className="mb-2 font-medium">Examples</h4>
             <div className="space-y-2">
               {step.examples.map((example, index) => (
-                <div key={index} className="p-3 bg-muted rounded-lg">
-                  <div className="font-medium text-sm">{example.title}</div>
-                  <div className="text-sm text-muted-foreground mt-1">
+                <div key={index} className="bg-muted rounded-lg p-3">
+                  <div className="text-sm font-medium">{example.title}</div>
+                  <div className="text-muted-foreground mt-1 text-sm">
                     {example.description}
                   </div>
                 </div>
@@ -683,7 +756,7 @@ export const StepHelpPanel: React.FC<StepHelpPanelProps> = ({
  * Step Navigation Component
  */
 export const StepNavigation: React.FC<StepNavigationProps> = ({
-  className
+  className,
 }) => {
   const {
     currentStepIndex,
@@ -696,14 +769,14 @@ export const StepNavigation: React.FC<StepNavigationProps> = ({
     setShowHelp,
     showPreview,
     setShowPreview,
-    validationResults
+    validationResults,
   } = useWizard();
 
   const [isNavigating, setIsNavigating] = useState(false);
-  
+
   const validation = validationResults[currentStep.id];
   const canProceed = !validation || validation.isValid || !currentStep.required;
-  
+
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === steps.length - 1;
 
@@ -714,7 +787,12 @@ export const StepNavigation: React.FC<StepNavigationProps> = ({
   };
 
   return (
-    <div className={cn("flex items-center justify-between border-t pt-4", className)}>
+    <div
+      className={cn(
+        "flex items-center justify-between border-t pt-4",
+        className
+      )}
+    >
       {/* Left Side - Previous + Help */}
       <div className="flex items-center space-x-3">
         <Button
@@ -722,12 +800,14 @@ export const StepNavigation: React.FC<StepNavigationProps> = ({
           onClick={goPrevious}
           disabled={isFirstStep || isNavigating}
           className="flex items-center space-x-2"
-          aria-label={isFirstStep ? "Previous (disabled - first step)" : "Previous step"}
+          aria-label={
+            isFirstStep ? "Previous (disabled - first step)" : "Previous step"
+          }
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="h-4 w-4" />
           <span>Previous</span>
         </Button>
-        
+
         <Button
           variant="ghost"
           onClick={() => setShowHelp(!showHelp)}
@@ -735,17 +815,21 @@ export const StepNavigation: React.FC<StepNavigationProps> = ({
           aria-label={showHelp ? "Hide help panel" : "Show help panel"}
           aria-pressed={showHelp}
         >
-          {showHelp ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {showHelp ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
           <span>Help</span>
         </Button>
       </div>
 
       {/* Center - Step Info */}
-      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+      <div className="text-muted-foreground flex items-center space-x-4 text-sm">
         <span>
           Step {currentStepIndex + 1} of {steps.length}
         </span>
-        
+
         {validation && (
           <Badge variant={validation.isValid ? "default" : "destructive"}>
             {Math.round(validation.completionScore)}% complete
@@ -763,26 +847,25 @@ export const StepNavigation: React.FC<StepNavigationProps> = ({
             className="flex items-center space-x-2"
             aria-label="Skip this optional step"
           >
-            <SkipForward className="w-4 h-4" />
+            <SkipForward className="h-4 w-4" />
             <span>Skip</span>
           </Button>
         )}
-        
+
         <Button
           onClick={handleNext}
           disabled={!canProceed || isNavigating}
           className="flex items-center space-x-2"
           aria-label={isLastStep ? "Complete wizard" : "Next step"}
         >
-          <span>{isLastStep ? 'Complete' : 'Next'}</span>
+          <span>{isLastStep ? "Complete" : "Next"}</span>
           {isNavigating ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
+            <RefreshCw className="h-4 w-4 animate-spin" />
           ) : (
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="h-4 w-4" />
           )}
         </Button>
       </div>
     </div>
   );
 };
-
