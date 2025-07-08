@@ -89,10 +89,10 @@ export const AnalyticsDashboard = () => {
       // Load analytics status and trends
       const [statusResponse, trendsResponse] = await Promise.all([
         fetch(
-          `/api/analytics/status?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}`
+          `/api/analytics/status?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}&fallback=team`
         ),
         fetch(
-          `/api/analytics/trends?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}`
+          `/api/analytics/trends?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}&fallback=team`
         ),
       ]);
 

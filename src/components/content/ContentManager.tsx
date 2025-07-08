@@ -128,6 +128,7 @@ export const ContentManager = () => {
         teamId: currentTeam.id,
         limit: filters.limit.toString(),
         offset: filters.offset.toString(),
+        fallback: 'team',
       });
 
       if (filters.status) params.append("status", filters.status);

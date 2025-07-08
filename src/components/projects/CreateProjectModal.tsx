@@ -11,12 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  EnhancedDialog,
+  EnhancedDialogContent,
+  EnhancedDialogDescription,
+  EnhancedDialogHeader,
+  EnhancedDialogTitle,
+} from "@/components/ui/enhanced-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth/context";
@@ -309,20 +309,20 @@ export const CreateProjectModal = ({
     !loadingManager.isAnyLoading;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
+    <EnhancedDialog open={open} onOpenChange={handleClose}>
+      <EnhancedDialogContent size="lg" className="max-h-[90vh] overflow-y-auto">
+        <EnhancedDialogHeader>
+          <EnhancedDialogTitle className="flex items-center space-x-2">
             <div className="rounded-lg bg-blue-50 p-2">
               <Plus className="h-5 w-5 text-blue-600" />
             </div>
             <span>Create New Project</span>
-          </DialogTitle>
-          <DialogDescription>
+          </EnhancedDialogTitle>
+          <EnhancedDialogDescription>
             Set up a new content project with comprehensive analysis and
             tracking
-          </DialogDescription>
-        </DialogHeader>
+          </EnhancedDialogDescription>
+        </EnhancedDialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Tabs value={currentTab} onValueChange={setCurrentTab}>
@@ -700,7 +700,7 @@ export const CreateProjectModal = ({
             </div>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </EnhancedDialogContent>
+    </EnhancedDialog>
   );
 };

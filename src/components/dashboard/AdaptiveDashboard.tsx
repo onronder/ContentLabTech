@@ -6,6 +6,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +61,7 @@ interface Project {
 
 export const AdaptiveDashboard = () => {
   const { currentTeam } = useAuth();
+  const router = useRouter();
   const [currentRole, setCurrentRole] = useState<UserRole>("executive");
   const [isLoading, setIsLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -226,7 +228,11 @@ export const AdaptiveDashboard = () => {
 
           <Tabs
             value={currentRole}
-            onValueChange={value => setCurrentRole(value as UserRole)}
+            onValueChange={(value) => {
+            setCurrentRole(value as UserRole);
+            // Preserve session during role switch
+            localStorage.setItem('dashboardRole', value);
+          }}
           >
             <TabsList className="grid w-full grid-cols-3 bg-gray-100">
               {dashboardConfigs.map(config => {
@@ -298,19 +304,19 @@ export const AdaptiveDashboard = () => {
             currentRole === "executive" ? (
               <ExecutiveEmptyState
                 onCreateProject={() => {
-                  window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                  router.push(`/projects/create?role=${currentRole}&source=dashboard`);
                 }}
               />
             ) : currentRole === "content-manager" ? (
               <ContentManagerEmptyState
                 onCreateProject={() => {
-                  window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                  router.push(`/projects/create?role=${currentRole}&source=dashboard`);
                 }}
               />
             ) : currentRole === "analyst" ? (
               <AnalystEmptyState
                 onCreateProject={() => {
-                  window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                  router.push(`/projects/create?role=${currentRole}&source=dashboard`);
                 }}
               />
             ) : (
@@ -336,7 +342,7 @@ export const AdaptiveDashboard = () => {
                 </p>
                 <Button
                   onClick={() => {
-                    window.location.href = `/projects/create?role=${currentRole}&source=dashboard`;
+                    router.push(`/projects/create?role=${currentRole}&source=dashboard`);
                   }}
                   className="mt-4"
                 >
