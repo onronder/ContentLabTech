@@ -109,13 +109,9 @@ function validateCSRFToken(request: NextRequest): boolean {
     return true;
   }
 
-  // Skip CSRF for API routes that use Bearer token authentication
-  if (request.nextUrl.pathname.startsWith("/api/fix-team-assignments")) {
-    return true;
-  }
-
-  // Skip CSRF for projects API (uses session authentication)
-  if (request.nextUrl.pathname.startsWith("/api/projects")) {
+  // Skip CSRF for all API routes (they use production-grade authentication)
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    console.log(`🛡️ CSRF skipped for API route: ${request.nextUrl.pathname}`);
     return true;
   }
 

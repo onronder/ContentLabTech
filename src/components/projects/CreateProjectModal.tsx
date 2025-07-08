@@ -21,6 +21,12 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth/context";
 import {
+  authenticatedFetch,
+  AuthenticationError,
+  CSRFError,
+} from "@/lib/auth/authenticated-fetch";
+import { supabase } from "@/lib/supabase/client";
+import {
   Globe,
   Target,
   Users,
@@ -70,7 +76,7 @@ export const CreateProjectModal = ({
   onClose,
   onProjectCreated,
 }: CreateProjectModalProps) => {
-  const { currentTeam } = useAuth();
+  const { currentTeam, session } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState("basic");
@@ -174,13 +180,29 @@ export const CreateProjectModal = ({
         settings: {},
       };
 
-      const response = await fetch("/api/projects", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // Use production-grade authenticated fetch
+      const authContext = {
+        session,
+        refreshSession: async () => {
+          // Refresh session if needed
+          const {
+            data: { session: newSession },
+          } = await supabase.auth.getSession();
+          if (newSession) {
+            // Session would be updated by auth context automatically
+            console.log("🔄 Session refreshed for project creation");
+          }
         },
-        body: JSON.stringify(payload),
-      });
+      };
+
+      const response = await authenticatedFetch(
+        "/api/projects",
+        {
+          method: "POST",
+          body: JSON.stringify(payload),
+        },
+        authContext
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -192,7 +214,20 @@ export const CreateProjectModal = ({
       resetForm();
     } catch (err) {
       console.error("Error creating project:", err);
-      setError(err instanceof Error ? err.message : "Failed to create project");
+
+      if (err instanceof AuthenticationError) {
+        setError(
+          "Authentication failed. Please refresh the page and try again."
+        );
+      } else if (err instanceof CSRFError) {
+        setError(
+          "Security validation failed. Please refresh the page and try again."
+        );
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Failed to create project"
+        );
+      }
     } finally {
       setLoading(false);
     }

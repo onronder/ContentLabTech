@@ -18,6 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth/context";
 import {
+  authenticatedFetch,
+  AuthenticationError,
+  CSRFError,
+} from "@/lib/auth/authenticated-fetch";
+import { supabase } from "@/lib/supabase/client";
+import {
   Plus,
   Search,
   Users,
@@ -128,17 +134,27 @@ export const ProjectsManager = () => {
       if (filters.status) params.append("status", filters.status);
       if (filters.search) params.append("search", filters.search);
 
-      const headers: Record<string, string> = {};
+      // Use production-grade authenticated fetch
+      const authContext = {
+        session,
+        refreshSession: async () => {
+          const {
+            data: { session: newSession },
+          } = await supabase.auth.getSession();
+          if (newSession) {
+            // Session would be updated by auth context
+            console.log("🔄 Session refreshed");
+          }
+        },
+      };
 
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-        console.log("🔐 Adding Bearer token to projects request");
-      }
-
-      const response = await fetch(`/api/projects?${params.toString()}`, {
-        credentials: "include",
-        headers,
-      });
+      const response = await authenticatedFetch(
+        `/api/projects?${params.toString()}`,
+        {
+          method: "GET",
+        },
+        authContext
+      );
 
       if (!response.ok) {
         throw new Error("Failed to load projects");
@@ -149,7 +165,20 @@ export const ProjectsManager = () => {
       setTotalProjects(data.total || 0);
     } catch (err) {
       console.error("Failed to load projects:", err);
-      setError(err instanceof Error ? err.message : "Failed to load projects");
+
+      if (err instanceof AuthenticationError) {
+        setError(
+          "Authentication failed. Please refresh the page and try again."
+        );
+      } else if (err instanceof CSRFError) {
+        setError(
+          "Security validation failed. Please refresh the page and try again."
+        );
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Failed to load projects"
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -202,34 +231,27 @@ export const ProjectsManager = () => {
         session?.access_token ? "Present" : "Missing"
       );
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
+      // Use production-grade authenticated fetch
+      const authContext = {
+        session,
+        refreshSession: async () => {
+          const {
+            data: { session: newSession },
+          } = await supabase.auth.getSession();
+          if (newSession) {
+            console.log("🔄 Session refreshed for team creation");
+          }
+        },
       };
 
-      if (session?.access_token) {
-        headers["Authorization"] = `Bearer ${session.access_token}`;
-      }
-
-      // Add CSRF token from cookie
-      console.log("🍪 All cookies:", document.cookie);
-      const csrfToken = document.cookie
-        .split("; ")
-        .find(row => row.startsWith("csrf-token="))
-        ?.split("=")[1];
-
-      if (csrfToken) {
-        headers["x-csrf-token"] = csrfToken;
-        console.log("🛡️ CSRF token added to request");
-      } else {
-        console.log("⚠️ No CSRF token found in cookies");
-        console.log("🔧 Attempting to bypass CSRF for API route");
-      }
-
-      const response = await fetch("/api/fix-team-assignments", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ userId: user.id }),
-      });
+      const response = await authenticatedFetch(
+        "/api/fix-team-assignments",
+        {
+          method: "POST",
+          body: JSON.stringify({ userId: user.id }),
+        },
+        authContext
+      );
 
       console.log("📡 API response status:", response.status);
       console.log("📡 API response headers:", response.headers);
@@ -250,7 +272,18 @@ export const ProjectsManager = () => {
       }
     } catch (error) {
       console.error("💥 Error creating default team:", error);
-      setError("Network error. Please check your connection and try again.");
+
+      if (error instanceof AuthenticationError) {
+        setError(
+          "Authentication failed. Please refresh the page and try again."
+        );
+      } else if (error instanceof CSRFError) {
+        setError(
+          "Security validation failed. Please refresh the page and try again."
+        );
+      } else {
+        setError("Network error. Please check your connection and try again.");
+      }
     } finally {
       console.log("🏁 Finished team creation process");
       setCreatingDefaultTeam(false);

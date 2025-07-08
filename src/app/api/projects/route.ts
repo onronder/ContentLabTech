@@ -5,7 +5,11 @@ import {
   validateTeamAccess,
   createErrorResponse,
 } from "@/lib/auth/session";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import {
+  withApiAuth,
+  createApiSuccessResponse,
+  createApiErrorResponse,
+} from "@/lib/auth/api-auth";
 import { jobQueue } from "@/lib/jobs/queue";
 
 interface CreateProjectRequest {
@@ -28,14 +32,8 @@ interface ProjectFilters {
   offset: number;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withApiAuth(async (request: NextRequest, user) => {
   try {
-    // Authenticate user
-    const user = await getCurrentUser();
-    if (!user) {
-      return createErrorResponse("Authentication required", 401);
-    }
-
     // Parse request body
     const body: CreateProjectRequest = await request.json();
     const {
@@ -139,64 +137,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(
+    return createApiSuccessResponse(
       {
-        success: true,
         project: newProject,
         analysisTriggered: !!website_url,
       },
-      { status: 201 }
+      201
     );
   } catch (error) {
     console.error("API error:", error);
-    return createErrorResponse("Internal server error", 500);
+    return createApiErrorResponse(
+      "Internal server error",
+      500,
+      "CREATE_PROJECT_ERROR"
+    );
   }
-}
+});
 
-export async function GET(request: NextRequest) {
+export const GET = withApiAuth(async (request: NextRequest, user) => {
   try {
-    // Try Bearer token authentication first (like fix-team-assignments)
-    const authHeader = request.headers.get("authorization");
-    let user = null;
-
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "");
-      console.log("🔐 Using Bearer token authentication");
-
-      const supabaseServiceRole = createSupabaseClient(
-        process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-        process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
-        {
-          auth: {
-            autoRefreshToken: false,
-            persistSession: false,
-          },
-        }
-      );
-
-      const {
-        data: { user: tokenUser },
-        error,
-      } = await supabaseServiceRole.auth.getUser(token);
-      if (!error && tokenUser) {
-        user = tokenUser;
-        console.log("✅ Bearer token authentication successful");
-      }
-    }
-
-    // Fallback to session authentication
-    if (!user) {
-      console.log("🍪 Falling back to session authentication");
-      user = await getCurrentUser();
-    }
-
-    if (!user) {
-      console.log("❌ Authentication failed for projects API");
-      return createErrorResponse("Authentication required", 401);
-    }
-
-    console.log("✅ Projects API user authenticated:", user.id);
-
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const filters: ProjectFilters = {
@@ -221,7 +180,7 @@ export async function GET(request: NextRequest) {
       .eq("user_id", user.id);
 
     if (!teamMemberships?.length) {
-      return NextResponse.json({
+      return createApiSuccessResponse({
         projects: [],
         total: 0,
         filters,
@@ -257,7 +216,11 @@ export async function GET(request: NextRequest) {
     // Apply team filter
     if (filters.teamId) {
       if (!accessibleTeamIds.includes(filters.teamId)) {
-        return createErrorResponse("Insufficient permissions", 403);
+        return createApiErrorResponse(
+          "Insufficient permissions",
+          403,
+          "TEAM_ACCESS_DENIED"
+        );
       }
       query = query.eq("team_id", filters.teamId);
     } else {
@@ -325,16 +288,20 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    return NextResponse.json({
+    return createApiSuccessResponse({
       projects: enhancedProjects,
       total: count || 0,
       filters,
     });
   } catch (error) {
     console.error("API error:", error);
-    return createErrorResponse("Internal server error", 500);
+    return createApiErrorResponse(
+      "Internal server error",
+      500,
+      "FETCH_PROJECTS_ERROR"
+    );
   }
-}
+});
 
 /**
  * Trigger comprehensive analysis for a new project
