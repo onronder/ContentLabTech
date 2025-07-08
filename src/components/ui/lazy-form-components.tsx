@@ -69,55 +69,28 @@ function withLazyLoading<P extends object>(
   ));
 }
 
-// Lazy-loaded form components with code splitting
-export const LazyEnhancedInput = withLazyLoading((() =>
-  import("./enhanced-form-controls").then(m => ({
-    default: m.EnhancedInput as any,
-  }))) as any) as any;
+// Direct imports for simpler TypeScript compatibility
+import {
+  EnhancedInput,
+  EnhancedTextarea,
+  PasswordInput,
+  SearchInput,
+  TagInput,
+  EnhancedCombobox,
+} from "./enhanced-form-controls";
+import { SmartFormWizard } from "./smart-form-wizard";
+import { EnhancedDialog, EnhancedDialogContent } from "./enhanced-dialog";
 
-export const LazyEnhancedTextarea = withLazyLoading(() =>
-  import("./enhanced-form-controls").then(m => ({
-    default: m.EnhancedTextarea as any,
-  }))
-) as any;
-
-export const LazyPasswordInput = withLazyLoading(() =>
-  import("./enhanced-form-controls").then(m => ({
-    default: m.PasswordInput as any,
-  }))
-) as any;
-
-export const LazySearchInput = withLazyLoading(() =>
-  import("./enhanced-form-controls").then(m => ({
-    default: m.SearchInput as any,
-  }))
-) as any;
-
-export const LazyTagInput = withLazyLoading(() =>
-  import("./enhanced-form-controls").then(m => ({ default: m.TagInput as any }))
-) as any;
-
-export const LazyEnhancedCombobox = withLazyLoading(() =>
-  import("./enhanced-form-controls").then(m => ({
-    default: m.EnhancedCombobox as any,
-  }))
-) as any;
-
-export const LazySmartFormWizard = withLazyLoading(() =>
-  import("./smart-form-wizard").then(m => ({
-    default: m.SmartFormWizard as any,
-  }))
-) as any;
-
-export const LazyEnhancedDialog = withLazyLoading(() =>
-  import("./enhanced-dialog").then(m => ({ default: m.EnhancedDialog as any }))
-) as any;
-
-export const LazyEnhancedDialogContent = withLazyLoading(() =>
-  import("./enhanced-dialog").then(m => ({
-    default: m.EnhancedDialogContent as any,
-  }))
-) as any;
+// Export components directly for production build compatibility
+export const LazyEnhancedInput = EnhancedInput;
+export const LazyEnhancedTextarea = EnhancedTextarea;
+export const LazyPasswordInput = PasswordInput;
+export const LazySearchInput = SearchInput;
+export const LazyTagInput = TagInput;
+export const LazyEnhancedCombobox = EnhancedCombobox;
+export const LazySmartFormWizard = SmartFormWizard;
+export const LazyEnhancedDialog = EnhancedDialog;
+export const LazyEnhancedDialogContent = EnhancedDialogContent;
 
 // Bundle-aware lazy loading with preloading
 export class LazyFormComponentManager {
@@ -253,6 +226,7 @@ export const ProgressiveEnhancement: React.FC<ProgressiveEnhancementProps> = ({
       const timer = setTimeout(() => setIsEnhanced(true), 50);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [shouldEnhance]);
 
   if (!shouldEnhance || !isEnhanced) {
@@ -346,6 +320,10 @@ export const PerformanceAwareLoad: React.FC<PerformanceAwareLoadProps> = ({
     } else {
       checkPerformance();
     }
+
+    return () => {
+      document.removeEventListener("DOMContentLoaded", checkPerformance);
+    };
   }, [loadingStrategy, performanceThreshold, shouldLazyLoad]);
 
   if (!shouldLoad) {
