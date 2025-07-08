@@ -691,10 +691,10 @@ const ProjectSetupStep: React.FC = () => {
             </div>
             <div>
               <h3 className="font-semibold text-blue-900 mb-2">
-                🎉 You're all set to create an amazing project!
+                🎉 You&apos;re all set to create an amazing project!
               </h3>
               <p className="text-blue-700 text-sm leading-relaxed mb-3">
-                Based on your inputs, we'll create a comprehensive content strategy with:
+                Based on your inputs, we&apos;ll create a comprehensive content strategy with:
               </p>
               <ul className="space-y-1 text-sm text-blue-600">
                 <li className="flex items-center space-x-2">
@@ -980,7 +980,7 @@ export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProp
         <div className="space-y-3">
           <p className="text-sm">
             Set realistic timelines and define success metrics to track your 
-            project's progress and ROI.
+            project&apos;s progress and ROI.
           </p>
         </div>
       ),
