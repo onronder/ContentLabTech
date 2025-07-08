@@ -128,8 +128,16 @@ export const ProjectsManager = () => {
       if (filters.status) params.append("status", filters.status);
       if (filters.search) params.append("search", filters.search);
 
+      const headers: Record<string, string> = {};
+
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+        console.log("🔐 Adding Bearer token to projects request");
+      }
+
       const response = await fetch(`/api/projects?${params.toString()}`, {
         credentials: "include",
+        headers,
       });
 
       if (!response.ok) {

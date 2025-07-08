@@ -5,6 +5,7 @@ import {
   validateTeamAccess,
   createErrorResponse,
 } from "@/lib/auth/session";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { jobQueue } from "@/lib/jobs/queue";
 
 interface CreateProjectRequest {
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
           competitorUrls: competitors,
         });
       } catch (analysisError) {
-        console.warn('Failed to trigger project analysis:', analysisError);
+        console.warn("Failed to trigger project analysis:", analysisError);
         // Don't fail project creation if analysis fails
       }
     }
@@ -154,11 +155,47 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate user
-    const user = await getCurrentUser();
+    // Try Bearer token authentication first (like fix-team-assignments)
+    const authHeader = request.headers.get("authorization");
+    let user = null;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      console.log("🔐 Using Bearer token authentication");
+
+      const supabaseServiceRole = createSupabaseClient(
+        process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+        process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        }
+      );
+
+      const {
+        data: { user: tokenUser },
+        error,
+      } = await supabaseServiceRole.auth.getUser(token);
+      if (!error && tokenUser) {
+        user = tokenUser;
+        console.log("✅ Bearer token authentication successful");
+      }
+    }
+
+    // Fallback to session authentication
     if (!user) {
+      console.log("🍪 Falling back to session authentication");
+      user = await getCurrentUser();
+    }
+
+    if (!user) {
+      console.log("❌ Authentication failed for projects API");
       return createErrorResponse("Authentication required", 401);
     }
+
+    console.log("✅ Projects API user authenticated:", user.id);
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -310,7 +347,14 @@ async function triggerProjectAnalysis(data: {
   targetKeywords: string[];
   competitorUrls: string[];
 }): Promise<void> {
-  const { projectId, userId, teamId, websiteUrl, targetKeywords, competitorUrls } = data;
+  const {
+    projectId,
+    userId,
+    teamId,
+    websiteUrl,
+    targetKeywords,
+    competitorUrls,
+  } = data;
 
   // Job data structure for all analysis types
   const baseJobData = {
@@ -322,62 +366,82 @@ async function triggerProjectAnalysis(data: {
 
   // 1. Content Analysis (Priority: Critical - runs first)
   if (targetKeywords.length > 0) {
-    await jobQueue.addJob('content-analysis', {
-      ...baseJobData,
-      params: {
-        websiteUrl,
-        targetKeywords,
-        competitorUrls,
-        analysisDepth: 'comprehensive',
+    await jobQueue.addJob(
+      "content-analysis",
+      {
+        ...baseJobData,
+        params: {
+          websiteUrl,
+          targetKeywords,
+          competitorUrls,
+          analysisDepth: "comprehensive",
+        },
       },
-    }, 'critical');
+      "critical"
+    );
   }
 
   // 2. SEO Health Check (Priority: High)
-  await jobQueue.addJob('seo-health-check', {
-    ...baseJobData,
-    params: {
-      websiteUrl,
-      pages: [websiteUrl], // Start with homepage, expand later
-      includePerformance: true,
-      includeMobile: true,
+  await jobQueue.addJob(
+    "seo-health-check",
+    {
+      ...baseJobData,
+      params: {
+        websiteUrl,
+        pages: [websiteUrl], // Start with homepage, expand later
+        includePerformance: true,
+        includeMobile: true,
+      },
     },
-  }, 'high');
+    "high"
+  );
 
   // 3. Performance Analysis (Priority: High)
-  await jobQueue.addJob('performance-analysis', {
-    ...baseJobData,
-    params: {
-      websiteUrl,
-      pages: [websiteUrl],
-      locations: ['US'], // Default location
-      devices: ['desktop', 'mobile'],
+  await jobQueue.addJob(
+    "performance-analysis",
+    {
+      ...baseJobData,
+      params: {
+        websiteUrl,
+        pages: [websiteUrl],
+        locations: ["US"], // Default location
+        devices: ["desktop", "mobile"],
+      },
     },
-  }, 'high');
+    "high"
+  );
 
   // 4. Competitive Intelligence (Priority: Normal - if competitors provided)
   if (competitorUrls.length > 0) {
-    await jobQueue.addJob('competitive-intelligence', {
-      ...baseJobData,
-      params: {
-        targetDomain: websiteUrl,
-        competitorDomains: competitorUrls,
-        keywords: targetKeywords,
-        analysisScope: 'comprehensive',
+    await jobQueue.addJob(
+      "competitive-intelligence",
+      {
+        ...baseJobData,
+        params: {
+          targetDomain: websiteUrl,
+          competitorDomains: competitorUrls,
+          keywords: targetKeywords,
+          analysisScope: "comprehensive",
+        },
       },
-    }, 'normal');
+      "normal"
+    );
   }
 
   // 5. Industry Benchmarking (Priority: Normal - runs last)
-  await jobQueue.addJob('industry-benchmarking', {
-    ...baseJobData,
-    params: {
-      industry: 'general', // Will be determined by AI analysis
-      businessType: 'website',
-      targetMetrics: ['seo', 'performance', 'content'],
-      region: 'global',
+  await jobQueue.addJob(
+    "industry-benchmarking",
+    {
+      ...baseJobData,
+      params: {
+        industry: "general", // Will be determined by AI analysis
+        businessType: "website",
+        targetMetrics: ["seo", "performance", "content"],
+        region: "global",
+      },
     },
-  }, 'normal');
+    "normal"
+  );
 
   console.warn(`Triggered comprehensive analysis for project ${projectId}`);
 }
