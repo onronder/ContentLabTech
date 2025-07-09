@@ -384,7 +384,6 @@ export const SmartFormWizard: React.FC<SmartFormWizardProps> = ({
       const timeoutId = setTimeout(() => {
         validateCurrentStep();
       }, 500);
-
       return () => clearTimeout(timeoutId);
     }
     return undefined;

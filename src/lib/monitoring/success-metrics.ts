@@ -3,11 +3,18 @@
  * Comprehensive user engagement and conversion tracking
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface UserAction {
   id: string;
-  type: 'click' | 'form_submit' | 'navigation' | 'scroll' | 'hover' | 'focus' | 'keypress';
+  type:
+    | "click"
+    | "form_submit"
+    | "navigation"
+    | "scroll"
+    | "hover"
+    | "focus"
+    | "keypress";
   element?: string;
   component?: string;
   value?: string | number;
@@ -97,10 +104,10 @@ class SuccessMetricsTracker {
 
   private setupEventListeners(): void {
     // Track clicks with context
-    document.addEventListener('click', (event) => {
+    document.addEventListener("click", event => {
       const target = event.target as HTMLElement;
       this.trackAction({
-        type: 'click',
+        type: "click",
         element: this.getElementSelector(target),
         component: this.getComponentName(target),
         metadata: {
@@ -116,19 +123,19 @@ class SuccessMetricsTracker {
     });
 
     // Track form submissions
-    document.addEventListener('submit', (event) => {
+    document.addEventListener("submit", event => {
       const form = event.target as HTMLFormElement;
       const formData = new FormData(form);
       const data: Record<string, string> = {};
-      
+
       formData.forEach((value, key) => {
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
           data[key] = value;
         }
       });
 
       this.trackAction({
-        type: 'form_submit',
+        type: "form_submit",
         element: this.getElementSelector(form),
         component: this.getComponentName(form),
         metadata: {
@@ -145,49 +152,53 @@ class SuccessMetricsTracker {
 
     history.pushState = (...args) => {
       this.trackAction({
-        type: 'navigation',
+        type: "navigation",
         value: args[2]?.toString(),
-        metadata: { type: 'pushState' },
+        metadata: { type: "pushState" },
       });
       return originalPushState.apply(history, args);
     };
 
     history.replaceState = (...args) => {
       this.trackAction({
-        type: 'navigation',
+        type: "navigation",
         value: args[2]?.toString(),
-        metadata: { type: 'replaceState' },
+        metadata: { type: "replaceState" },
       });
       return originalReplaceState.apply(history, args);
     };
 
-    window.addEventListener('popstate', () => {
+    window.addEventListener("popstate", () => {
       this.trackAction({
-        type: 'navigation',
+        type: "navigation",
         value: window.location.pathname,
-        metadata: { type: 'popstate' },
+        metadata: { type: "popstate" },
       });
     });
 
     // Track focus events for accessibility metrics
-    document.addEventListener('focus', (event) => {
-      const target = event.target as HTMLElement;
-      this.trackAction({
-        type: 'focus',
-        element: this.getElementSelector(target),
-        component: this.getComponentName(target),
-        metadata: {
-          focusMethod: event.isTrusted ? 'user' : 'programmatic',
-        },
-      });
-    }, true);
+    document.addEventListener(
+      "focus",
+      event => {
+        const target = event.target as HTMLElement;
+        this.trackAction({
+          type: "focus",
+          element: this.getElementSelector(target),
+          component: this.getComponentName(target),
+          metadata: {
+            focusMethod: event.isTrusted ? "user" : "programmatic",
+          },
+        });
+      },
+      true
+    );
 
     // Track key interactions
-    document.addEventListener('keydown', (event) => {
+    document.addEventListener("keydown", event => {
       // Only track meaningful keys
-      if (['Enter', 'Space', 'Escape', 'Tab'].includes(event.code)) {
+      if (["Enter", "Space", "Escape", "Tab"].includes(event.code)) {
         this.trackAction({
-          type: 'keypress',
+          type: "keypress",
           value: event.code,
           element: this.getElementSelector(event.target as HTMLElement),
           metadata: {
@@ -205,15 +216,15 @@ class SuccessMetricsTracker {
   }
 
   private setupPerformanceObserver(): void {
-    if ('PerformanceObserver' in window) {
+    if ("PerformanceObserver" in window) {
       // Observe largest contentful paint
-      const lcpObserver = new PerformanceObserver((list) => {
+      const lcpObserver = new PerformanceObserver(list => {
         const entries = list.getEntries();
         const lastEntry = entries[entries.length - 1];
         if (lastEntry) {
           this.trackAction({
-            type: 'navigation',
-            value: 'lcp',
+            type: "navigation",
+            value: "lcp",
             metadata: {
               lcp: lastEntry.startTime,
               element: (lastEntry as any).element?.tagName,
@@ -223,17 +234,17 @@ class SuccessMetricsTracker {
       });
 
       try {
-        lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
+        lcpObserver.observe({ entryTypes: ["largest-contentful-paint"] });
       } catch (e) {
         // LCP not supported
       }
 
       // Observe first input delay
-      const fidObserver = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
+      const fidObserver = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
           this.trackAction({
-            type: 'navigation',
-            value: 'fid',
+            type: "navigation",
+            value: "fid",
             metadata: {
               fid: (entry as any).processingStart - entry.startTime,
               inputType: (entry as any).name,
@@ -243,7 +254,7 @@ class SuccessMetricsTracker {
       });
 
       try {
-        fidObserver.observe({ entryTypes: ['first-input'] });
+        fidObserver.observe({ entryTypes: ["first-input"] });
       } catch (e) {
         // FID not supported
       }
@@ -255,24 +266,27 @@ class SuccessMetricsTracker {
     let ticking = false;
 
     const updateScrollDepth = () => {
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const scrollTop =
+        window.pageYOffset || document.documentElement.scrollTop;
       const windowHeight = window.innerHeight;
       const documentHeight = Math.max(
         document.body.scrollHeight,
         document.documentElement.scrollHeight
       );
 
-      const scrollDepth = Math.round(((scrollTop + windowHeight) / documentHeight) * 100);
-      
+      const scrollDepth = Math.round(
+        ((scrollTop + windowHeight) / documentHeight) * 100
+      );
+
       if (scrollDepth > maxScrollDepth) {
         maxScrollDepth = scrollDepth;
-        
+
         // Track milestone scroll depths
         const milestones = [25, 50, 75, 90, 100];
         for (const milestone of milestones) {
           if (scrollDepth >= milestone && maxScrollDepth >= milestone) {
             this.trackAction({
-              type: 'scroll',
+              type: "scroll",
               value: milestone,
               metadata: {
                 scrollDepth,
@@ -288,7 +302,7 @@ class SuccessMetricsTracker {
       ticking = false;
     };
 
-    window.addEventListener('scroll', () => {
+    window.addEventListener("scroll", () => {
       if (!ticking) {
         requestAnimationFrame(updateScrollDepth);
         ticking = true;
@@ -297,14 +311,15 @@ class SuccessMetricsTracker {
   }
 
   private setupHeatmapTracking(): void {
-    document.addEventListener('mousemove', (event) => {
+    document.addEventListener("mousemove", event => {
       // Throttle mousemove events
-      if (Math.random() < 0.1) { // Sample 10% of mouse moves
+      if (Math.random() < 0.1) {
+        // Sample 10% of mouse moves
         this.addHeatmapPoint(event.clientX, event.clientY, 1);
       }
     });
 
-    document.addEventListener('click', (event) => {
+    document.addEventListener("click", event => {
       // Clicks have higher intensity
       this.addHeatmapPoint(event.clientX, event.clientY, 5);
     });
@@ -318,8 +333,8 @@ class SuccessMetricsTracker {
     // Find existing point within radius or create new one
     const radius = 5; // percentage
     const existingPoint = this.heatmapData.find(
-      point => 
-        Math.abs(point.x - normalizedX) < radius && 
+      point =>
+        Math.abs(point.x - normalizedX) < radius &&
         Math.abs(point.y - normalizedY) < radius
     );
 
@@ -344,7 +359,7 @@ class SuccessMetricsTracker {
   private getElementSelector(element: HTMLElement): string {
     if (element.id) return `#${element.id}`;
     if (element.className) {
-      const classes = element.className.split(' ').filter(c => c.length > 0);
+      const classes = element.className.split(" ").filter(c => c.length > 0);
       if (classes.length > 0) return `.${classes[0]}`;
     }
     return element.tagName.toLowerCase();
@@ -355,20 +370,26 @@ class SuccessMetricsTracker {
     let current = element;
     while (current && current !== document.body) {
       if (current.dataset.component) return current.dataset.component;
-      
+
       // Check for React-like component class names
       const className = current.className;
-      if (typeof className === 'string') {
+      if (typeof className === "string") {
         const componentMatch = className.match(/([A-Z][a-zA-Z0-9]*)/);
-        if (componentMatch) return componentMatch[1];
+        if (componentMatch && componentMatch[1]) {
+          return componentMatch[1];
+        }
       }
-      
-      current = current.parentElement!;
+
+      const parent = current.parentElement;
+      if (!parent) break;
+      current = parent;
     }
-    return 'unknown';
+    return "unknown";
   }
 
-  private trackAction(actionInput: Omit<UserAction, 'id' | 'timestamp' | 'sessionId'>): void {
+  private trackAction(
+    actionInput: Omit<UserAction, "id" | "timestamp" | "sessionId">
+  ): void {
     const action: UserAction = {
       id: this.generateActionId(),
       timestamp: Date.now(),
@@ -397,27 +418,33 @@ class SuccessMetricsTracker {
 
   private getCurrentUserId(): string | undefined {
     // This would integrate with your auth system
-    return localStorage.getItem('userId') || undefined;
+    return localStorage.getItem("userId") || undefined;
   }
 
   private checkFunnelProgress(action: UserAction): void {
-    this.funnels.forEach((funnel) => {
-      const userProgress = this.getUserFunnelProgress(this.sessionId, funnel.id);
+    this.funnels.forEach(funnel => {
+      const userProgress = this.getUserFunnelProgress(
+        this.sessionId,
+        funnel.id
+      );
       const nextStep = funnel.steps[userProgress.length];
-      
+
       if (nextStep && nextStep.condition(action)) {
         userProgress.push({
           stepId: nextStep.id,
           timestamp: action.timestamp,
           actionId: action.id,
         });
-        
+
         this.setUserFunnelProgress(this.sessionId, funnel.id, userProgress);
       }
     });
   }
 
-  private getUserFunnelProgress(sessionId: string, funnelId: string): Array<{
+  private getUserFunnelProgress(
+    sessionId: string,
+    funnelId: string
+  ): Array<{
     stepId: string;
     timestamp: number;
     actionId: string;
@@ -427,11 +454,15 @@ class SuccessMetricsTracker {
     return stored ? JSON.parse(stored) : [];
   }
 
-  private setUserFunnelProgress(sessionId: string, funnelId: string, progress: Array<{
-    stepId: string;
-    timestamp: number;
-    actionId: string;
-  }>): void {
+  private setUserFunnelProgress(
+    sessionId: string,
+    funnelId: string,
+    progress: Array<{
+      stepId: string;
+      timestamp: number;
+      actionId: string;
+    }>
+  ): void {
     const key = `funnel_${funnelId}_${sessionId}`;
     sessionStorage.setItem(key, JSON.stringify(progress));
   }
@@ -444,17 +475,17 @@ class SuccessMetricsTracker {
   getEngagementMetrics(): EngagementMetrics {
     const now = Date.now();
     const sessionDuration = now - this.sessionStart;
-    const interactions = this.actions.filter(a => 
-      ['click', 'form_submit', 'keypress'].includes(a.type)
+    const interactions = this.actions.filter(a =>
+      ["click", "form_submit", "keypress"].includes(a.type)
     ).length;
 
-    const scrollActions = this.actions.filter(a => a.type === 'scroll');
+    const scrollActions = this.actions.filter(a => a.type === "scroll");
     const maxScrollDepth = Math.max(
       ...scrollActions.map(a => Number(a.value) || 0),
       0
     );
 
-    const navigationActions = this.actions.filter(a => a.type === 'navigation');
+    const navigationActions = this.actions.filter(a => a.type === "navigation");
     const pageViews = navigationActions.length + 1; // +1 for initial page load
 
     return {
@@ -469,18 +500,30 @@ class SuccessMetricsTracker {
   }
 
   getPerformanceMetrics(): PerformanceMetrics {
-    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
-    const paintEntries = performance.getEntriesByType('paint');
-    
-    const fcp = paintEntries.find(entry => entry.name === 'first-contentful-paint');
-    const lcpAction = this.actions.find(a => a.value === 'lcp');
-    const fidAction = this.actions.find(a => a.value === 'fid');
+    const navigationEntries = performance.getEntriesByType("navigation");
+    const navigation =
+      navigationEntries.length > 0
+        ? (navigationEntries[0] as PerformanceNavigationTiming)
+        : null;
+    const paintEntries = performance.getEntriesByType("paint");
+
+    const fcp = paintEntries.find(
+      entry => entry.name === "first-contentful-paint"
+    );
+    const lcpAction = this.actions.find(a => a.value === "lcp");
+    const fidAction = this.actions.find(a => a.value === "fid");
 
     return {
-      loadTime: navigation ? navigation.loadEventEnd - navigation.navigationStart : 0,
-      timeToInteractive: navigation ? navigation.domInteractive - navigation.navigationStart : 0,
+      loadTime: navigation
+        ? navigation.loadEventEnd - navigation.requestStart
+        : 0,
+      timeToInteractive: navigation
+        ? navigation.domInteractive - navigation.requestStart
+        : 0,
       firstContentfulPaint: fcp ? fcp.startTime : 0,
-      largestContentfulPaint: lcpAction ? Number(lcpAction.metadata?.lcp) || 0 : 0,
+      largestContentfulPaint: lcpAction
+        ? Number(lcpAction.metadata?.lcp) || 0
+        : 0,
       cumulativeLayoutShift: 0, // Would need CLS observer
       firstInputDelay: fidAction ? Number(fidAction.metadata?.fid) || 0 : 0,
     };
@@ -495,17 +538,24 @@ class SuccessMetricsTracker {
     this.funnels.forEach((funnel, funnelId) => {
       const progress = this.getUserFunnelProgress(this.sessionId, funnelId);
       const completed = progress.length === funnel.steps.length;
-      
+
       funnelCompletions[funnelId] = completed ? 1 : 0;
-      conversionRates[funnelId] = completed ? 100 : (progress.length / funnel.steps.length) * 100;
-      
+      conversionRates[funnelId] = completed
+        ? 100
+        : (progress.length / funnel.steps.length) * 100;
+
       if (!completed && progress.length > 0) {
         dropoffPoints[funnelId] = progress.length;
       }
-      
-      if (completed && progress.length > 0) {
-        const timeToConvert = progress[progress.length - 1].timestamp - progress[0].timestamp;
-        averageTimeToConvert[funnelId] = timeToConvert;
+
+      if (completed && progress.length > 1) {
+        const lastProgress = progress[progress.length - 1];
+        const firstProgress = progress[0];
+        if (lastProgress && firstProgress) {
+          const timeToConvert =
+            lastProgress.timestamp - firstProgress.timestamp;
+          averageTimeToConvert[funnelId] = timeToConvert;
+        }
       }
     });
 
@@ -518,7 +568,7 @@ class SuccessMetricsTracker {
   }
 
   private isReturnVisitor(): boolean {
-    const visitCount = parseInt(localStorage.getItem('visitCount') || '0');
+    const visitCount = parseInt(localStorage.getItem("visitCount") || "0");
     return visitCount > 1;
   }
 
@@ -534,8 +584,8 @@ class SuccessMetricsTracker {
 
   private startPeriodicReporting(): void {
     // Update visit count
-    const visitCount = parseInt(localStorage.getItem('visitCount') || '0') + 1;
-    localStorage.setItem('visitCount', visitCount.toString());
+    const visitCount = parseInt(localStorage.getItem("visitCount") || "0") + 1;
+    localStorage.setItem("visitCount", visitCount.toString());
 
     // Send metrics periodically
     setInterval(() => {
@@ -543,29 +593,32 @@ class SuccessMetricsTracker {
     }, 30000); // Every 30 seconds
 
     // Send metrics on page unload
-    window.addEventListener('beforeunload', () => {
+    window.addEventListener("beforeunload", () => {
       this.reportMetrics(true);
     });
   }
 
   private async reportMetrics(isUnloading = false): Promise<void> {
     const metrics = this.getSuccessMetrics();
-    
+
     try {
-      const method = isUnloading ? 'sendBeacon' : 'fetch';
-      
-      if (method === 'sendBeacon' && navigator.sendBeacon) {
-        navigator.sendBeacon('/api/monitoring/metrics', JSON.stringify(metrics));
+      const method = isUnloading ? "sendBeacon" : "fetch";
+
+      if (method === "sendBeacon" && navigator.sendBeacon) {
+        navigator.sendBeacon(
+          "/api/monitoring/metrics",
+          JSON.stringify(metrics)
+        );
       } else {
-        await fetch('/api/monitoring/metrics', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        await fetch("/api/monitoring/metrics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(metrics),
           keepalive: isUnloading,
         });
       }
     } catch (error) {
-      console.warn('Failed to report metrics:', error);
+      console.warn("Failed to report metrics:", error);
     }
   }
 
@@ -580,7 +633,7 @@ class SuccessMetricsTracker {
       try {
         callback(data);
       } catch (error) {
-        console.warn('Error in metrics subscriber:', error);
+        console.warn("Error in metrics subscriber:", error);
       }
     });
   }
@@ -596,7 +649,7 @@ class SuccessMetricsTracker {
 export function useSuccessMetrics() {
   const tracker = SuccessMetricsTracker.getInstance();
   const [metrics, setMetrics] = useState<SuccessMetricsData | null>(null);
-  const refreshInterval = useRef<NodeJS.Timeout>();
+  const refreshInterval = useRef<NodeJS.Timeout | undefined>(undefined);
 
   useEffect(() => {
     const updateMetrics = () => {
@@ -617,9 +670,12 @@ export function useSuccessMetrics() {
     };
   }, [tracker]);
 
-  const defineFunnel = useCallback((funnel: ConversionFunnel) => {
-    tracker.defineFunnel(funnel);
-  }, [tracker]);
+  const defineFunnel = useCallback(
+    (funnel: ConversionFunnel) => {
+      tracker.defineFunnel(funnel);
+    },
+    [tracker]
+  );
 
   return {
     metrics,
@@ -631,11 +687,11 @@ export function useSuccessMetrics() {
 export const successMetrics = SuccessMetricsTracker.getInstance();
 
 // Export types
-export type { 
-  UserAction, 
-  ConversionFunnel, 
-  EngagementMetrics, 
-  PerformanceMetrics, 
-  ConversionMetrics, 
-  SuccessMetricsData 
+export type {
+  UserAction,
+  ConversionFunnel,
+  EngagementMetrics,
+  PerformanceMetrics,
+  ConversionMetrics,
+  SuccessMetricsData,
 };

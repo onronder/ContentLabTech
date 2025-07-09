@@ -253,9 +253,21 @@ export function useAriaSelected<T = string>(
   initialSelected?: T,
   multiSelect = false
 ) {
-  const [selected, setSelected] = useState<T | T[]>(
-    multiSelect ? [] : initialSelected || options[0]
-  );
+  const getInitialValue = (): T | T[] => {
+    if (multiSelect) {
+      return [] as T[];
+    }
+    if (initialSelected !== undefined) {
+      return initialSelected;
+    }
+    if (options.length > 0) {
+      return options[0] as T;
+    }
+    // Fallback - return empty array when no options available
+    return [] as T[];
+  };
+
+  const [selected, setSelected] = useState<T | T[]>(getInitialValue);
 
   const select = useCallback(
     (option: T) => {
