@@ -30,8 +30,21 @@ interface ProjectFilters {
 
 export const POST = withApiAuth(async (request: NextRequest, user) => {
   try {
+    console.log("🚀 Projects API POST - Starting request handling");
+    console.log("👤 Authenticated user:", { id: user.id, email: user.email });
+    
     // Parse request body
     const body: CreateProjectRequest = await request.json();
+    console.log("📝 Request body parsed:", {
+      teamId: body.teamId,
+      name: body.name,
+      hasDescription: !!body.description,
+      hasWebsiteUrl: !!body.website_url,
+      keywordsCount: body.target_keywords?.length || 0,
+      goalsCount: body.content_goals?.length || 0,
+      competitorsCount: body.competitors?.length || 0
+    });
+    
     const {
       teamId,
       name,
@@ -45,6 +58,7 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
     } = body;
 
     if (!teamId || !name) {
+      console.log("❌ Missing required fields:", { teamId: !!teamId, name: !!name });
       return createApiErrorResponse(
         "Team ID and project name are required",
         400,
@@ -53,8 +67,12 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
     }
 
     // Validate team access (requires admin or owner role)
+    console.log("🔍 Validating team access:", { userId: user.id, teamId, requiredRole: "admin" });
     const teamAccess = await validateTeamAccess(user.id, teamId, "admin");
+    console.log("🔐 Team access result:", teamAccess);
+    
     if (!teamAccess.hasAccess) {
+      console.log("🚫 Team access denied:", teamAccess.error);
       return createApiErrorResponse(
         teamAccess.error || "Insufficient permissions to create projects",
         403,
@@ -62,6 +80,7 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
       );
     }
 
+    console.log("🔧 Initializing Supabase client");
     const supabase = createClient(
       process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
       process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
@@ -74,21 +93,25 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
     );
 
     // Create project
+    console.log("💾 Creating project in database");
+    const insertData = {
+      team_id: teamId,
+      name,
+      description,
+      website_url,
+      target_keywords,
+      target_audience,
+      content_goals,
+      competitors,
+      settings,
+      status: "active",
+      created_by: user.id,
+    };
+    console.log("📊 Project data to insert:", insertData);
+    
     const { data: newProject, error: createError } = await supabase
       .from("projects")
-      .insert({
-        team_id: teamId,
-        name,
-        description,
-        website_url,
-        target_keywords,
-        target_audience,
-        content_goals,
-        competitors,
-        settings,
-        status: "active",
-        created_by: user.id,
-      })
+      .insert(insertData)
       .select(
         `
         *,
@@ -101,10 +124,17 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
       )
       .single();
 
+    console.log("💾 Database operation result:", {
+      hasProject: !!newProject,
+      hasError: !!createError,
+      errorMessage: createError?.message,
+      errorCode: createError?.code
+    });
+
     if (createError) {
-      console.error("Error creating project:", createError);
+      console.error("❌ Error creating project:", createError);
       return createApiErrorResponse(
-        "Failed to create project",
+        `Failed to create project: ${createError.message}`,
         500,
         "CREATE_PROJECT_ERROR"
       );

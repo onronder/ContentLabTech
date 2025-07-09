@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import {
-  getCurrentUser,
-  createClient,
-  validateProjectAccess,
-  createErrorResponse,
-} from "@/lib/auth/session";
+  withApiAuth,
+  createApiSuccessResponse,
+  createApiErrorResponse,
+  validateTeamAccess,
+} from "@/lib/auth/api-auth";
 
 interface CreateContentRequest {
   projectId: string;
@@ -27,13 +28,10 @@ interface ContentFilters {
   offset: number;
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withApiAuth(async (request: NextRequest, user) => {
   try {
-    // Authenticate user
-    const user = await getCurrentUser();
-    if (!user) {
-      return createErrorResponse("Authentication required", 401);
-    }
+    console.log("🚀 Content API POST - Starting request handling");
+    console.log("👤 Authenticated user:", { id: user.id, email: user.email });
 
     // Parse request body
     const body: CreateContentRequest = await request.json();
@@ -50,19 +48,49 @@ export async function POST(request: NextRequest) {
     } = body;
 
     if (!projectId || !title || !content) {
-      return createErrorResponse(
+      return createApiErrorResponse(
         "Project ID, title, and content are required",
-        400
+        400,
+        "INVALID_REQUEST"
       );
     }
 
-    // Validate project access
-    const hasAccess = await validateProjectAccess(projectId, "member");
-    if (!hasAccess) {
-      return createErrorResponse("Insufficient permissions", 403);
+    // Validate project access - first need to get the team from project
+    const supabase = createClient(
+      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
+
+    // Get project to determine team ownership
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("team_id")
+      .eq("id", projectId)
+      .single();
+
+    if (projectError || !project) {
+      return createApiErrorResponse(
+        "Project not found",
+        404,
+        "PROJECT_NOT_FOUND"
+      );
     }
 
-    const supabase = await createClient();
+    // Validate team access (requires member or higher)
+    const teamAccess = await validateTeamAccess(user.id, project.team_id, "member");
+    if (!teamAccess.hasAccess) {
+      return createApiErrorResponse(
+        teamAccess.error || "Insufficient permissions to create content",
+        403,
+        "INSUFFICIENT_PERMISSIONS"
+      );
+    }
 
     // Calculate initial SEO scores
     const seoScore = calculateSEOScore(
@@ -99,7 +127,11 @@ export async function POST(request: NextRequest) {
 
     if (createError) {
       console.error("Error creating content:", createError);
-      return createErrorResponse("Failed to create content", 500);
+      return createApiErrorResponse(
+        "Failed to create content",
+        500,
+        "CREATE_CONTENT_ERROR"
+      );
     }
 
     // Log content creation
@@ -127,26 +159,26 @@ export async function POST(request: NextRequest) {
       // Don't fail the request if analysis fails
     }
 
-    return NextResponse.json(
+    return createApiSuccessResponse(
       {
-        success: true,
         content: newContent,
       },
-      { status: 201 }
+      201
     );
   } catch (error) {
     console.error("API error:", error);
-    return createErrorResponse("Internal server error", 500);
+    return createApiErrorResponse(
+      "Internal server error",
+      500,
+      "INTERNAL_ERROR"
+    );
   }
-}
+});
 
-export async function GET(request: NextRequest) {
+export const GET = withApiAuth(async (request: NextRequest, user) => {
   try {
-    // Authenticate user
-    const user = await getCurrentUser();
-    if (!user) {
-      return createErrorResponse("Authentication required", 401);
-    }
+    console.log("🚀 Content API GET - Starting request handling");
+    console.log("👤 Authenticated user:", { id: user.id, email: user.email });
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -166,7 +198,16 @@ export async function GET(request: NextRequest) {
     if (contentType) filters.content_type = contentType;
     if (search) filters.search = search;
 
-    const supabase = await createClient();
+    const supabase = createClient(
+      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
 
     // Build query
     let query = supabase.from("content_items").select(`
@@ -194,14 +235,31 @@ export async function GET(request: NextRequest) {
 
     // Apply filters
     if (filters.projectId) {
-      // Validate project access
-      const hasAccess = await validateProjectAccess(
-        filters.projectId,
-        "viewer"
-      );
-      if (!hasAccess) {
-        return createErrorResponse("Insufficient permissions", 403);
+      // Get project to validate team access
+      const { data: project, error: projectError } = await supabase
+        .from("projects")
+        .select("team_id")
+        .eq("id", filters.projectId)
+        .single();
+
+      if (projectError || !project) {
+        return createApiErrorResponse(
+          "Project not found",
+          404,
+          "PROJECT_NOT_FOUND"
+        );
       }
+
+      // Validate team access (requires viewer or higher)
+      const teamAccess = await validateTeamAccess(user.id, project.team_id, "viewer");
+      if (!teamAccess.hasAccess) {
+        return createApiErrorResponse(
+          teamAccess.error || "Insufficient permissions to view content",
+          403,
+          "INSUFFICIENT_PERMISSIONS"
+        );
+      }
+      
       query = query.eq("project_id", filters.projectId);
     } else if (teamId) {
       // Filter by team - get projects for this team
@@ -211,7 +269,7 @@ export async function GET(request: NextRequest) {
         .eq("team_id", teamId);
 
       if (!teamProjects?.length) {
-        return NextResponse.json({
+        return createApiSuccessResponse({
           content: [],
           total: 0,
           filters,
@@ -228,7 +286,7 @@ export async function GET(request: NextRequest) {
         .eq("user_id", user.id);
 
       if (!teamMemberships?.length) {
-        return NextResponse.json({
+        return createApiSuccessResponse({
           content: [],
           total: 0,
           filters,
@@ -242,7 +300,7 @@ export async function GET(request: NextRequest) {
         .in("team_id", teamIds);
 
       if (!projects?.length) {
-        return NextResponse.json({
+        return createApiSuccessResponse({
           content: [],
           total: 0,
           filters,
@@ -279,19 +337,27 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Error fetching content:", error);
-      return createErrorResponse("Failed to fetch content", 500);
+      return createApiErrorResponse(
+        "Failed to fetch content", 
+        500,
+        "FETCH_CONTENT_ERROR"
+      );
     }
 
-    return NextResponse.json({
+    return createApiSuccessResponse({
       content: content || [],
       total: count || 0,
       filters,
     });
   } catch (error) {
     console.error("API error:", error);
-    return createErrorResponse("Internal server error", 500);
+    return createApiErrorResponse(
+      "Internal server error",
+      500,
+      "INTERNAL_ERROR"
+    );
   }
-}
+});
 
 // Helper functions
 function calculateSEOScore(

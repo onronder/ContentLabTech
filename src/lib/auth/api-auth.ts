@@ -43,15 +43,28 @@ export async function authenticateApiRequest(
 
   // Method 1: Bearer Token (Preferred for API calls)
   const authHeader = request.headers.get("authorization");
+  console.log("🔍 Auth header analysis:", {
+    hasAuthHeader: !!authHeader,
+    startsWithBearer: authHeader?.startsWith("Bearer "),
+    headerValue: authHeader ? `${authHeader.substring(0, 20)}...` : null
+  });
+  
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.replace("Bearer ", "");
-    console.log("🎫 Validating Bearer token...");
+    console.log(`🎫 Validating Bearer token (${token.substring(0, 20)}...)`);
 
     try {
       const {
         data: { user },
         error,
       } = await supabaseServiceRole.auth.getUser(token);
+
+      console.log("🔍 Bearer token validation result:", {
+        hasUser: !!user,
+        hasError: !!error,
+        errorMessage: error?.message,
+        userId: user?.id
+      });
 
       if (!error && user) {
         console.log(`✅ Bearer auth successful: ${user.id}`);
@@ -68,12 +81,20 @@ export async function authenticateApiRequest(
     } catch (error) {
       console.log(`💥 Bearer token error: ${error}`);
     }
+  } else {
+    console.log("❌ No valid Bearer token in Authorization header");
   }
 
   // Method 2: Session-based Authentication (Fallback)
   console.log("🍪 Trying session authentication...");
   try {
     const user = await getCurrentUser();
+    console.log("🔍 Session auth result:", {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email
+    });
+    
     if (user) {
       console.log(`✅ Session auth successful: ${user.id}`);
       return {
@@ -81,6 +102,8 @@ export async function authenticateApiRequest(
         error: null,
         method: "session",
       };
+    } else {
+      console.log("❌ No user found in session");
     }
   } catch (error) {
     console.log(`💥 Session auth error: ${error}`);

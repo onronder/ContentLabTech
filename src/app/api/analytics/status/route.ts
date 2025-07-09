@@ -4,12 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import {
-  getCurrentUser,
-  createClient,
+  withApiAuth,
+  createApiSuccessResponse,
+  createApiErrorResponse,
   validateTeamAccess,
-  createErrorResponse,
-} from "@/lib/auth/session";
+} from "@/lib/auth/api-auth";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { jobQueue } from "@/lib/jobs/queue";
@@ -30,21 +31,10 @@ import {
 } from "@/lib/resilience/gracefulDegradation";
 // import { retryDatabaseOperation } from "@/lib/resilience/retryMechanism";
 
-export async function GET(request: NextRequest) {
+export const GET = withApiAuth(async (request: NextRequest, user) => {
   try {
-    // Skip authentication during build time
-    if (
-      process.env.NODE_ENV !== "production" &&
-      !request.headers.get("cookie")
-    ) {
-      // During build time, skip authentication
-    } else {
-      // Authenticate user
-      const user = await getCurrentUser();
-      if (!user) {
-        return createErrorResponse("Authentication required", 401);
-      }
-    }
+    console.log("🚀 Analytics Status API GET - Starting request handling");
+    console.log("👤 Authenticated user:", { id: user.id, email: user.email });
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
@@ -52,19 +42,29 @@ export async function GET(request: NextRequest) {
     const jobId = searchParams.get("jobId");
 
     if (!projectId && !jobId && !teamId) {
-      return createErrorResponse(
+      return createApiErrorResponse(
         "Either projectId, teamId, or jobId is required",
-        400
+        400,
+        "INVALID_REQUEST"
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createClient(
+      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
 
     // If specific job ID requested
     if (jobId) {
       const job = jobQueue.getJob(jobId);
       if (!job) {
-        return createErrorResponse("Job not found", 404);
+        return createApiErrorResponse("Job not found", 404, "JOB_NOT_FOUND");
       }
 
       // Validate team access for the job's project
@@ -75,12 +75,16 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (!project) {
-        return createErrorResponse("Project not found", 404);
+        return createApiErrorResponse("Project not found", 404, "PROJECT_NOT_FOUND");
       }
 
-      const hasAccess = await validateTeamAccess(project.team_id, "viewer");
-      if (!hasAccess) {
-        return createErrorResponse("Insufficient permissions", 403);
+      const teamAccess = await validateTeamAccess(user.id, project.team_id, "viewer");
+      if (!teamAccess.hasAccess) {
+        return createApiErrorResponse(
+          teamAccess.error || "Insufficient permissions",
+          403,
+          "INSUFFICIENT_PERMISSIONS"
+        );
       }
 
       const optimizationOptions = detectOptimizationNeeds(request);

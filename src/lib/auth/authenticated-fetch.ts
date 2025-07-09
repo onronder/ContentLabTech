@@ -86,20 +86,58 @@ export async function authenticatedFetch(
         ...(customHeaders as Record<string, string>),
       };
 
-      // 1. Add Authentication Headers
-      if (requireAuth && authContext?.session?.access_token) {
-        headers["Authorization"] = `Bearer ${authContext.session.access_token}`;
-        console.log("🔐 Bearer token added");
+      // 1. Add Authentication Headers - Debug session structure
+      if (requireAuth && authContext?.session) {
+        console.log("🔍 Debug session structure:", {
+          hasAccessToken: !!authContext.session.access_token,
+          hasRefreshToken: !!authContext.session.refresh_token,
+          sessionKeys: Object.keys(authContext.session),
+          expiresAt: authContext.session.expires_at,
+          fullSessionStructure: JSON.stringify(authContext.session, null, 2)
+        });
+        
+        // Try different possible token properties in Supabase session
+        const accessToken = authContext.session.access_token || 
+                           authContext.session.accessToken ||
+                           authContext.session.token ||
+                           authContext.session.jwt;
+        
+        if (accessToken) {
+          headers["Authorization"] = `Bearer ${accessToken}`;
+          console.log("🔐 Bearer token added successfully");
+        } else {
+          console.warn("⚠️ Session exists but no access token found in any expected property");
+        }
+      } else if (requireAuth) {
+        console.warn("⚠️ No auth context or session available");
       }
 
       // 2. Add CSRF Token using enhanced manager
       if (includeCsrf && typeof document !== "undefined") {
         const csrfToken = csrfManager.getCSRFTokenFromBrowser();
+        console.log("🔍 CSRF token debug:", {
+          hasCsrfToken: !!csrfToken,
+          csrfTokenLength: csrfToken?.length,
+          includeCsrf,
+          isClientSide: typeof document !== "undefined"
+        });
+        
         if (csrfToken) {
           headers["x-csrf-token"] = csrfToken;
           console.log("🛡️ CSRF token added via manager");
-        } else if (requireAuth) {
-          console.warn("⚠️ CSRF token not found - this may cause issues");
+        } else {
+          console.warn("⚠️ CSRF token not found - generating new one");
+          // Try to generate a new CSRF token
+          try {
+            csrfManager.generateCSRFToken();
+            const newToken = csrfManager.getCSRFTokenFromBrowser();
+            if (newToken) {
+              headers["x-csrf-token"] = newToken;
+              console.log("🛡️ New CSRF token generated and added");
+            }
+          } catch (error) {
+            console.error("❌ Failed to generate CSRF token:", error);
+          }
         }
       }
 

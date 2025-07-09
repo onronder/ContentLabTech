@@ -260,7 +260,15 @@ export const CreateProjectModal = ({
         settings: {},
       };
 
-      // Use production-grade authenticated fetch
+      // Use production-grade authenticated fetch with enhanced debugging
+      console.log("🔍 Auth context for project creation:", {
+        hasSession: !!session,
+        sessionKeys: session ? Object.keys(session) : [],
+        hasAccessToken: !!(session?.access_token),
+        currentTeam: currentTeam?.id,
+        userId: session?.user?.id
+      });
+
       const authContext = {
         session,
         refreshSession: async () => {
@@ -269,6 +277,7 @@ export const CreateProjectModal = ({
           } = await supabase.auth.getSession();
           if (newSession) {
             console.log("🔄 Session refreshed for project creation");
+            return newSession;
           }
         },
       };
@@ -278,6 +287,10 @@ export const CreateProjectModal = ({
         {
           method: "POST",
           body: JSON.stringify(payload),
+          requireAuth: true,
+          includeCsrf: true,
+          retryOnAuth: true,
+          maxRetries: 2
         },
         authContext
       );
