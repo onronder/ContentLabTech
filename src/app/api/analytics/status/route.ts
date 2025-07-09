@@ -3,13 +3,13 @@
  * Provides real-time status of analysis jobs and results
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   getCurrentUser,
+  createClient,
   validateTeamAccess,
   createErrorResponse,
 } from "@/lib/auth/session";
-import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { jobQueue } from "@/lib/jobs/queue";
@@ -48,16 +48,17 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+    const teamId = searchParams.get("teamId");
     const jobId = searchParams.get("jobId");
 
-    if (!projectId && !jobId) {
-      return createErrorResponse("Either projectId or jobId is required", 400);
+    if (!projectId && !jobId && !teamId) {
+      return createErrorResponse(
+        "Either projectId, teamId, or jobId is required",
+        400
+      );
     }
 
-    const supabase: SupabaseClient<Database> = createClient(
-      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["SUPABASE_SERVICE_ROLE_KEY"]!
-    );
+    const supabase = await createClient();
 
     // If specific job ID requested
     if (jobId) {
@@ -99,6 +100,95 @@ export async function GET(request: NextRequest) {
         },
         optimizationOptions
       );
+    }
+
+    // If team ID requested, get all jobs for team projects
+    if (teamId && !projectId) {
+      // Get projects for this team
+      const { data: teamProjects } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("team_id", teamId);
+
+      if (!teamProjects?.length) {
+        const optimizationOptions = detectOptimizationNeeds(request);
+
+        return createOptimizedResponse(
+          {
+            teamId,
+            jobs: [],
+            results: {},
+            queueStats: {
+              total: 0,
+              pending: 0,
+              processing: 0,
+              completed: 0,
+              failed: 0,
+              processing_capacity: 1,
+            },
+            summary: {
+              totalJobs: 0,
+              completedJobs: 0,
+              failedJobs: 0,
+              processingJobs: 0,
+              pendingJobs: 0,
+            },
+          },
+          optimizationOptions
+        );
+      }
+
+      // Get all jobs for all projects in team
+      const allProjectJobs = teamProjects.flatMap(project =>
+        jobQueue.getProjectJobs(project.id)
+      );
+
+      // Get aggregated analysis results for all projects
+      const teamAnalysisResults: Record<string, unknown> = {};
+      for (const project of teamProjects) {
+        const analysisResults = await withGracefulDegradation(
+          () => getAnalysisResultsCached(supabase, project.id),
+          () => getAnalysisResultsFromCache(project.id),
+          { projectId: project.id, operationType: "analytics-results" }
+        );
+
+        if (Object.keys(analysisResults).length > 0) {
+          teamAnalysisResults[project.id] = analysisResults;
+        }
+      }
+
+      const queueStats = jobQueue.getStats();
+      const optimizationOptions = detectOptimizationNeeds(request);
+
+      const responseData = {
+        teamId,
+        projectCount: teamProjects.length,
+        jobs: allProjectJobs.map(job => ({
+          id: job.id,
+          type: job.type,
+          status: job.status,
+          progress: job.progress,
+          progressMessage: job.progressMessage,
+          createdAt: job.createdAt,
+          completedAt: job.completedAt,
+          error: job.error,
+          projectId: job.data.projectId,
+        })),
+        results: teamAnalysisResults,
+        queueStats,
+        summary: {
+          totalJobs: allProjectJobs.length,
+          completedJobs: allProjectJobs.filter(j => j.status === "completed")
+            .length,
+          failedJobs: allProjectJobs.filter(j => j.status === "failed").length,
+          processingJobs: allProjectJobs.filter(j => j.status === "processing")
+            .length,
+          pendingJobs: allProjectJobs.filter(j => j.status === "pending")
+            .length,
+        },
+      };
+
+      return createOptimizedResponse(responseData, optimizationOptions);
     }
 
     // If project ID requested, get all jobs for project

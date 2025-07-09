@@ -9,7 +9,11 @@ import React, { useState, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/context";
-import { authenticatedFetch, AuthenticationError, CSRFError } from "@/lib/auth/authenticated-fetch";
+import {
+  authenticatedFetch,
+  AuthenticationError,
+  CSRFError,
+} from "@/lib/auth/authenticated-fetch";
 import { supabase } from "@/lib/supabase/client";
 
 // Enhanced UI Components
@@ -20,7 +24,7 @@ import {
   EnhancedDialogTitle,
   EnhancedDialogDescription,
   EnhancedDialogBody,
-  EnhancedDialogFooter
+  EnhancedDialogFooter,
 } from "@/components/ui/enhanced-dialog";
 
 import {
@@ -29,7 +33,7 @@ import {
   FormField,
   FormRow,
   SmartFieldGroup,
-  PriorityField
+  PriorityField,
 } from "@/components/ui/enhanced-form-layout";
 
 import {
@@ -37,14 +41,14 @@ import {
   EnhancedTextarea,
   SearchInput,
   TagInput,
-  EnhancedCombobox
+  EnhancedCombobox,
 } from "@/components/ui/enhanced-form-controls";
 
 import {
   SmartFormWizard,
   WizardStep,
   WizardValidationResult,
-  useWizard
+  useWizard,
 } from "@/components/ui/smart-form-wizard";
 
 import { useAdvancedFormState } from "@/hooks/use-advanced-form-state";
@@ -64,7 +68,7 @@ import {
   Building,
   Calendar,
   Clock,
-  CheckCircle2
+  CheckCircle2,
 } from "lucide-react";
 
 interface Project {
@@ -103,7 +107,7 @@ interface ProjectFormData {
     industry: string;
     business_model: string;
   };
-  
+
   // Target & Strategy
   strategy: {
     target_audience: string;
@@ -111,14 +115,14 @@ interface ProjectFormData {
     content_goals: string[];
     primary_objective: string;
   };
-  
+
   // Competitive Analysis
   competitive: {
     competitors: string[];
     competitive_advantages: string[];
     market_position: string;
   };
-  
+
   // Project Setup
   setup: {
     launch_timeline: string;
@@ -135,59 +139,123 @@ const initialFormData: ProjectFormData = {
     description: "",
     website_url: "",
     industry: "",
-    business_model: ""
+    business_model: "",
   },
   strategy: {
     target_audience: "",
     target_keywords: [],
     content_goals: [],
-    primary_objective: ""
+    primary_objective: "",
   },
   competitive: {
     competitors: [],
     competitive_advantages: [],
-    market_position: ""
+    market_position: "",
   },
   setup: {
     launch_timeline: "",
     budget_range: "",
     team_size: "",
     success_metrics: [],
-    priority_level: "medium"
-  }
+    priority_level: "medium",
+  },
 };
 
 // Step Components
 const BasicInformationStep: React.FC = () => {
   const { data, updateData } = useWizard();
-  const basicData = data['basic'] || {};
-  
+  const basicData = data["basic"] || {};
+
   const updateBasicField = (field: string, value: any) => {
-    updateData('basic', { ...basicData, [field]: value });
+    updateData("basic", { ...basicData, [field]: value });
   };
 
   const industryOptions = [
-    { label: "Technology", value: "technology", description: "Software, SaaS, Hardware" },
-    { label: "E-commerce", value: "ecommerce", description: "Online retail, Marketplaces" },
-    { label: "Healthcare", value: "healthcare", description: "Medical, Wellness, Pharma" },
-    { label: "Finance", value: "finance", description: "Fintech, Banking, Insurance" },
-    { label: "Education", value: "education", description: "EdTech, Training, Courses" },
-    { label: "Media", value: "media", description: "Publishing, Entertainment, News" },
-    { label: "Real Estate", value: "realestate", description: "Property, Construction" },
-    { label: "Food & Beverage", value: "food", description: "Restaurants, CPG, Agriculture" },
-    { label: "Travel", value: "travel", description: "Tourism, Hospitality, Transport" },
-    { label: "Other", value: "other", description: "Custom industry" }
+    {
+      label: "Technology",
+      value: "technology",
+      description: "Software, SaaS, Hardware",
+    },
+    {
+      label: "E-commerce",
+      value: "ecommerce",
+      description: "Online retail, Marketplaces",
+    },
+    {
+      label: "Healthcare",
+      value: "healthcare",
+      description: "Medical, Wellness, Pharma",
+    },
+    {
+      label: "Finance",
+      value: "finance",
+      description: "Fintech, Banking, Insurance",
+    },
+    {
+      label: "Education",
+      value: "education",
+      description: "EdTech, Training, Courses",
+    },
+    {
+      label: "Media",
+      value: "media",
+      description: "Publishing, Entertainment, News",
+    },
+    {
+      label: "Real Estate",
+      value: "realestate",
+      description: "Property, Construction",
+    },
+    {
+      label: "Food & Beverage",
+      value: "food",
+      description: "Restaurants, CPG, Agriculture",
+    },
+    {
+      label: "Travel",
+      value: "travel",
+      description: "Tourism, Hospitality, Transport",
+    },
+    { label: "Other", value: "other", description: "Custom industry" },
   ];
 
   const businessModelOptions = [
-    { label: "B2B SaaS", value: "b2b_saas", description: "Business software solutions" },
-    { label: "B2C E-commerce", value: "b2c_ecommerce", description: "Direct consumer sales" },
-    { label: "Marketplace", value: "marketplace", description: "Multi-sided platform" },
-    { label: "Subscription", value: "subscription", description: "Recurring revenue model" },
-    { label: "Freemium", value: "freemium", description: "Free tier with premium features" },
-    { label: "Service Business", value: "service", description: "Professional services" },
-    { label: "Content/Media", value: "content", description: "Information and entertainment" },
-    { label: "Other", value: "other", description: "Custom business model" }
+    {
+      label: "B2B SaaS",
+      value: "b2b_saas",
+      description: "Business software solutions",
+    },
+    {
+      label: "B2C E-commerce",
+      value: "b2c_ecommerce",
+      description: "Direct consumer sales",
+    },
+    {
+      label: "Marketplace",
+      value: "marketplace",
+      description: "Multi-sided platform",
+    },
+    {
+      label: "Subscription",
+      value: "subscription",
+      description: "Recurring revenue model",
+    },
+    {
+      label: "Freemium",
+      value: "freemium",
+      description: "Free tier with premium features",
+    },
+    {
+      label: "Service Business",
+      value: "service",
+      description: "Professional services",
+    },
+    {
+      label: "Content/Media",
+      value: "content",
+      description: "Information and entertainment",
+    },
+    { label: "Other", value: "other", description: "Custom business model" },
   ];
 
   return (
@@ -196,7 +264,7 @@ const BasicInformationStep: React.FC = () => {
         <FormSection
           title="Tell us about your project"
           description="Start with the basics - we'll help you build a comprehensive content strategy"
-          icon={<Building className="w-5 h-5" />}
+          icon={<Building className="h-5 w-5" />}
         >
           <FormRow columns={1} spacing="relaxed">
             <PriorityField
@@ -210,10 +278,10 @@ const BasicInformationStep: React.FC = () => {
                 size="lg"
                 placeholder="Enter your project name..."
                 value={basicData.name || ""}
-                onChange={(e) => updateBasicField('name', e.target.value)}
+                onChange={e => updateBasicField("name", e.target.value)}
                 animated
                 clearable
-                onClear={() => updateBasicField('name', "")}
+                onClear={() => updateBasicField("name", "")}
               />
             </PriorityField>
 
@@ -228,7 +296,7 @@ const BasicInformationStep: React.FC = () => {
               <EnhancedTextarea
                 placeholder="Describe your project goals, target market, and what success looks like..."
                 value={basicData.description || ""}
-                onChange={(e) => updateBasicField('description', e.target.value)}
+                onChange={e => updateBasicField("description", e.target.value)}
                 autoResize
                 minRows={3}
                 maxRows={6}
@@ -242,23 +310,23 @@ const BasicInformationStep: React.FC = () => {
         <FormSection
           title="Business Context"
           description="Help us understand your business for better recommendations"
-          icon={<TrendingUp className="w-5 h-5" />}
+          icon={<TrendingUp className="h-5 w-5" />}
         >
           <FormRow columns={2} spacing="comfortable">
             <FormField
               label="Website URL"
               description="Your main website or landing page"
               optional
-              icon={<Globe className="w-4 h-4" />}
+              icon={<Globe className="h-4 w-4" />}
             >
               <EnhancedInput
                 type="url"
                 placeholder="https://your-website.com"
                 value={basicData.website_url || ""}
-                onChange={(e) => updateBasicField('website_url', e.target.value)}
-                leftIcon={<Globe className="w-4 h-4" />}
+                onChange={e => updateBasicField("website_url", e.target.value)}
+                leftIcon={<Globe className="h-4 w-4" />}
                 clearable
-                onClear={() => updateBasicField('website_url', "")}
+                onClear={() => updateBasicField("website_url", "")}
               />
             </FormField>
 
@@ -266,19 +334,19 @@ const BasicInformationStep: React.FC = () => {
               label="Industry"
               description="Your primary business sector"
               required
-              icon={<Building className="w-4 h-4" />}
+              icon={<Building className="h-4 w-4" />}
             >
               <EnhancedCombobox
                 value={basicData.industry || ""}
-                onValueChange={(value) => updateBasicField('industry', value)}
+                onValueChange={value => updateBasicField("industry", value)}
                 options={industryOptions}
                 placeholder="Select your industry..."
                 searchPlaceholder="Search industries..."
                 clearable
                 creatable
-                onCreateOption={(value) => {
+                onCreateOption={value => {
                   // Handle custom industry creation
-                  updateBasicField('industry', value);
+                  updateBasicField("industry", value);
                 }}
               />
             </FormField>
@@ -291,14 +359,16 @@ const BasicInformationStep: React.FC = () => {
             >
               <EnhancedCombobox
                 value={basicData.business_model || ""}
-                onValueChange={(value) => updateBasicField('business_model', value)}
+                onValueChange={value =>
+                  updateBasicField("business_model", value)
+                }
                 options={businessModelOptions}
                 placeholder="Select your business model..."
                 searchPlaceholder="Search business models..."
                 clearable
                 creatable
-                onCreateOption={(value) => {
-                  updateBasicField('business_model', value);
+                onCreateOption={value => {
+                  updateBasicField("business_model", value);
                 }}
               />
             </FormField>
@@ -311,10 +381,10 @@ const BasicInformationStep: React.FC = () => {
 
 const StrategyDefinitionStep: React.FC = () => {
   const { data, updateData } = useWizard();
-  const strategyData = data['strategy'] || {};
-  
+  const strategyData = data["strategy"] || {};
+
   const updateStrategyField = (field: string, value: any) => {
-    updateData('strategy', { ...strategyData, [field]: value });
+    updateData("strategy", { ...strategyData, [field]: value });
   };
 
   const contentGoalSuggestions = [
@@ -327,7 +397,7 @@ const StrategyDefinitionStep: React.FC = () => {
     "Convert prospects to customers",
     "Retain existing customers",
     "Launch new product/service",
-    "Enter new market"
+    "Enter new market",
   ];
 
   const keywordSuggestions = [
@@ -338,17 +408,45 @@ const StrategyDefinitionStep: React.FC = () => {
     "lead generation",
     "customer acquisition",
     "growth hacking",
-    "conversion optimization"
+    "conversion optimization",
   ];
 
   const objectiveOptions = [
-    { label: "Brand Awareness", value: "awareness", description: "Increase visibility and recognition" },
-    { label: "Lead Generation", value: "leads", description: "Capture qualified prospects" },
-    { label: "Customer Acquisition", value: "acquisition", description: "Convert leads to customers" },
-    { label: "Customer Retention", value: "retention", description: "Keep existing customers engaged" },
-    { label: "Thought Leadership", value: "leadership", description: "Establish industry authority" },
-    { label: "Product Launch", value: "launch", description: "Introduce new offerings" },
-    { label: "Market Expansion", value: "expansion", description: "Enter new markets or segments" }
+    {
+      label: "Brand Awareness",
+      value: "awareness",
+      description: "Increase visibility and recognition",
+    },
+    {
+      label: "Lead Generation",
+      value: "leads",
+      description: "Capture qualified prospects",
+    },
+    {
+      label: "Customer Acquisition",
+      value: "acquisition",
+      description: "Convert leads to customers",
+    },
+    {
+      label: "Customer Retention",
+      value: "retention",
+      description: "Keep existing customers engaged",
+    },
+    {
+      label: "Thought Leadership",
+      value: "leadership",
+      description: "Establish industry authority",
+    },
+    {
+      label: "Product Launch",
+      value: "launch",
+      description: "Introduce new offerings",
+    },
+    {
+      label: "Market Expansion",
+      value: "expansion",
+      description: "Enter new markets or segments",
+    },
   ];
 
   return (
@@ -357,7 +455,7 @@ const StrategyDefinitionStep: React.FC = () => {
         <FormSection
           title="Define Your Strategy"
           description="Set clear objectives and identify your target audience"
-          icon={<Target className="w-5 h-5" />}
+          icon={<Target className="h-5 w-5" />}
         >
           <FormRow columns={1} spacing="relaxed">
             <PriorityField
@@ -369,7 +467,9 @@ const StrategyDefinitionStep: React.FC = () => {
             >
               <EnhancedCombobox
                 value={strategyData.primary_objective || ""}
-                onValueChange={(value) => updateStrategyField('primary_objective', value)}
+                onValueChange={value =>
+                  updateStrategyField("primary_objective", value)
+                }
                 options={objectiveOptions}
                 placeholder="Select your primary objective..."
                 searchPlaceholder="Search objectives..."
@@ -389,7 +489,9 @@ const StrategyDefinitionStep: React.FC = () => {
               <EnhancedTextarea
                 placeholder="Small business owners aged 25-45 who struggle with digital marketing and need simple, effective solutions..."
                 value={strategyData.target_audience || ""}
-                onChange={(e) => updateStrategyField('target_audience', e.target.value)}
+                onChange={e =>
+                  updateStrategyField("target_audience", e.target.value)
+                }
                 autoResize
                 minRows={2}
                 maxRows={4}
@@ -403,7 +505,7 @@ const StrategyDefinitionStep: React.FC = () => {
         <FormSection
           title="Content Focus"
           description="Define your keywords and content goals"
-          icon={<FileText className="w-5 h-5" />}
+          icon={<FileText className="h-5 w-5" />}
         >
           <FormRow columns={1} spacing="comfortable">
             <FormField
@@ -412,14 +514,16 @@ const StrategyDefinitionStep: React.FC = () => {
               helpText="Add 5-15 relevant keywords for optimal focus"
               badge={
                 <Badge variant="outline" className="text-xs">
-                  <Sparkles className="w-3 h-3 mr-1" />
+                  <Sparkles className="mr-1 h-3 w-3" />
                   AI Powered
                 </Badge>
               }
             >
               <TagInput
                 value={strategyData.target_keywords || []}
-                onChange={(keywords) => updateStrategyField('target_keywords', keywords)}
+                onChange={keywords =>
+                  updateStrategyField("target_keywords", keywords)
+                }
                 suggestions={keywordSuggestions}
                 placeholder="Add target keywords..."
                 maxTags={15}
@@ -434,7 +538,7 @@ const StrategyDefinitionStep: React.FC = () => {
             >
               <TagInput
                 value={strategyData.content_goals || []}
-                onChange={(goals) => updateStrategyField('content_goals', goals)}
+                onChange={goals => updateStrategyField("content_goals", goals)}
                 suggestions={contentGoalSuggestions}
                 placeholder="Add content goals..."
                 maxTags={8}
@@ -450,19 +554,43 @@ const StrategyDefinitionStep: React.FC = () => {
 
 const CompetitiveAnalysisStep: React.FC = () => {
   const { data, updateData } = useWizard();
-  const competitiveData = data['competitive'] || {};
-  
+  const competitiveData = data["competitive"] || {};
+
   const updateCompetitiveField = (field: string, value: any) => {
-    updateData('competitive', { ...competitiveData, [field]: value });
+    updateData("competitive", { ...competitiveData, [field]: value });
   };
 
   const positionOptions = [
-    { label: "Market Leader", value: "leader", description: "Dominant position in the market" },
-    { label: "Challenger", value: "challenger", description: "Competing with market leaders" },
-    { label: "Follower", value: "follower", description: "Following market trends" },
-    { label: "Niche Player", value: "niche", description: "Specialized market segment" },
-    { label: "Disruptor", value: "disruptor", description: "Changing the market dynamics" },
-    { label: "New Entrant", value: "new", description: "Recently entered the market" }
+    {
+      label: "Market Leader",
+      value: "leader",
+      description: "Dominant position in the market",
+    },
+    {
+      label: "Challenger",
+      value: "challenger",
+      description: "Competing with market leaders",
+    },
+    {
+      label: "Follower",
+      value: "follower",
+      description: "Following market trends",
+    },
+    {
+      label: "Niche Player",
+      value: "niche",
+      description: "Specialized market segment",
+    },
+    {
+      label: "Disruptor",
+      value: "disruptor",
+      description: "Changing the market dynamics",
+    },
+    {
+      label: "New Entrant",
+      value: "new",
+      description: "Recently entered the market",
+    },
   ];
 
   const advantageSuggestions = [
@@ -475,7 +603,7 @@ const CompetitiveAnalysisStep: React.FC = () => {
     "Strong brand reputation",
     "Wider distribution",
     "Industry expertise",
-    "Innovation capability"
+    "Innovation capability",
   ];
 
   return (
@@ -484,7 +612,7 @@ const CompetitiveAnalysisStep: React.FC = () => {
         <FormSection
           title="Competitive Landscape"
           description="Understand your competitive position and advantages"
-          icon={<Users className="w-5 h-5" />}
+          icon={<Users className="h-5 w-5" />}
         >
           <FormRow columns={1} spacing="comfortable">
             <FormField
@@ -494,7 +622,9 @@ const CompetitiveAnalysisStep: React.FC = () => {
             >
               <EnhancedCombobox
                 value={competitiveData.market_position || ""}
-                onValueChange={(value) => updateCompetitiveField('market_position', value)}
+                onValueChange={value =>
+                  updateCompetitiveField("market_position", value)
+                }
                 options={positionOptions}
                 placeholder="Select your market position..."
                 searchPlaceholder="Search positions..."
@@ -509,14 +639,16 @@ const CompetitiveAnalysisStep: React.FC = () => {
               optional
               badge={
                 <Badge variant="outline" className="text-xs">
-                  <Search className="w-3 h-3 mr-1" />
+                  <Search className="mr-1 h-3 w-3" />
                   Auto Analysis
                 </Badge>
               }
             >
               <TagInput
                 value={competitiveData.competitors || []}
-                onChange={(competitors) => updateCompetitiveField('competitors', competitors)}
+                onChange={competitors =>
+                  updateCompetitiveField("competitors", competitors)
+                }
                 placeholder="Add competitor websites..."
                 maxTags={10}
                 allowDuplicates={false}
@@ -530,7 +662,9 @@ const CompetitiveAnalysisStep: React.FC = () => {
             >
               <TagInput
                 value={competitiveData.competitive_advantages || []}
-                onChange={(advantages) => updateCompetitiveField('competitive_advantages', advantages)}
+                onChange={advantages =>
+                  updateCompetitiveField("competitive_advantages", advantages)
+                }
                 suggestions={advantageSuggestions}
                 placeholder="Add your competitive advantages..."
                 maxTags={8}
@@ -546,40 +680,108 @@ const CompetitiveAnalysisStep: React.FC = () => {
 
 const ProjectSetupStep: React.FC = () => {
   const { data, updateData } = useWizard();
-  const setupData = data['setup'] || {};
-  
+  const setupData = data["setup"] || {};
+
   const updateSetupField = (field: string, value: any) => {
-    updateData('setup', { ...setupData, [field]: value });
+    updateData("setup", { ...setupData, [field]: value });
   };
 
   const timelineOptions = [
-    { label: "Immediate (0-1 month)", value: "immediate", description: "Quick launch needed" },
-    { label: "Short-term (1-3 months)", value: "short", description: "Near-term objectives" },
-    { label: "Medium-term (3-6 months)", value: "medium", description: "Standard timeline" },
-    { label: "Long-term (6-12 months)", value: "long", description: "Strategic initiative" },
-    { label: "Ongoing", value: "ongoing", description: "Continuous program" }
+    {
+      label: "Immediate (0-1 month)",
+      value: "immediate",
+      description: "Quick launch needed",
+    },
+    {
+      label: "Short-term (1-3 months)",
+      value: "short",
+      description: "Near-term objectives",
+    },
+    {
+      label: "Medium-term (3-6 months)",
+      value: "medium",
+      description: "Standard timeline",
+    },
+    {
+      label: "Long-term (6-12 months)",
+      value: "long",
+      description: "Strategic initiative",
+    },
+    { label: "Ongoing", value: "ongoing", description: "Continuous program" },
   ];
 
   const budgetOptions = [
-    { label: "Startup ($0-5K)", value: "startup", description: "Limited budget, DIY approach" },
-    { label: "Small Business ($5-25K)", value: "small", description: "Basic content program" },
-    { label: "Growth Stage ($25-100K)", value: "growth", description: "Scaling content efforts" },
-    { label: "Enterprise ($100K+)", value: "enterprise", description: "Comprehensive strategy" },
-    { label: "Custom Budget", value: "custom", description: "Specific requirements" }
+    {
+      label: "Startup ($0-5K)",
+      value: "startup",
+      description: "Limited budget, DIY approach",
+    },
+    {
+      label: "Small Business ($5-25K)",
+      value: "small",
+      description: "Basic content program",
+    },
+    {
+      label: "Growth Stage ($25-100K)",
+      value: "growth",
+      description: "Scaling content efforts",
+    },
+    {
+      label: "Enterprise ($100K+)",
+      value: "enterprise",
+      description: "Comprehensive strategy",
+    },
+    {
+      label: "Custom Budget",
+      value: "custom",
+      description: "Specific requirements",
+    },
   ];
 
   const teamSizeOptions = [
-    { label: "Solo (1 person)", value: "solo", description: "Individual contributor" },
-    { label: "Small Team (2-5)", value: "small", description: "Core team members" },
-    { label: "Medium Team (6-15)", value: "medium", description: "Dedicated content team" },
-    { label: "Large Team (15+)", value: "large", description: "Multiple content teams" }
+    {
+      label: "Solo (1 person)",
+      value: "solo",
+      description: "Individual contributor",
+    },
+    {
+      label: "Small Team (2-5)",
+      value: "small",
+      description: "Core team members",
+    },
+    {
+      label: "Medium Team (6-15)",
+      value: "medium",
+      description: "Dedicated content team",
+    },
+    {
+      label: "Large Team (15+)",
+      value: "large",
+      description: "Multiple content teams",
+    },
   ];
 
   const priorityOptions = [
-    { label: "Low Priority", value: "low", description: "Nice to have, flexible timeline" },
-    { label: "Medium Priority", value: "medium", description: "Important but not urgent" },
-    { label: "High Priority", value: "high", description: "Critical business objective" },
-    { label: "Urgent", value: "urgent", description: "Top priority, immediate attention" }
+    {
+      label: "Low Priority",
+      value: "low",
+      description: "Nice to have, flexible timeline",
+    },
+    {
+      label: "Medium Priority",
+      value: "medium",
+      description: "Important but not urgent",
+    },
+    {
+      label: "High Priority",
+      value: "high",
+      description: "Critical business objective",
+    },
+    {
+      label: "Urgent",
+      value: "urgent",
+      description: "Top priority, immediate attention",
+    },
   ];
 
   const metricsSuggestions = [
@@ -592,7 +794,7 @@ const ProjectSetupStep: React.FC = () => {
     "Customer acquisition cost",
     "Return on investment",
     "Email list growth",
-    "Content engagement rate"
+    "Content engagement rate",
   ];
 
   return (
@@ -601,18 +803,20 @@ const ProjectSetupStep: React.FC = () => {
         <FormSection
           title="Project Timeline & Resources"
           description="Set expectations for timeline, budget, and success metrics"
-          icon={<Calendar className="w-5 h-5" />}
+          icon={<Calendar className="h-5 w-5" />}
         >
           <FormRow columns={2} spacing="comfortable">
             <FormField
               label="Launch Timeline"
               description="When do you want to launch?"
               required
-              icon={<Clock className="w-4 h-4" />}
+              icon={<Clock className="h-4 w-4" />}
             >
               <EnhancedCombobox
                 value={setupData.launch_timeline || ""}
-                onValueChange={(value) => updateSetupField('launch_timeline', value)}
+                onValueChange={value =>
+                  updateSetupField("launch_timeline", value)
+                }
                 options={timelineOptions}
                 placeholder="Select timeline..."
                 clearable
@@ -623,11 +827,11 @@ const ProjectSetupStep: React.FC = () => {
               label="Budget Range"
               description="Estimated budget for content"
               required
-              icon={<Target className="w-4 h-4" />}
+              icon={<Target className="h-4 w-4" />}
             >
               <EnhancedCombobox
                 value={setupData.budget_range || ""}
-                onValueChange={(value) => updateSetupField('budget_range', value)}
+                onValueChange={value => updateSetupField("budget_range", value)}
                 options={budgetOptions}
                 placeholder="Select budget range..."
                 clearable
@@ -638,11 +842,11 @@ const ProjectSetupStep: React.FC = () => {
               label="Team Size"
               description="Content team members"
               required
-              icon={<Users className="w-4 h-4" />}
+              icon={<Users className="h-4 w-4" />}
             >
               <EnhancedCombobox
                 value={setupData.team_size || ""}
-                onValueChange={(value) => updateSetupField('team_size', value)}
+                onValueChange={value => updateSetupField("team_size", value)}
                 options={teamSizeOptions}
                 placeholder="Select team size..."
                 clearable
@@ -653,11 +857,13 @@ const ProjectSetupStep: React.FC = () => {
               label="Priority Level"
               description="Project importance"
               required
-              icon={<Zap className="w-4 h-4" />}
+              icon={<Zap className="h-4 w-4" />}
             >
               <EnhancedCombobox
                 value={setupData.priority_level || "medium"}
-                onValueChange={(value) => updateSetupField('priority_level', value)}
+                onValueChange={value =>
+                  updateSetupField("priority_level", value)
+                }
                 options={priorityOptions}
                 placeholder="Select priority..."
                 clearable
@@ -674,7 +880,9 @@ const ProjectSetupStep: React.FC = () => {
             >
               <TagInput
                 value={setupData.success_metrics || []}
-                onChange={(metrics) => updateSetupField('success_metrics', metrics)}
+                onChange={metrics =>
+                  updateSetupField("success_metrics", metrics)
+                }
                 suggestions={metricsSuggestions}
                 placeholder="Add success metrics..."
                 maxTags={8}
@@ -684,33 +892,34 @@ const ProjectSetupStep: React.FC = () => {
           </FormRow>
         </FormSection>
 
-        <div className="rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 p-6 border border-blue-200">
+        <div className="rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 p-6">
           <div className="flex items-start space-x-3">
-            <div className="p-2 rounded-lg bg-blue-100">
-              <Sparkles className="w-6 h-6 text-blue-600" />
+            <div className="rounded-lg bg-blue-100 p-2">
+              <Sparkles className="h-6 w-6 text-blue-600" />
             </div>
             <div>
-              <h3 className="font-semibold text-blue-900 mb-2">
+              <h3 className="mb-2 font-semibold text-blue-900">
                 🎉 You&apos;re all set to create an amazing project!
               </h3>
-              <p className="text-blue-700 text-sm leading-relaxed mb-3">
-                Based on your inputs, we&apos;ll create a comprehensive content strategy with:
+              <p className="mb-3 text-sm leading-relaxed text-blue-700">
+                Based on your inputs, we&apos;ll create a comprehensive content
+                strategy with:
               </p>
               <ul className="space-y-1 text-sm text-blue-600">
                 <li className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="h-4 w-4" />
                   <span>AI-powered competitor analysis</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="h-4 w-4" />
                   <span>Personalized content recommendations</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="h-4 w-4" />
                   <span>SEO optimization suggestions</span>
                 </li>
                 <li className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="h-4 w-4" />
                   <span>Performance tracking dashboard</span>
                 </li>
               </ul>
@@ -723,11 +932,9 @@ const ProjectSetupStep: React.FC = () => {
 };
 
 // Main Modal Component
-export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProps> = ({
-  open,
-  onClose,
-  onProjectCreated
-}) => {
+export const EnhancedCreateProjectModal: React.FC<
+  EnhancedCreateProjectModalProps
+> = ({ open, onClose, onProjectCreated }) => {
   const { currentTeam, session } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -737,311 +944,330 @@ export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProp
       enabled: true,
       interval: 30000, // 30 seconds
       debounceMs: 2000,
-      onSave: async (data) => {
+      onSave: async data => {
         // Auto-save to localStorage or API
-        localStorage.setItem('draft-project', JSON.stringify(data));
-      }
+        localStorage.setItem("draft-project", JSON.stringify(data));
+      },
     },
     persistence: {
       enabled: true,
-      key: 'project-creation-draft',
-      storage: 'localStorage',
-      expireAfter: 24 * 60 * 60 * 1000 // 24 hours
+      key: "project-creation-draft",
+      storage: "localStorage",
+      expireAfter: 24 * 60 * 60 * 1000, // 24 hours
     },
     changeTracking: {
       enabled: true,
       granular: true,
-      maxHistory: 50
-    }
+      maxHistory: 50,
+    },
   });
 
   // Error handling
   const errorHandler = useFormErrorHandler({
     enableRecovery: true,
     maxRetries: 3,
-    autoHideDelay: 10000
+    autoHideDelay: 10000,
   });
 
   // Wizard steps configuration
-  const wizardSteps: WizardStep[] = useMemo(() => [
-    {
-      id: 'basic',
-      title: 'Basic Info',
-      description: 'Project fundamentals',
-      icon: <Building className="w-4 h-4" />,
-      component: BasicInformationStep,
-      required: true,
-      skippable: false,
-      repeatable: true,
-      estimatedTime: 3,
-      complexity: 'easy',
-      helpContent: (
-        <div className="space-y-3">
-          <p className="text-sm">
-            Start with the essential information about your project. A clear name and description 
-            help our AI provide better recommendations.
-          </p>
-        </div>
-      ),
-      tips: [
-        "Choose a memorable project name that reflects your brand",
-        "Be specific about your target audience",
-        "Include your website for automated analysis"
-      ],
-      validate: async (data) => {
-        const basic = data.basic || {};
-        const errors: string[] = [];
-        const warnings: string[] = [];
-        const suggestions: string[] = [];
+  const wizardSteps: WizardStep[] = useMemo(
+    () => [
+      {
+        id: "basic",
+        title: "Basic Info",
+        description: "Project fundamentals",
+        icon: <Building className="h-4 w-4" />,
+        component: BasicInformationStep,
+        required: true,
+        skippable: false,
+        repeatable: true,
+        estimatedTime: 3,
+        complexity: "easy",
+        helpContent: (
+          <div className="space-y-3">
+            <p className="text-sm">
+              Start with the essential information about your project. A clear
+              name and description help our AI provide better recommendations.
+            </p>
+          </div>
+        ),
+        tips: [
+          "Choose a memorable project name that reflects your brand",
+          "Be specific about your target audience",
+          "Include your website for automated analysis",
+        ],
+        validate: async data => {
+          const basic = data.basic || {};
+          const errors: string[] = [];
+          const warnings: string[] = [];
+          const suggestions: string[] = [];
 
-        if (!basic.name?.trim()) {
-          errors.push("Project name is required");
-        } else if (basic.name.length < 3) {
-          warnings.push("Project name seems too short");
-        }
+          if (!basic.name?.trim()) {
+            errors.push("Project name is required");
+          } else if (basic.name.length < 3) {
+            warnings.push("Project name seems too short");
+          }
 
-        if (!basic.description?.trim()) {
-          warnings.push("Adding a description will improve AI recommendations");
-        }
+          if (!basic.description?.trim()) {
+            warnings.push(
+              "Adding a description will improve AI recommendations"
+            );
+          }
 
-        if (!basic.industry) {
-          errors.push("Industry selection is required");
-        }
+          if (!basic.industry) {
+            errors.push("Industry selection is required");
+          }
 
-        if (!basic.business_model) {
-          errors.push("Business model selection is required");
-        }
+          if (!basic.business_model) {
+            errors.push("Business model selection is required");
+          }
 
-        if (basic.website_url && !/^https?:\/\/.+/.test(basic.website_url)) {
-          errors.push("Website URL must include http:// or https://");
-        }
+          if (basic.website_url && !/^https?:\/\/.+/.test(basic.website_url)) {
+            errors.push("Website URL must include http:// or https://");
+          }
 
-        if (basic.description && basic.description.length < 50) {
-          suggestions.push("Consider adding more detail to your description for better recommendations");
-        }
+          if (basic.description && basic.description.length < 50) {
+            suggestions.push(
+              "Consider adding more detail to your description for better recommendations"
+            );
+          }
 
-        const completionScore = [
-          basic.name?.trim(),
-          basic.description?.trim(),
-          basic.industry,
-          basic.business_model,
-          basic.website_url?.trim()
-        ].filter(Boolean).length * 20;
+          const completionScore =
+            [
+              basic.name?.trim(),
+              basic.description?.trim(),
+              basic.industry,
+              basic.business_model,
+              basic.website_url?.trim(),
+            ].filter(Boolean).length * 20;
 
-        return {
-          isValid: errors.length === 0,
-          errors,
-          warnings,
-          suggestions,
-          completionScore
-        };
-      }
-    },
-    {
-      id: 'strategy',
-      title: 'Strategy',
-      description: 'Goals & targeting',
-      icon: <Target className="w-4 h-4" />,
-      component: StrategyDefinitionStep,
-      required: true,
-      skippable: false,
-      repeatable: true,
-      estimatedTime: 5,
-      complexity: 'medium',
-      dependsOn: ['basic'],
-      helpContent: (
-        <div className="space-y-3">
-          <p className="text-sm">
-            Define your content strategy and objectives. Clear goals help create 
-            focused, effective content that drives results.
-          </p>
-        </div>
-      ),
-      tips: [
-        "Be specific about your target audience demographics",
-        "Focus on 5-15 primary keywords for best results",
-        "Align content goals with business objectives"
-      ],
-      validate: async (data) => {
-        const strategy = data.strategy || {};
-        const errors: string[] = [];
-        const warnings: string[] = [];
-        const suggestions: string[] = [];
+          return {
+            isValid: errors.length === 0,
+            errors,
+            warnings,
+            suggestions,
+            completionScore,
+          };
+        },
+      },
+      {
+        id: "strategy",
+        title: "Strategy",
+        description: "Goals & targeting",
+        icon: <Target className="h-4 w-4" />,
+        component: StrategyDefinitionStep,
+        required: true,
+        skippable: false,
+        repeatable: true,
+        estimatedTime: 5,
+        complexity: "medium",
+        dependsOn: ["basic"],
+        helpContent: (
+          <div className="space-y-3">
+            <p className="text-sm">
+              Define your content strategy and objectives. Clear goals help
+              create focused, effective content that drives results.
+            </p>
+          </div>
+        ),
+        tips: [
+          "Be specific about your target audience demographics",
+          "Focus on 5-15 primary keywords for best results",
+          "Align content goals with business objectives",
+        ],
+        validate: async data => {
+          const strategy = data.strategy || {};
+          const errors: string[] = [];
+          const warnings: string[] = [];
+          const suggestions: string[] = [];
 
-        if (!strategy.primary_objective) {
-          errors.push("Primary objective is required");
-        }
+          if (!strategy.primary_objective) {
+            errors.push("Primary objective is required");
+          }
 
-        if (!strategy.target_audience?.trim()) {
-          errors.push("Target audience description is required");
-        } else if (strategy.target_audience.length < 30) {
-          warnings.push("Target audience description could be more detailed");
-        }
+          if (!strategy.target_audience?.trim()) {
+            errors.push("Target audience description is required");
+          } else if (strategy.target_audience.length < 30) {
+            warnings.push("Target audience description could be more detailed");
+          }
 
-        if (!strategy.target_keywords?.length) {
-          warnings.push("Adding target keywords will improve SEO recommendations");
-        } else if (strategy.target_keywords.length > 15) {
-          suggestions.push("Consider focusing on fewer, more specific keywords");
-        }
+          if (!strategy.target_keywords?.length) {
+            warnings.push(
+              "Adding target keywords will improve SEO recommendations"
+            );
+          } else if (strategy.target_keywords.length > 15) {
+            suggestions.push(
+              "Consider focusing on fewer, more specific keywords"
+            );
+          }
 
-        if (!strategy.content_goals?.length) {
-          warnings.push("Content goals help focus your strategy");
-        }
+          if (!strategy.content_goals?.length) {
+            warnings.push("Content goals help focus your strategy");
+          }
 
-        const completionScore = [
-          strategy.primary_objective,
-          strategy.target_audience?.trim(),
-          strategy.target_keywords?.length > 0,
-          strategy.content_goals?.length > 0
-        ].filter(Boolean).length * 25;
+          const completionScore =
+            [
+              strategy.primary_objective,
+              strategy.target_audience?.trim(),
+              strategy.target_keywords?.length > 0,
+              strategy.content_goals?.length > 0,
+            ].filter(Boolean).length * 25;
 
-        return {
-          isValid: errors.length === 0,
-          errors,
-          warnings,
-          suggestions,
-          completionScore
-        };
-      }
-    },
-    {
-      id: 'competitive',
-      title: 'Competition',
-      description: 'Market analysis',
-      icon: <Users className="w-4 h-4" />,
-      component: CompetitiveAnalysisStep,
-      required: false,
-      skippable: true,
-      repeatable: true,
-      estimatedTime: 4,
-      complexity: 'medium',
-      dependsOn: ['strategy'],
-      helpContent: (
-        <div className="space-y-3">
-          <p className="text-sm">
-            Understanding your competitive landscape helps position your content 
-            effectively and identify opportunities.
-          </p>
-        </div>
-      ),
-      tips: [
-        "Add 3-5 key competitors for comprehensive analysis",
-        "Focus on direct competitors in your space",
-        "Identify what makes you unique"
-      ],
-      validate: async (data) => {
-        const competitive = data.competitive || {};
-        const errors: string[] = [];
-        const warnings: string[] = [];
-        const suggestions: string[] = [];
+          return {
+            isValid: errors.length === 0,
+            errors,
+            warnings,
+            suggestions,
+            completionScore,
+          };
+        },
+      },
+      {
+        id: "competitive",
+        title: "Competition",
+        description: "Market analysis",
+        icon: <Users className="h-4 w-4" />,
+        component: CompetitiveAnalysisStep,
+        required: false,
+        skippable: true,
+        repeatable: true,
+        estimatedTime: 4,
+        complexity: "medium",
+        dependsOn: ["strategy"],
+        helpContent: (
+          <div className="space-y-3">
+            <p className="text-sm">
+              Understanding your competitive landscape helps position your
+              content effectively and identify opportunities.
+            </p>
+          </div>
+        ),
+        tips: [
+          "Add 3-5 key competitors for comprehensive analysis",
+          "Focus on direct competitors in your space",
+          "Identify what makes you unique",
+        ],
+        validate: async data => {
+          const competitive = data.competitive || {};
+          const errors: string[] = [];
+          const warnings: string[] = [];
+          const suggestions: string[] = [];
 
-        if (!competitive.market_position) {
-          errors.push("Market position is required");
-        }
+          if (!competitive.market_position) {
+            errors.push("Market position is required");
+          }
 
-        if (!competitive.competitors?.length) {
-          warnings.push("Adding competitors enables powerful analysis features");
-        } else if (competitive.competitors.length < 3) {
-          suggestions.push("Adding 3-5 competitors provides better insights");
-        }
+          if (!competitive.competitors?.length) {
+            warnings.push(
+              "Adding competitors enables powerful analysis features"
+            );
+          } else if (competitive.competitors.length < 3) {
+            suggestions.push("Adding 3-5 competitors provides better insights");
+          }
 
-        if (!competitive.competitive_advantages?.length) {
-          warnings.push("Defining competitive advantages helps positioning");
-        }
+          if (!competitive.competitive_advantages?.length) {
+            warnings.push("Defining competitive advantages helps positioning");
+          }
 
-        const completionScore = [
-          competitive.market_position,
-          competitive.competitors?.length > 0,
-          competitive.competitive_advantages?.length > 0
-        ].filter(Boolean).length * 33;
+          const completionScore =
+            [
+              competitive.market_position,
+              competitive.competitors?.length > 0,
+              competitive.competitive_advantages?.length > 0,
+            ].filter(Boolean).length * 33;
 
-        return {
-          isValid: errors.length === 0,
-          errors,
-          warnings,
-          suggestions,
-          completionScore
-        };
-      }
-    },
-    {
-      id: 'setup',
-      title: 'Setup',
-      description: 'Timeline & resources',
-      icon: <Calendar className="w-4 h-4" />,
-      component: ProjectSetupStep,
-      required: true,
-      skippable: false,
-      repeatable: true,
-      estimatedTime: 3,
-      complexity: 'easy',
-      dependsOn: ['strategy'],
-      helpContent: (
-        <div className="space-y-3">
-          <p className="text-sm">
-            Set realistic timelines and define success metrics to track your 
-            project&apos;s progress and ROI.
-          </p>
-        </div>
-      ),
-      tips: [
-        "Be realistic about timelines and resources",
-        "Define measurable success metrics",
-        "Consider your team's capacity"
-      ],
-      validate: async (data) => {
-        const setup = data.setup || {};
-        const errors: string[] = [];
-        const warnings: string[] = [];
-        const suggestions: string[] = [];
+          return {
+            isValid: errors.length === 0,
+            errors,
+            warnings,
+            suggestions,
+            completionScore,
+          };
+        },
+      },
+      {
+        id: "setup",
+        title: "Setup",
+        description: "Timeline & resources",
+        icon: <Calendar className="h-4 w-4" />,
+        component: ProjectSetupStep,
+        required: true,
+        skippable: false,
+        repeatable: true,
+        estimatedTime: 3,
+        complexity: "easy",
+        dependsOn: ["strategy"],
+        helpContent: (
+          <div className="space-y-3">
+            <p className="text-sm">
+              Set realistic timelines and define success metrics to track your
+              project&apos;s progress and ROI.
+            </p>
+          </div>
+        ),
+        tips: [
+          "Be realistic about timelines and resources",
+          "Define measurable success metrics",
+          "Consider your team's capacity",
+        ],
+        validate: async data => {
+          const setup = data.setup || {};
+          const errors: string[] = [];
+          const warnings: string[] = [];
+          const suggestions: string[] = [];
 
-        if (!setup.launch_timeline) {
-          errors.push("Launch timeline is required");
-        }
+          if (!setup.launch_timeline) {
+            errors.push("Launch timeline is required");
+          }
 
-        if (!setup.budget_range) {
-          errors.push("Budget range is required");
-        }
+          if (!setup.budget_range) {
+            errors.push("Budget range is required");
+          }
 
-        if (!setup.team_size) {
-          errors.push("Team size is required");
-        }
+          if (!setup.team_size) {
+            errors.push("Team size is required");
+          }
 
-        if (!setup.priority_level) {
-          errors.push("Priority level is required");
-        }
+          if (!setup.priority_level) {
+            errors.push("Priority level is required");
+          }
 
-        if (!setup.success_metrics?.length) {
-          warnings.push("Success metrics help track progress");
-        } else if (setup.success_metrics.length < 3) {
-          suggestions.push("Consider adding 3-5 key metrics for comprehensive tracking");
-        }
+          if (!setup.success_metrics?.length) {
+            warnings.push("Success metrics help track progress");
+          } else if (setup.success_metrics.length < 3) {
+            suggestions.push(
+              "Consider adding 3-5 key metrics for comprehensive tracking"
+            );
+          }
 
-        const completionScore = [
-          setup.launch_timeline,
-          setup.budget_range,
-          setup.team_size,
-          setup.priority_level,
-          setup.success_metrics?.length > 0
-        ].filter(Boolean).length * 20;
+          const completionScore =
+            [
+              setup.launch_timeline,
+              setup.budget_range,
+              setup.team_size,
+              setup.priority_level,
+              setup.success_metrics?.length > 0,
+            ].filter(Boolean).length * 20;
 
-        return {
-          isValid: errors.length === 0,
-          errors,
-          warnings,
-          suggestions,
-          completionScore
-        };
-      }
-    }
-  ], []);
+          return {
+            isValid: errors.length === 0,
+            errors,
+            warnings,
+            suggestions,
+            completionScore,
+          };
+        },
+      },
+    ],
+    []
+  );
 
   // Handle wizard completion
   const handleWizardComplete = async (data: ProjectFormData) => {
     if (!currentTeam?.id) {
       errorHandler.addError(new Error("No team selected"), undefined, {
-        operation: 'project_creation',
-        step: 'validation'
+        operation: "project_creation",
+        step: "validation",
       });
       return;
     }
@@ -1070,28 +1296,30 @@ export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProp
         priority_level: data.setup.priority_level,
         success_metrics: data.setup.success_metrics || [],
         settings: {
-          wizard_version: '2.0',
+          wizard_version: "2.0",
           created_with_enhanced_modal: true,
-          auto_save_enabled: true
-        }
+          auto_save_enabled: true,
+        },
       };
 
       // Use production-grade authenticated fetch
       const authContext = {
         session,
         refreshSession: async () => {
-          const { data: { session: newSession } } = await supabase.auth.getSession();
+          const {
+            data: { session: newSession },
+          } = await supabase.auth.getSession();
           if (newSession) {
             console.log("🔄 Session refreshed for project creation");
           }
-        }
+        },
       };
 
       const response = await authenticatedFetch(
         "/api/projects",
         {
           method: "POST",
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         },
         authContext
       );
@@ -1102,30 +1330,29 @@ export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProp
       }
 
       const result = await response.json();
-      
+
       // Clear draft data
       formState.clearStorage();
-      localStorage.removeItem('draft-project');
-      
+      localStorage.removeItem("draft-project");
+
       // Notify parent component
       onProjectCreated(result.project);
-      
+
       // Reset form and close
       formState.resetForm();
       onClose();
-
     } catch (err) {
       console.error("Error creating project:", err);
-      
+
       if (err instanceof AuthenticationError) {
         errorHandler.handleTypedError(err);
       } else if (err instanceof CSRFError) {
         errorHandler.handleTypedError(err);
       } else {
         errorHandler.addError(err, undefined, {
-          operation: 'project_creation',
+          operation: "project_creation",
           teamId: currentTeam?.id,
-          formData: data
+          formData: data,
         });
       }
     } finally {
@@ -1143,7 +1370,10 @@ export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProp
       closable={!isSubmitting}
       preventClose={isSubmitting}
     >
-      <EnhancedDialogContent className="max-h-[90vh]">
+      <EnhancedDialogContent
+        className="max-h-[90vh] overflow-hidden"
+        data-content=""
+      >
         <EnhancedDialogHeader
           closable={!isSubmitting}
           onClose={onClose}
@@ -1151,14 +1381,17 @@ export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProp
         >
           <EnhancedDialogTitle
             icon={
-              <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                <Plus className="w-5 h-5" />
+              <div className="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-2 text-white">
+                <Plus className="h-5 w-5" />
               </div>
             }
             subtitle="Create a comprehensive content strategy with AI-powered insights"
             badge={
-              <Badge variant="secondary" className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700">
-                <Sparkles className="w-3 h-3 mr-1" />
+              <Badge
+                variant="secondary"
+                className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+              >
+                <Sparkles className="mr-1 h-3 w-3" />
                 Enhanced
               </Badge>
             }
@@ -1167,7 +1400,7 @@ export const EnhancedCreateProjectModal: React.FC<EnhancedCreateProjectModalProp
           </EnhancedDialogTitle>
         </EnhancedDialogHeader>
 
-        <EnhancedDialogBody padding="none" scrollable>
+        <EnhancedDialogBody padding="none" scrollable data-modal-body="">
           <SmartFormWizard
             steps={wizardSteps}
             initialData={formState.data}

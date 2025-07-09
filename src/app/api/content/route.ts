@@ -156,6 +156,7 @@ export async function GET(request: NextRequest) {
     };
 
     const projectId = searchParams.get("projectId");
+    const teamId = searchParams.get("teamId");
     const status = searchParams.get("status");
     const contentType = searchParams.get("content_type");
     const search = searchParams.get("search");
@@ -202,6 +203,23 @@ export async function GET(request: NextRequest) {
         return createErrorResponse("Insufficient permissions", 403);
       }
       query = query.eq("project_id", filters.projectId);
+    } else if (teamId) {
+      // Filter by team - get projects for this team
+      const { data: teamProjects } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("team_id", teamId);
+
+      if (!teamProjects?.length) {
+        return NextResponse.json({
+          content: [],
+          total: 0,
+          filters,
+        });
+      }
+
+      const projectIds = teamProjects.map(p => p.id);
+      query = query.in("project_id", projectIds);
     } else {
       // Get user's accessible projects
       const { data: teamMemberships } = await supabase

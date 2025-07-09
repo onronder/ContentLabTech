@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "../styles/design-system.css";
 @import "../styles/browser-fixes.css";
+@import "../styles/modal-fixes.css";
 
 @layer base {
   /* Tailwind CSS custom properties for component compatibility */

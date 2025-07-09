@@ -276,21 +276,95 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
+    const teamId = searchParams.get("teamId");
     const contentId = searchParams.get("contentId");
     const timeframe = parseInt(searchParams.get("timeframe") || "30");
     const metric = searchParams.get("metric") || "pageviews";
 
-    if (!projectId) {
-      return createErrorResponse("Project ID is required", 400);
+    if (!projectId && !teamId) {
+      return createErrorResponse("Either projectId or teamId is required", 400);
     }
 
-    // Validate project access
-    const hasAccess = await validateProjectAccess(projectId, "viewer");
+    const supabase = await createClient();
+
+    // Handle team-based request
+    if (teamId && !projectId) {
+      // Get projects for this team
+      const { data: teamProjects } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("team_id", teamId);
+
+      if (!teamProjects?.length) {
+        return NextResponse.json({
+          trends: [],
+          summary: { totalMetrics: 0, avgGrowth: 0 },
+          timeframe,
+          metric,
+          teamId,
+        });
+      }
+
+      // For team-level analytics, aggregate across all projects
+      const projectIds = teamProjects.map(p => p.id);
+      const startDate = new Date(Date.now() - timeframe * 24 * 60 * 60 * 1000);
+
+      // Get content for all projects in team
+      const { data: contents } = await supabase
+        .from("content_items")
+        .select("id")
+        .in("project_id", projectIds);
+
+      if (!contents?.length) {
+        return NextResponse.json({
+          trends: [],
+          summary: { totalMetrics: 0, avgGrowth: 0 },
+          timeframe,
+          metric,
+          teamId,
+        });
+      }
+
+      // Get analytics for all content
+      const { data: analytics, error } = await supabase
+        .from("content_analytics")
+        .select("*")
+        .in(
+          "content_id",
+          contents.map(c => c.id)
+        )
+        .gte("date", startDate.toISOString().split("T")[0])
+        .order("date", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching analytics:", error);
+        return createErrorResponse("Failed to fetch analytics data", 500);
+      }
+
+      const processedTrends = processAnalyticsData(
+        analytics || [],
+        metric,
+        "daily"
+      );
+      const summary = calculateProjectSummary(analytics || [], metric);
+
+      return NextResponse.json({
+        trends: processedTrends,
+        summary,
+        timeframe,
+        metric,
+        teamId,
+        projectCount: teamProjects.length,
+        contentCount: contents.length,
+      });
+    }
+
+    // Validate single project access
+    const hasAccess = await validateProjectAccess(projectId!, "viewer");
     if (!hasAccess) {
       return createErrorResponse("Insufficient permissions", 403);
     }
 
-    const supabase = await createClient();
     const startDate = new Date(Date.now() - timeframe * 24 * 60 * 60 * 1000);
 
     let query = supabase

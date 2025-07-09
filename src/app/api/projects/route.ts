@@ -1,14 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
-import {
-  getCurrentUser,
-  createClient,
-  validateTeamAccess,
-  createErrorResponse,
-} from "@/lib/auth/session";
+import { NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import {
   withApiAuth,
   createApiSuccessResponse,
   createApiErrorResponse,
+  validateTeamAccess,
 } from "@/lib/auth/api-auth";
 import { jobQueue } from "@/lib/jobs/queue";
 
@@ -49,19 +45,33 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
     } = body;
 
     if (!teamId || !name) {
-      return createErrorResponse("Team ID and project name are required", 400);
-    }
-
-    // Validate team access (requires admin or owner role)
-    const hasAccess = await validateTeamAccess(teamId, "admin");
-    if (!hasAccess) {
-      return createErrorResponse(
-        "Insufficient permissions to create projects",
-        403
+      return createApiErrorResponse(
+        "Team ID and project name are required",
+        400,
+        "INVALID_REQUEST"
       );
     }
 
-    const supabase = await createClient();
+    // Validate team access (requires admin or owner role)
+    const teamAccess = await validateTeamAccess(user.id, teamId, "admin");
+    if (!teamAccess.hasAccess) {
+      return createApiErrorResponse(
+        teamAccess.error || "Insufficient permissions to create projects",
+        403,
+        "INSUFFICIENT_PERMISSIONS"
+      );
+    }
+
+    const supabase = createClient(
+      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
 
     // Create project
     const { data: newProject, error: createError } = await supabase
@@ -93,7 +103,11 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
 
     if (createError) {
       console.error("Error creating project:", createError);
-      return createErrorResponse("Failed to create project", 500);
+      return createApiErrorResponse(
+        "Failed to create project",
+        500,
+        "CREATE_PROJECT_ERROR"
+      );
     }
 
     // Log project creation
@@ -171,7 +185,16 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
     if (status) filters.status = status;
     if (search) filters.search = search;
 
-    const supabase = await createClient();
+    const supabase = createClient(
+      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    );
 
     // Get user's team memberships
     const { data: teamMemberships } = await supabase
@@ -250,7 +273,11 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
 
     if (error) {
       console.error("Error fetching projects:", error);
-      return createErrorResponse("Failed to fetch projects", 500);
+      return createApiErrorResponse(
+        "Failed to fetch projects",
+        500,
+        "FETCH_PROJECTS_ERROR"
+      );
     }
 
     // Enhance projects with additional data
