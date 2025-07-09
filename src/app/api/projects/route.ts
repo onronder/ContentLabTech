@@ -56,6 +56,11 @@ export const POST = withSimpleAuth(
         competitorCount: body.competitors?.length || 0,
       });
 
+      // Authentication debugging for team access
+      console.log("🏢 Team ID from request:", body.teamId);
+      console.log("👤 User ID from token:", user.id);
+      console.log("🔍 About to check team access for user...");
+
       if (!body.teamId || !body.name) {
         console.log("❌ Validation failed: Missing required fields", {
           hasTeamId: !!body.teamId,
@@ -105,6 +110,15 @@ export const POST = withSimpleAuth(
           teamId: body.teamId,
           userId: user.id,
         });
+        console.log("✅ User has access to team: FALSE");
+        console.log("🔐 Authentication flow summary:", {
+          authHeaderPresent: "YES (passed withSimpleAuth)",
+          tokenExtracted: "YES (passed withSimpleAuth)",
+          userIdFromToken: user.id,
+          teamIdFromRequest: body.teamId,
+          teamAccessGranted: false,
+          reason: teamError ? "Database error" : "User not in team",
+        });
         return new Response(
           JSON.stringify({ error: "User is not a member of this team" }),
           {
@@ -113,6 +127,17 @@ export const POST = withSimpleAuth(
           }
         );
       }
+
+      // Team access successful
+      console.log("✅ User has access to team: TRUE");
+      console.log("🔐 Authentication flow summary:", {
+        authHeaderPresent: "YES (passed withSimpleAuth)",
+        tokenExtracted: "YES (passed withSimpleAuth)",
+        userIdFromToken: user.id,
+        teamIdFromRequest: body.teamId,
+        teamAccessGranted: true,
+        teamMemberRole: teamMember?.role || "unknown",
+      });
 
       // Create project
       console.log("📊 Attempting database query: projects insert");
@@ -228,6 +253,10 @@ export const GET = withSimpleAuth(
       userEmail: user.email,
       timestamp: new Date().toISOString(),
     });
+
+    // Authentication debugging - GET method
+    console.log("👤 User ID from token:", user.id);
+    console.log("🔍 About to fetch user's teams...");
 
     // Log request headers (sanitized)
     const sanitizedHeaders = Object.fromEntries(

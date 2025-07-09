@@ -33,23 +33,51 @@ export interface SimpleAuthResult {
 export async function authenticateRequest(
   request: NextRequest
 ): Promise<SimpleAuthResult> {
-  const authHeader = request.headers.get("authorization");
+  console.log("🔐 Starting authentication flow...");
 
-  if (!authHeader?.startsWith("Bearer ")) {
+  const authHeader = request.headers.get("authorization");
+  console.log("🔐 Authorization header:", authHeader ? "PRESENT" : "MISSING");
+
+  if (!authHeader) {
+    console.log("❌ No authorization header found");
+    return { user: null, error: "No Bearer token provided" };
+  }
+
+  if (!authHeader.startsWith("Bearer ")) {
+    console.log(
+      "❌ Authorization header format invalid:",
+      authHeader.substring(0, 20) + "..."
+    );
     return { user: null, error: "No Bearer token provided" };
   }
 
   const token = authHeader.replace("Bearer ", "");
+  console.log("🎫 Bearer token extracted:", token.substring(0, 10) + "...");
 
   try {
+    console.log("🔄 Validating token with Supabase...");
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser(token);
 
-    if (error || !user) {
+    if (error) {
+      console.log("❌ Supabase token validation error:", {
+        code: error.code,
+        message: error.message,
+        name: error.name,
+      });
       return { user: null, error: "Invalid token" };
     }
+
+    if (!user) {
+      console.log("❌ No user returned from token validation");
+      return { user: null, error: "Invalid token" };
+    }
+
+    console.log("✅ Token validation successful");
+    console.log("👤 User ID from token:", user.id);
+    console.log("📧 User email from token:", user.email || "NO_EMAIL");
 
     return {
       user: {
@@ -59,6 +87,11 @@ export async function authenticateRequest(
       error: null,
     };
   } catch (error) {
+    console.log("❌ Authentication exception:", {
+      error: error,
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : "No stack trace",
+    });
     return { user: null, error: "Authentication failed" };
   }
 }
@@ -70,9 +103,13 @@ export function withSimpleAuth(
   handler: (request: NextRequest, user: SimpleUser) => Promise<Response>
 ) {
   return async (request: NextRequest): Promise<Response> => {
+    console.log("🛡️ withSimpleAuth: Starting authentication wrapper...");
+
     const authResult = await authenticateRequest(request);
 
     if (!authResult.user) {
+      console.log("❌ Authentication failed, returning 401");
+      console.log("🔐 Auth error:", authResult.error);
       return new Response(
         JSON.stringify({ error: "Authentication required" }),
         {
@@ -81,6 +118,12 @@ export function withSimpleAuth(
         }
       );
     }
+
+    console.log("✅ Authentication successful, calling handler");
+    console.log("👤 Authenticated user:", {
+      id: authResult.user.id,
+      email: authResult.user.email,
+    });
 
     return handler(request, authResult.user);
   };
