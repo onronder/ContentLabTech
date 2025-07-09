@@ -311,7 +311,7 @@ export const GET = withSimpleAuth(
       } else {
         console.log("🏢 Team membership query: SUCCESS", {
           teamCount: teamData?.length || 0,
-          teams: teamData?.map(t => t.team_id) || [],
+          teams: teamData?.map((t: any) => t.team_id) || [],
         });
 
         // If user has teams, test projects query with real team ID
@@ -338,7 +338,8 @@ export const GET = withSimpleAuth(
               projectCount: projectData?.length || 0,
               teamId: realTeamId,
               projects:
-                projectData?.map(p => ({ id: p.id, name: p.name })) || [],
+                projectData?.map((p: any) => ({ id: p.id, name: p.name })) ||
+                [],
             });
           }
         }
