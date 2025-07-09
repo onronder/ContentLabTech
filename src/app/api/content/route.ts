@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
   withApiAuth,
@@ -83,7 +83,11 @@ export const POST = withApiAuth(async (request: NextRequest, user) => {
     }
 
     // Validate team access (requires member or higher)
-    const teamAccess = await validateTeamAccess(user.id, project.team_id, "member");
+    const teamAccess = await validateTeamAccess(
+      user.id,
+      project.team_id,
+      "member"
+    );
     if (!teamAccess.hasAccess) {
       return createApiErrorResponse(
         teamAccess.error || "Insufficient permissions to create content",
@@ -251,7 +255,11 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
       }
 
       // Validate team access (requires viewer or higher)
-      const teamAccess = await validateTeamAccess(user.id, project.team_id, "viewer");
+      const teamAccess = await validateTeamAccess(
+        user.id,
+        project.team_id,
+        "viewer"
+      );
       if (!teamAccess.hasAccess) {
         return createApiErrorResponse(
           teamAccess.error || "Insufficient permissions to view content",
@@ -259,7 +267,7 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
           "INSUFFICIENT_PERMISSIONS"
         );
       }
-      
+
       query = query.eq("project_id", filters.projectId);
     } else if (teamId) {
       // Filter by team - get projects for this team
@@ -338,7 +346,7 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
     if (error) {
       console.error("Error fetching content:", error);
       return createApiErrorResponse(
-        "Failed to fetch content", 
+        "Failed to fetch content",
         500,
         "FETCH_CONTENT_ERROR"
       );

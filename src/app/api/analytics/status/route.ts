@@ -75,10 +75,18 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
         .single();
 
       if (!project) {
-        return createApiErrorResponse("Project not found", 404, "PROJECT_NOT_FOUND");
+        return createApiErrorResponse(
+          "Project not found",
+          404,
+          "PROJECT_NOT_FOUND"
+        );
       }
 
-      const teamAccess = await validateTeamAccess(user.id, project.team_id, "viewer");
+      const teamAccess = await validateTeamAccess(
+        user.id,
+        project.team_id,
+        "viewer"
+      );
       if (!teamAccess.hasAccess) {
         return createApiErrorResponse(
           teamAccess.error || "Insufficient permissions",
@@ -310,14 +318,22 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
         }
       }
 
-      return createErrorResponse(error.details.userMessage, 500);
+      return createApiErrorResponse(
+        error.details.userMessage,
+        500,
+        "ANALYTICS_ERROR"
+      );
     }
 
     // Handle unknown errors
     const unknownError = createDatabaseError(error as Error, context);
-    return createErrorResponse(unknownError.details.userMessage, 500);
+    return createApiErrorResponse(
+      unknownError.details.userMessage,
+      500,
+      "INTERNAL_ERROR"
+    );
   }
-}
+});
 
 /**
  * Get analysis results with intelligent caching

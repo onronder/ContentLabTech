@@ -20,12 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth/context";
-import {
-  authenticatedFetch,
-  AuthenticationError,
-  CSRFError,
-} from "@/lib/auth/authenticated-fetch";
-import { supabase } from "@/lib/supabase/client";
+import { apiPost } from "@/lib/api/simple-client";
 import { useAdvancedFormValidation } from "@/hooks/use-advanced-form-validation";
 import { useLoadingStateManager } from "@/hooks/use-loading-state-manager";
 import { useFormErrorHandler } from "@/hooks/use-form-error-handler";
@@ -260,40 +255,8 @@ export const CreateProjectModal = ({
         settings: {},
       };
 
-      // Use production-grade authenticated fetch with enhanced debugging
-      console.log("🔍 Auth context for project creation:", {
-        hasSession: !!session,
-        sessionKeys: session ? Object.keys(session) : [],
-        hasAccessToken: !!(session?.access_token),
-        currentTeam: currentTeam?.id,
-        userId: session?.user?.id
-      });
-
-      const authContext = {
-        session,
-        refreshSession: async () => {
-          const {
-            data: { session: newSession },
-          } = await supabase.auth.getSession();
-          if (newSession) {
-            console.log("🔄 Session refreshed for project creation");
-            return newSession;
-          }
-        },
-      };
-
-      const response = await authenticatedFetch(
-        "/api/projects",
-        {
-          method: "POST",
-          body: JSON.stringify(payload),
-          requireAuth: true,
-          includeCsrf: true,
-          retryOnAuth: true,
-          maxRetries: 2
-        },
-        authContext
-      );
+      // Simple API call with authentication
+      const response = await apiPost("/api/projects", payload);
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -315,17 +278,11 @@ export const CreateProjectModal = ({
     } catch (err) {
       console.error("Error creating project:", err);
 
-      // Use enhanced error handling
-      if (err instanceof AuthenticationError) {
-        errorHandler.handleTypedError(err);
-      } else if (err instanceof CSRFError) {
-        errorHandler.handleTypedError(err);
-      } else {
-        errorHandler.addError(err, undefined, {
-          operation: "project_creation",
-          teamId: currentTeam?.id,
-        });
-      }
+      // Simple error handling
+      errorHandler.addError(err, undefined, {
+        operation: "project_creation",
+        teamId: currentTeam?.id,
+      });
 
       // Fail current step if loading
       if (loadingManager.isAnyLoading) {
