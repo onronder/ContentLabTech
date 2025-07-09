@@ -125,8 +125,8 @@ export const POST = withSimpleAuth(
         results.push({
           stepName: "Create Default Team",
           status: "SKIPPED",
-          message: `User already owns team: ${defaultTeam.name}`,
-          data: { teamId: defaultTeam.id, teamName: defaultTeam.name },
+          message: `User already owns team: ${defaultTeam?.name}`,
+          data: { teamId: defaultTeam?.id, teamName: defaultTeam?.name },
         });
       } else {
         // Create new default team
