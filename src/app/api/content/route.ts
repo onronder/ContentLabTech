@@ -254,11 +254,11 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
         );
       }
 
-      // Validate team access (requires viewer or higher)
+      // Validate team access (requires member or higher)
       const teamAccess = await validateTeamAccess(
         user.id,
         project.team_id,
-        "viewer"
+        "member"
       );
       if (!teamAccess.hasAccess) {
         return createApiErrorResponse(
