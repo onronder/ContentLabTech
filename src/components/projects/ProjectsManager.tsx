@@ -55,13 +55,13 @@ interface Project {
   created_at: string;
   updated_at: string;
   created_by: string;
-  team: {
+  team?: {
     id: string;
     name: string;
     description: string;
     owner_id: string;
   };
-  stats: {
+  stats?: {
     contentCount: number;
     competitorCount: number;
     lastActivity: string;
@@ -77,6 +77,24 @@ interface ProjectFilters {
 }
 
 type ViewMode = "grid" | "list" | "analytics";
+
+// Utility function to ensure projects have default stats
+const ensureProjectStats = (project: any): Project => {
+  return {
+    ...project,
+    stats: project.stats || {
+      contentCount: 0,
+      competitorCount: project.competitors?.length || 0,
+      lastActivity: project.updated_at || project.created_at,
+    },
+    team: project.team || {
+      id: "",
+      name: "Unknown Team",
+      description: "",
+      owner_id: "",
+    },
+  };
+};
 
 export const ProjectsManager = () => {
   const { currentTeam, teamsLoading, user, refreshTeams, session } = useAuth();
@@ -161,7 +179,9 @@ export const ProjectsManager = () => {
       }
 
       const data = await response.json();
-      setProjects(data.projects || []);
+      // Ensure all projects have required stats structure
+      const processedProjects = (data.projects || []).map(ensureProjectStats);
+      setProjects(processedProjects);
       setTotalProjects(data.total || 0);
     } catch (err) {
       console.error("Failed to load projects:", err);
@@ -185,7 +205,9 @@ export const ProjectsManager = () => {
   };
 
   const handleProjectCreated = (newProject: Project) => {
-    setProjects(prev => [newProject, ...prev]);
+    // Ensure new project has stats structure
+    const processedProject = ensureProjectStats(newProject);
+    setProjects(prev => [processedProject, ...prev]);
     setTotalProjects(prev => prev + 1);
     setShowCreateModal(false);
   };

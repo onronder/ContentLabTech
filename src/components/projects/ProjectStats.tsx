@@ -19,7 +19,7 @@ interface Project {
   id: string;
   name: string;
   status: string;
-  stats: {
+  stats?: {
     contentCount: number;
     competitorCount: number;
     lastActivity: string;
@@ -49,11 +49,11 @@ export const ProjectStats = ({ projects, loading }: ProjectStatsProps) => {
     const totalProjects = projects.length;
     const activeProjects = projects.filter(p => p.status === "active").length;
     const totalContent = projects.reduce(
-      (sum, p) => sum + p.stats.contentCount,
+      (sum, p) => sum + (p.stats?.contentCount || 0),
       0
     );
     const totalCompetitors = projects.reduce(
-      (sum, p) => sum + p.stats.competitorCount,
+      (sum, p) => sum + (p.stats?.competitorCount || 0),
       0
     );
     const aiEnabledProjects = projects.filter(

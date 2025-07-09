@@ -47,13 +47,13 @@ interface Project {
   created_at: string;
   updated_at: string;
   created_by: string;
-  team: {
+  team?: {
     id: string;
     name: string;
     description: string;
     owner_id: string;
   };
-  stats: {
+  stats?: {
     contentCount: number;
     competitorCount: number;
     lastActivity: string;
@@ -150,11 +150,11 @@ export const ProjectCard = ({
               <div className="mt-2 flex items-center space-x-6 text-xs text-gray-500">
                 <div className="flex items-center space-x-1">
                   <FileText className="h-3 w-3" />
-                  <span>{project.stats.contentCount} content items</span>
+                  <span>{project.stats?.contentCount || 0} content items</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Target className="h-3 w-3" />
-                  <span>{project.stats.competitorCount} competitors</span>
+                  <span>{project.stats?.competitorCount || 0} competitors</span>
                 </div>
                 <div className="flex items-center space-x-1">
                   <Clock className="h-3 w-3" />
@@ -325,13 +325,13 @@ export const ProjectCard = ({
       <div className="mb-4 grid grid-cols-2 gap-4 text-center">
         <div className="rounded-lg bg-gray-50 p-3">
           <div className="text-lg font-semibold text-gray-900">
-            {project.stats.contentCount}
+            {project.stats?.contentCount || 0}
           </div>
           <div className="text-xs text-gray-500">Content Items</div>
         </div>
         <div className="rounded-lg bg-gray-50 p-3">
           <div className="text-lg font-semibold text-gray-900">
-            {project.stats.competitorCount}
+            {project.stats?.competitorCount || 0}
           </div>
           <div className="text-xs text-gray-500">Competitors</div>
         </div>
