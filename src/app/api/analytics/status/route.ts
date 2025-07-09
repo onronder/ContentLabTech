@@ -85,7 +85,7 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
       const teamAccess = await validateTeamAccess(
         user.id,
         project.team_id,
-        "viewer"
+        "member"
       );
       if (!teamAccess.hasAccess) {
         return createApiErrorResponse(
@@ -213,12 +213,24 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
         .single();
 
       if (!project) {
-        return createErrorResponse("Project not found", 404);
+        return createApiErrorResponse(
+          "Project not found",
+          404,
+          "PROJECT_NOT_FOUND"
+        );
       }
 
-      const hasAccess = await validateTeamAccess(project.team_id, "viewer");
-      if (!hasAccess) {
-        return createErrorResponse("Insufficient permissions", 403);
+      const teamAccess = await validateTeamAccess(
+        user.id,
+        project.team_id,
+        "member"
+      );
+      if (!teamAccess.hasAccess) {
+        return createApiErrorResponse(
+          teamAccess.error || "Insufficient permissions",
+          403,
+          "INSUFFICIENT_PERMISSIONS"
+        );
       }
 
       // Get all jobs for project
@@ -266,7 +278,11 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
     }
 
     // This shouldn't be reached due to validation above, but TypeScript needs it
-    return createErrorResponse("Invalid request parameters", 400);
+    return createApiErrorResponse(
+      "Invalid request parameters",
+      400,
+      "INVALID_REQUEST"
+    );
   } catch (error) {
     console.error("Analytics status API error:", error);
 
