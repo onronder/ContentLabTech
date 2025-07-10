@@ -83,7 +83,7 @@ interface ContentFilters {
 type ViewMode = "grid" | "list" | "analytics";
 
 export const ContentManager = () => {
-  const { currentTeam } = useAuth();
+  const { currentTeam, teams, teamsLoading } = useAuth();
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,12 +96,38 @@ export const ContentManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [totalContent, setTotalContent] = useState(0);
 
-  // Load content when team or filters change
+  // Enhanced debugging for team context
   useEffect(() => {
+    console.log("🔍 ContentManager: Team context debug:", {
+      currentTeam: currentTeam,
+      teamId: currentTeam?.id,
+      teamName: currentTeam?.name,
+      teamsCount: teams?.length || 0,
+      teamsLoading,
+      filters,
+    });
+
     if (currentTeam?.id) {
+      console.log("✅ Team available, loading content for:", currentTeam.name);
       loadContent();
+    } else if (!teamsLoading) {
+      console.log(
+        "❌ No team available and not loading, checking fallback options"
+      );
+      if (teams && teams.length > 0) {
+        console.log(
+          "🔄 Teams available but no currentTeam, content loading disabled"
+        );
+        setError("Team context sync issue. Please refresh the page.");
+      } else {
+        console.log("🆕 No teams found, showing empty state");
+        setLoading(false);
+        setError(null);
+      }
+    } else {
+      console.log("⏳ Teams still loading, waiting...");
     }
-  }, [currentTeam?.id, filters]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentTeam?.id, filters, teams, teamsLoading]);
 
   // Debounced search
   useEffect(() => {
@@ -118,8 +144,12 @@ export const ContentManager = () => {
   }, [searchTerm, filters.search]);
 
   const loadContent = async () => {
-    if (!currentTeam?.id) return;
+    if (!currentTeam?.id) {
+      console.log("❌ loadContent: No team ID available");
+      return;
+    }
 
+    console.log("📡 Starting content API call for team:", currentTeam.id);
     setLoading(true);
     setError(null);
 
@@ -128,7 +158,7 @@ export const ContentManager = () => {
         teamId: currentTeam.id,
         limit: filters.limit.toString(),
         offset: filters.offset.toString(),
-        fallback: 'team',
+        fallback: "team",
       });
 
       if (filters.status) params.append("status", filters.status);
@@ -137,18 +167,41 @@ export const ContentManager = () => {
       if (filters.projectId) params.append("projectId", filters.projectId);
       if (filters.search) params.append("search", filters.search);
 
-      const response = await fetch(`/api/content?${params.toString()}`);
+      const apiUrl = `/api/content?${params.toString()}`;
+      console.log("📡 Content API URL:", apiUrl);
+
+      const response = await fetch(apiUrl);
+      console.log("📡 Content API Response:", {
+        status: response.status,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to load content");
+        const errorText = await response.text();
+        console.error("❌ Content API Error Response:", errorText);
+        throw new Error(
+          `Failed to load content: ${response.status} ${errorText}`
+        );
       }
 
       const data = await response.json();
+      console.log("📡 Content API Success Response:", data);
       setContent(data.content || []);
       setTotalContent(data.total || 0);
     } catch (err) {
-      console.error("Failed to load content:", err);
-      setError(err instanceof Error ? err.message : "Failed to load content");
+      console.error("❌ Content API Error:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load content";
+
+      // Check for specific error types
+      if (errorMessage.includes("401")) {
+        setError("Authentication required. Please log in again.");
+      } else if (errorMessage.includes("403")) {
+        setError("Insufficient permissions. Please check your team access.");
+      } else {
+        setError(`Content loading failed: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
     }

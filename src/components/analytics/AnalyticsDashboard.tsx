@@ -38,6 +38,7 @@ import { AnalyticsOverview } from "./AnalyticsOverview";
 import { PerformanceMetrics } from "./PerformanceMetrics";
 import { ContentAnalytics } from "./ContentAnalytics";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
+import { TeamContextDebug } from "@/components/debug/TeamContextDebug";
 // import { TeamAnalytics } from "./TeamAnalytics";
 
 interface AnalyticsData {
@@ -64,7 +65,7 @@ interface AnalyticsData {
 }
 
 export const AnalyticsDashboard = () => {
-  const { currentTeam } = useAuth();
+  const { currentTeam, teams, teamsLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
@@ -73,29 +74,73 @@ export const AnalyticsDashboard = () => {
   const [selectedTimeRange, setSelectedTimeRange] = useState("30d");
   const [activeTab, setActiveTab] = useState("overview");
 
+  // Enhanced debugging for team context
   useEffect(() => {
+    console.log("🔍 AnalyticsDashboard: Team context debug:", {
+      currentTeam: currentTeam,
+      teamId: currentTeam?.id,
+      teamName: currentTeam?.name,
+      teamsCount: teams?.length || 0,
+      teamsLoading,
+      selectedTimeRange,
+    });
+
     if (currentTeam?.id) {
+      console.log(
+        "✅ Team available, loading analytics for:",
+        currentTeam.name
+      );
       loadAnalyticsData();
+    } else if (!teamsLoading) {
+      console.log(
+        "❌ No team available and not loading, checking fallback options"
+      );
+      // Try fallback logic
+      if (teams && teams.length > 0) {
+        console.log("🔄 Teams available but no currentTeam, trying first team");
+        // This suggests a context sync issue
+        setError("Team context sync issue detected. Please refresh the page.");
+      } else {
+        console.log("🆕 No teams found, showing empty state");
+        setLoading(false);
+        setError(null);
+      }
+    } else {
+      console.log("⏳ Teams still loading, waiting...");
     }
-  }, [currentTeam?.id, selectedTimeRange]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentTeam?.id, selectedTimeRange, teams, teamsLoading]);
 
   const loadAnalyticsData = async () => {
-    if (!currentTeam?.id) return;
+    if (!currentTeam?.id) {
+      console.log("❌ loadAnalyticsData: No team ID available");
+      return;
+    }
 
+    console.log("📡 Starting analytics API call for team:", currentTeam.id);
     setLoading(true);
     setError(null);
 
     try {
-      // Load analytics status and trends
-      const response = await fetch(
-        `/api/analytics?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}&fallback=team`
-      );
+      const apiUrl = `/api/analytics?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}&fallback=team`;
+      console.log("📡 API URL:", apiUrl);
+
+      const response = await fetch(apiUrl);
+      console.log("📡 API Response:", {
+        status: response.status,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
 
       if (!response.ok) {
-        throw new Error("Failed to load analytics data");
+        const errorText = await response.text();
+        console.error("❌ API Error Response:", errorText);
+        throw new Error(
+          `Failed to load analytics data: ${response.status} ${errorText}`
+        );
       }
 
       const data = await response.json();
+      console.log("📡 API Success Response:", data);
 
       // Use actual API response data
       setAnalyticsData(
@@ -123,10 +168,32 @@ export const AnalyticsDashboard = () => {
         }
       );
     } catch (err) {
-      console.error("Failed to load analytics:", err);
-      setError(err instanceof Error ? err.message : "Failed to load analytics");
+      console.error("❌ Analytics API Error:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load analytics";
+
+      // Check for specific error types and provide helpful messages
+      if (errorMessage.includes("401")) {
+        setError("Authentication required. Please log in again.");
+      } else if (errorMessage.includes("403")) {
+        setError("Insufficient permissions. Please check your team access.");
+      } else if (errorMessage.includes("404")) {
+        setError("Analytics endpoint not found. Please contact support.");
+      } else {
+        setError(`Analytics loading failed: ${errorMessage}`);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Add retry functionality
+  const handleRetry = () => {
+    console.log("🔄 Retrying analytics load...");
+    if (currentTeam?.id) {
+      loadAnalyticsData();
+    } else {
+      setError("No team selected. Please select a team to view analytics.");
     }
   };
 
@@ -186,6 +253,9 @@ export const AnalyticsDashboard = () => {
 
   return (
     <div className="space-y-8">
+      {/* Debug Component */}
+      <TeamContextDebug />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -247,7 +317,7 @@ export const AnalyticsDashboard = () => {
             <h3 className="font-semibold text-red-900">Analytics Error</h3>
           </div>
           <p className="mt-2 text-red-700">{error}</p>
-          <Button onClick={handleRefresh} variant="outline" className="mt-4">
+          <Button onClick={handleRetry} variant="outline" className="mt-4">
             Try Again
           </Button>
         </div>

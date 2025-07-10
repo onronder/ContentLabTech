@@ -315,6 +315,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           teamId: targetTeam.id,
           role: targetTeam.userRole,
         });
+        console.log("🏢 Auth Context: Team set successfully", {
+          teamId: targetTeam.id,
+          teamName: targetTeam.name,
+          role: targetTeam.userRole,
+          savedTeamId,
+          totalTeams: teamsWithRole.length,
+        });
+      } else {
+        console.log("❌ Auth Context: No team available to set", {
+          savedTeamId,
+          teamsAvailable: teamsWithRole.length,
+          teams: teamsWithRole.map(t => ({ id: t.id, name: t.name })),
+        });
       }
     } catch (error) {
       console.error("[AuthContext] Error in loadUserTeams:", error);
