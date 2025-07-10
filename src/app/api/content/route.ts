@@ -133,16 +133,19 @@ export const POST = withApiAuth(
 
       if (createError) {
         console.error("Error creating content:", createError);
-        return createApiErrorResponse(
-          "Failed to create content",
-          500,
-          "CREATE_CONTENT_ERROR"
+        return new Response(
+          JSON.stringify({
+            error: "Failed to create content",
+            code: "CREATE_CONTENT_ERROR",
+            status: 500,
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
 
       // Log content creation
-      await supabase.from("user_events").insert({
-        user_id: user.id,
+      await context.supabase.from("user_events").insert({
+        user_id: context.user.id,
         event_type: "content_created",
         event_data: {
           content_id: newContent.id,
@@ -154,7 +157,7 @@ export const POST = withApiAuth(
 
       // Trigger initial content analysis
       try {
-        await supabase.functions.invoke("content-analysis", {
+        await context.supabase.functions.invoke("content-analysis", {
           body: {
             contentId: newContent.id,
             analysisType: "full",
@@ -165,7 +168,7 @@ export const POST = withApiAuth(
         // Don't fail the request if analysis fails
       }
 
-      return createApiSuccessResponse(
+      return createSuccessResponse(
         {
           content: newContent,
         },
@@ -173,10 +176,13 @@ export const POST = withApiAuth(
       );
     } catch (error) {
       console.error("API error:", error);
-      return createApiErrorResponse(
-        "Internal server error",
-        500,
-        "INTERNAL_ERROR"
+      return new Response(
+        JSON.stringify({
+          error: "Internal server error",
+          code: "INTERNAL_ERROR",
+          status: 500,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
   }
@@ -236,44 +242,52 @@ export const GET = withApiAuth(
       // Apply filters
       if (filters.projectId) {
         // Get project to validate team access
-        const { data: project, error: projectError } = await supabase
+        const { data: project, error: projectError } = await context.supabase
           .from("projects")
           .select("team_id")
           .eq("id", filters.projectId)
           .single();
 
         if (projectError || !project) {
-          return createApiErrorResponse(
-            "Project not found",
-            404,
-            "PROJECT_NOT_FOUND"
+          return new Response(
+            JSON.stringify({
+              error: "Project not found",
+              code: "PROJECT_NOT_FOUND",
+              status: 404,
+            }),
+            { status: 404, headers: { "Content-Type": "application/json" } }
           );
         }
 
         // Validate team access (requires member or higher)
         const teamAccess = await validateTeamAccess(
-          user.id,
+          context.supabase,
+          context.user.id,
           project.team_id,
           "member"
         );
         if (!teamAccess.hasAccess) {
-          return createApiErrorResponse(
-            teamAccess.error || "Insufficient permissions to view content",
-            403,
-            "INSUFFICIENT_PERMISSIONS"
+          return new Response(
+            JSON.stringify({
+              error:
+                teamAccess.error || "Insufficient permissions to view content",
+              code: "INSUFFICIENT_PERMISSIONS",
+              status: 403,
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
           );
         }
 
         query = query.eq("project_id", filters.projectId);
       } else if (teamId) {
         // Filter by team - get projects for this team
-        const { data: teamProjects } = await supabase
+        const { data: teamProjects } = await context.supabase
           .from("projects")
           .select("id")
           .eq("team_id", teamId);
 
         if (!teamProjects?.length) {
-          return createApiSuccessResponse({
+          return createSuccessResponse({
             content: [],
             total: 0,
             filters,
@@ -284,13 +298,13 @@ export const GET = withApiAuth(
         query = query.in("project_id", projectIds);
       } else {
         // Get user's accessible projects
-        const { data: teamMemberships } = await supabase
+        const { data: teamMemberships } = await context.supabase
           .from("team_members")
           .select("team_id")
-          .eq("user_id", user.id);
+          .eq("user_id", context.user.id);
 
         if (!teamMemberships?.length) {
-          return createApiSuccessResponse({
+          return createSuccessResponse({
             content: [],
             total: 0,
             filters,
@@ -298,13 +312,13 @@ export const GET = withApiAuth(
         }
 
         const teamIds = teamMemberships.map(tm => tm.team_id);
-        const { data: projects } = await supabase
+        const { data: projects } = await context.supabase
           .from("projects")
           .select("id")
           .in("team_id", teamIds);
 
         if (!projects?.length) {
-          return createApiSuccessResponse({
+          return createSuccessResponse({
             content: [],
             total: 0,
             filters,
@@ -341,10 +355,13 @@ export const GET = withApiAuth(
 
       if (error) {
         console.error("Error fetching content:", error);
-        return createApiErrorResponse(
-          "Failed to fetch content",
-          500,
-          "FETCH_CONTENT_ERROR"
+        return new Response(
+          JSON.stringify({
+            error: "Failed to fetch content",
+            code: "FETCH_CONTENT_ERROR",
+            status: 500,
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
 
@@ -360,7 +377,7 @@ export const GET = withApiAuth(
           projectId || "mock-project"
         );
 
-        return createApiSuccessResponse({
+        return createSuccessResponse({
           content: mockContent,
           total: mockContent.length,
           filters,
@@ -368,17 +385,20 @@ export const GET = withApiAuth(
         });
       }
 
-      return createApiSuccessResponse({
+      return createSuccessResponse({
         content: content || [],
         total: count || 0,
         filters,
       });
     } catch (error) {
       console.error("API error:", error);
-      return createApiErrorResponse(
-        "Internal server error",
-        500,
-        "INTERNAL_ERROR"
+      return new Response(
+        JSON.stringify({
+          error: "Internal server error",
+          code: "INTERNAL_ERROR",
+          status: 500,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
   }
