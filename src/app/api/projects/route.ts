@@ -37,6 +37,16 @@ interface CreateProjectRequest {
 
 export const POST = withSimpleAuth(
   async (request: NextRequest, user: SimpleUser) => {
+    // Method-specific logging
+    console.log("📤 POST request received for project creation");
+    console.log("🔧 Request method: POST");
+    console.log("📋 Request URL:", request.url);
+
+    // Parse and log query parameters
+    const url = new URL(request.url);
+    const queryParams = Object.fromEntries(url.searchParams.entries());
+    console.log("🎯 Query parameters:", queryParams);
+
     console.log("🔍 Projects API called with method: POST");
     console.log("🔐 Auth validation result:", {
       userId: user.id,
@@ -65,6 +75,16 @@ export const POST = withSimpleAuth(
         keywordCount: body.target_keywords?.length || 0,
         goalCount: body.content_goals?.length || 0,
         competitorCount: body.competitors?.length || 0,
+      });
+
+      // POST method validation
+      console.log("🔍 POST request validation:", {
+        hasTeamId: !!body.teamId,
+        hasName: !!body.name,
+        teamIdValue: body.teamId,
+        nameValue: body.name,
+        requestMethod: "POST",
+        contentType: request.headers.get("content-type"),
       });
 
       // Authentication debugging for team access
@@ -296,6 +316,31 @@ export const POST = withSimpleAuth(
 // Add GET method to handle the 405 error mentioned in test
 export const GET = withSimpleAuth(
   async (request: NextRequest, user: SimpleUser) => {
+    // Method-specific logging
+    console.log("📥 GET request received for projects");
+    console.log("🔧 Request method: GET");
+    console.log("📋 Request URL:", request.url);
+
+    // Parse and log query parameters
+    const url = new URL(request.url);
+    const queryParams = Object.fromEntries(url.searchParams.entries());
+    console.log("🎯 Query parameters:", queryParams);
+
+    // Log specific parameters that GET method expects
+    const teamId = url.searchParams.get("teamId");
+    const limit = url.searchParams.get("limit");
+    const offset = url.searchParams.get("offset");
+    const status = url.searchParams.get("status");
+    const search = url.searchParams.get("search");
+
+    console.log("🔍 Parsed GET parameters:", {
+      teamId,
+      limit,
+      offset,
+      status,
+      search,
+    });
+
     console.log("🔍 Projects API called with method: GET");
     console.log("🔐 Auth validation result:", {
       userId: user.id,
@@ -306,6 +351,13 @@ export const GET = withSimpleAuth(
     // Authentication debugging - GET method
     console.log("👤 User ID from token:", user.id);
     console.log("🔍 About to fetch user's teams...");
+
+    // Validate GET method parameter requirements
+    if (teamId) {
+      console.log("✅ TeamId parameter provided:", teamId);
+    } else {
+      console.log("⚠️ No teamId parameter - will fetch all user teams");
+    }
 
     // Log request headers (sanitized)
     const sanitizedHeaders = Object.fromEntries(
@@ -381,11 +433,29 @@ export const GET = withSimpleAuth(
         );
       }
 
-      const teamIds = userTeams?.map(tm => tm.team_id) || [];
+      const teamIds = userTeams?.map((tm: any) => tm.team_id) || [];
       console.log("📊 User teams:", { teamIds, count: teamIds.length });
 
-      if (teamIds.length === 0) {
-        console.log("✅ No teams found for user, returning empty projects");
+      // Filter teams based on query parameter if provided
+      let filteredTeamIds = teamIds;
+      if (teamId && teamIds.includes(teamId)) {
+        filteredTeamIds = [teamId];
+        console.log("🎯 Filtering to specific team:", teamId);
+      } else if (teamId && !teamIds.includes(teamId)) {
+        console.log("❌ User does not have access to requested team:", teamId);
+        return new Response(
+          JSON.stringify({ error: "Access denied to requested team" }),
+          {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (filteredTeamIds.length === 0) {
+        console.log(
+          "✅ No accessible teams found for user, returning empty projects"
+        );
         console.log("✅ Sending response: 200 OK");
         return new Response(JSON.stringify({ projects: [] }), {
           status: 200,
@@ -406,10 +476,33 @@ export const GET = withSimpleAuth(
       let projects: any[] | null = null;
       let projectsError: any = null;
       try {
-        const result = await supabase
+        // Build query with filtering and pagination
+        let query = supabase
           .from("projects")
           .select("*")
-          .in("team_id", teamIds);
+          .in("team_id", filteredTeamIds);
+
+        // Add status filter if provided
+        if (status) {
+          query = query.eq("status", status);
+          console.log("🔍 Filtering by status:", status);
+        }
+
+        // Add search filter if provided
+        if (search) {
+          query = query.or(
+            `name.ilike.%${search}%,description.ilike.%${search}%`
+          );
+          console.log("🔍 Searching for:", search);
+        }
+
+        // Add pagination
+        const limitNum = limit ? parseInt(limit) : 50;
+        const offsetNum = offset ? parseInt(offset) : 0;
+        query = query.range(offsetNum, offsetNum + limitNum - 1);
+        console.log("📄 Pagination:", { limit: limitNum, offset: offsetNum });
+
+        const result = await query;
 
         projects = result.data;
         projectsError = result.error;
@@ -421,8 +514,15 @@ export const GET = withSimpleAuth(
           errorMessage: projectsError?.message,
           errorDetails: projectsError?.details,
           errorHint: projectsError?.hint,
-          queryExecuted: "SELECT * FROM projects WHERE team_id IN (...)",
-          parameters: teamIds,
+          queryExecuted:
+            "SELECT * FROM projects WHERE team_id IN (...) with filters",
+          parameters: filteredTeamIds,
+          appliedFilters: {
+            status: status || "none",
+            search: search || "none",
+            limit: limitNum,
+            offset: offsetNum,
+          },
         });
       } catch (dbError) {
         console.log("❌ Database error in projects query:", {
