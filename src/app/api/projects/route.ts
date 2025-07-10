@@ -66,7 +66,28 @@ export const POST = withSimpleAuth(
 
     try {
       console.log("📊 Attempting to parse request body...");
-      const body: CreateProjectRequest = await request.json();
+
+      // Get raw body for size logging
+      const requestText = await request.text();
+      console.log("📝 Request body received:", requestText.length, "bytes");
+
+      // Parse JSON from text
+      let body: CreateProjectRequest;
+      try {
+        body = JSON.parse(requestText);
+      } catch (parseError) {
+        console.log("❌ JSON parsing error:", {
+          error: parseError,
+          bodyPreview: requestText.substring(0, 100),
+        });
+        return new Response(
+          JSON.stringify({ error: "Invalid JSON in request body" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
       console.log("📊 Request body parsed successfully:", {
         teamId: body.teamId,
         name: body.name,
@@ -76,6 +97,51 @@ export const POST = withSimpleAuth(
         goalCount: body.content_goals?.length || 0,
         competitorCount: body.competitors?.length || 0,
       });
+
+      // Request data logging for POST
+      console.log("🏷️ Project name:", body.name || "none");
+      console.log("🌐 Website URL:", body.website_url || "none");
+      console.log("👥 Target team:", body.teamId || "none");
+
+      // Comprehensive data validation
+      const dataValidation = {
+        hasTeamId: !!body.teamId,
+        teamIdValid: typeof body.teamId === "string" && body.teamId.length > 0,
+        hasName: !!body.name,
+        nameValid:
+          typeof body.name === "string" &&
+          body.name.length > 0 &&
+          body.name.length <= 100,
+        websiteUrlValid:
+          !body.website_url ||
+          (typeof body.website_url === "string" &&
+            (body.website_url.startsWith("http://") ||
+              body.website_url.startsWith("https://"))),
+        keywordsValid:
+          !body.target_keywords || Array.isArray(body.target_keywords),
+        goalsValid: !body.content_goals || Array.isArray(body.content_goals),
+        competitorsValid: !body.competitors || Array.isArray(body.competitors),
+        settingsValid: !body.settings || typeof body.settings === "object",
+        audienceValid:
+          !body.target_audience || typeof body.target_audience === "string",
+      };
+
+      const allDataValid = Object.values(dataValidation).every(v => v === true);
+      console.log("✅ Data validation:", allDataValid ? "VALID" : "INVALID");
+
+      if (!allDataValid) {
+        console.log("❌ Data validation details:", dataValidation);
+        return new Response(
+          JSON.stringify({
+            error: "Invalid request data",
+            validation: dataValidation,
+          }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          }
+        );
+      }
 
       // POST method validation
       console.log("🔍 POST request validation:", {
@@ -333,10 +399,56 @@ export const GET = withSimpleAuth(
     const status = url.searchParams.get("status");
     const search = url.searchParams.get("search");
 
+    // Request data validation logging for GET
+    console.log("🔍 Team ID from query:", teamId || "none");
+
+    // Parse and validate pagination parameters
+    const limitNum = limit ? parseInt(limit) : 50;
+    const offsetNum = offset ? parseInt(offset) : 0;
+    const limitValid =
+      !limit || (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100);
+    const offsetValid = !offset || (!isNaN(offsetNum) && offsetNum >= 0);
+
+    console.log(
+      "📊 Pagination params: limit=",
+      limitNum,
+      ", offset=",
+      offsetNum
+    );
+
+    // Validate query parameters
+    const queryValidation = {
+      teamIdValid: !teamId || (typeof teamId === "string" && teamId.length > 0),
+      limitValid,
+      offsetValid,
+      statusValid:
+        !status ||
+        ["active", "paused", "completed", "archived"].includes(status),
+      searchValid:
+        !search || (typeof search === "string" && search.length <= 100),
+    };
+
+    const allValid = Object.values(queryValidation).every(v => v === true);
+    console.log("✅ Query validation:", allValid ? "VALID" : "INVALID");
+
+    if (!allValid) {
+      console.log("❌ Query validation details:", queryValidation);
+      return new Response(
+        JSON.stringify({
+          error: "Invalid query parameters",
+          validation: queryValidation,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
     console.log("🔍 Parsed GET parameters:", {
       teamId,
-      limit,
-      offset,
+      limit: limitNum,
+      offset: offsetNum,
       status,
       search,
     });
@@ -496,9 +608,7 @@ export const GET = withSimpleAuth(
           console.log("🔍 Searching for:", search);
         }
 
-        // Add pagination
-        const limitNum = limit ? parseInt(limit) : 50;
-        const offsetNum = offset ? parseInt(offset) : 0;
+        // Add pagination (using validated values)
         query = query.range(offsetNum, offsetNum + limitNum - 1);
         console.log("📄 Pagination:", { limit: limitNum, offset: offsetNum });
 
