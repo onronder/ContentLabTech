@@ -4,13 +4,12 @@
  */
 
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import {
   withApiAuth,
-  createApiSuccessResponse,
-  createApiErrorResponse,
+  createSuccessResponse,
   validateTeamAccess,
-} from "@/lib/auth/api-auth";
+  type AuthContext,
+} from "@/lib/auth/withApiAuth";
 
 interface AnalyticsOverview {
   totalProjects: number;
@@ -41,165 +40,187 @@ interface AnalyticsData {
   predictions: AnalyticsPredictions;
 }
 
-export const GET = withApiAuth(async (request: NextRequest, user) => {
-  try {
-    console.log("🚀 Analytics API GET - Starting request handling");
-    console.log("👤 Authenticated user:", { id: user.id, email: user.email });
+export const GET = withApiAuth(
+  async (request: NextRequest, context: AuthContext) => {
+    try {
+      console.log("🚀 Analytics API GET - Starting request handling");
+      console.log("👤 Authenticated user:", {
+        id: context.user.id,
+        email: context.user.email,
+      });
 
-    const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get("projectId");
-    const teamId = searchParams.get("teamId");
-    const timeRange = searchParams.get("timeRange") || "7d";
-    const fallback = searchParams.get("fallback");
+      const { searchParams } = new URL(request.url);
+      const projectId = searchParams.get("projectId");
+      const teamId = searchParams.get("teamId");
+      const timeRange = searchParams.get("timeRange") || "7d";
+      const fallback = searchParams.get("fallback");
 
-    if (!projectId && !teamId) {
-      return createApiErrorResponse(
-        "Either projectId or teamId is required",
-        400,
-        "INVALID_REQUEST"
+      if (!projectId && !teamId) {
+        return new Response(
+          JSON.stringify({
+            error: "Either projectId or teamId is required",
+            code: "INVALID_REQUEST",
+            status: 400,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      let validatedTeamId: string | null = null;
+      let projectIds: string[] = [];
+
+      // Handle team-level analytics
+      if (teamId) {
+        // Validate team access
+        const teamAccess = await validateTeamAccess(
+          context.supabase,
+          context.user.id,
+          teamId,
+          "member"
+        );
+        if (!teamAccess.hasAccess) {
+          return new Response(
+            JSON.stringify({
+              error:
+                teamAccess.error ||
+                "Insufficient permissions to view team analytics",
+              code: "INSUFFICIENT_PERMISSIONS",
+              status: 403,
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        validatedTeamId = teamId;
+
+        // Get all projects for this team
+        const { data: teamProjects, error: projectsError } =
+          await context.supabase
+            .from("projects")
+            .select("id")
+            .eq("team_id", teamId);
+
+        if (projectsError) {
+          console.error("Error fetching team projects:", projectsError);
+          return new Response(
+            JSON.stringify({
+              error: "Failed to fetch team projects",
+              code: "FETCH_PROJECTS_ERROR",
+              status: 500,
+            }),
+            { status: 500, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        projectIds = teamProjects?.map(p => p.id) || [];
+      }
+
+      // Handle project-level analytics
+      if (projectId) {
+        // Get project to determine team ownership
+        const { data: project, error: projectError } = await context.supabase
+          .from("projects")
+          .select("team_id")
+          .eq("id", projectId)
+          .single();
+
+        if (projectError || !project) {
+          return new Response(
+            JSON.stringify({
+              error: "Project not found",
+              code: "PROJECT_NOT_FOUND",
+              status: 404,
+            }),
+            { status: 404, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        // Validate team access
+        const teamAccess = await validateTeamAccess(
+          context.supabase,
+          context.user.id,
+          project.team_id,
+          "member"
+        );
+        if (!teamAccess.hasAccess) {
+          return new Response(
+            JSON.stringify({
+              error:
+                teamAccess.error ||
+                "Insufficient permissions to view project analytics",
+              code: "INSUFFICIENT_PERMISSIONS",
+              status: 403,
+            }),
+            { status: 403, headers: { "Content-Type": "application/json" } }
+          );
+        }
+
+        validatedTeamId = project.team_id;
+        projectIds = [projectId];
+      }
+
+      // If no projects found, return empty analytics
+      if (projectIds.length === 0) {
+        const emptyAnalytics: AnalyticsData = {
+          overview: {
+            totalProjects: 0,
+            totalContent: 0,
+            avgSeoScore: 0,
+            avgPerformanceScore: 0,
+            totalViews: 0,
+            conversionRate: 0,
+            trendingContent: 0,
+            activeAlerts: 0,
+          },
+          trends: {
+            traffic: [],
+            performance: [],
+            content: [],
+          },
+          predictions: {
+            nextWeek: { traffic: 0, confidence: 0 },
+            nextMonth: { performance: 0, confidence: 0 },
+            quarterlyGoals: { onTrack: false, progress: 0 },
+          },
+        };
+
+        return createSuccessResponse({
+          analytics: emptyAnalytics,
+          teamId: validatedTeamId,
+          projectIds: [],
+          timeRange,
+          fallback: fallback === "team",
+        });
+      }
+
+      // Fetch analytics data
+      const analyticsData = await fetchAnalyticsData(
+        context.supabase,
+        projectIds,
+        timeRange,
+        fallback === "team"
       );
-    }
 
-    const supabase = createClient(
-      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-
-    let validatedTeamId: string | null = null;
-    let projectIds: string[] = [];
-
-    // Handle team-level analytics
-    if (teamId) {
-      // Validate team access
-      const teamAccess = await validateTeamAccess(user.id, teamId, "member");
-      if (!teamAccess.hasAccess) {
-        return createApiErrorResponse(
-          teamAccess.error || "Insufficient permissions to view team analytics",
-          403,
-          "INSUFFICIENT_PERMISSIONS"
-        );
-      }
-
-      validatedTeamId = teamId;
-
-      // Get all projects for this team
-      const { data: teamProjects, error: projectsError } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("team_id", teamId);
-
-      if (projectsError) {
-        console.error("Error fetching team projects:", projectsError);
-        return createApiErrorResponse(
-          "Failed to fetch team projects",
-          500,
-          "FETCH_PROJECTS_ERROR"
-        );
-      }
-
-      projectIds = teamProjects?.map(p => p.id) || [];
-    }
-
-    // Handle project-level analytics
-    if (projectId) {
-      // Get project to determine team ownership
-      const { data: project, error: projectError } = await supabase
-        .from("projects")
-        .select("team_id")
-        .eq("id", projectId)
-        .single();
-
-      if (projectError || !project) {
-        return createApiErrorResponse(
-          "Project not found",
-          404,
-          "PROJECT_NOT_FOUND"
-        );
-      }
-
-      // Validate team access
-      const teamAccess = await validateTeamAccess(
-        user.id,
-        project.team_id,
-        "member"
-      );
-      if (!teamAccess.hasAccess) {
-        return createApiErrorResponse(
-          teamAccess.error ||
-            "Insufficient permissions to view project analytics",
-          403,
-          "INSUFFICIENT_PERMISSIONS"
-        );
-      }
-
-      validatedTeamId = project.team_id;
-      projectIds = [projectId];
-    }
-
-    // If no projects found, return empty analytics
-    if (projectIds.length === 0) {
-      const emptyAnalytics: AnalyticsData = {
-        overview: {
-          totalProjects: 0,
-          totalContent: 0,
-          avgSeoScore: 0,
-          avgPerformanceScore: 0,
-          totalViews: 0,
-          conversionRate: 0,
-          trendingContent: 0,
-          activeAlerts: 0,
-        },
-        trends: {
-          traffic: [],
-          performance: [],
-          content: [],
-        },
-        predictions: {
-          nextWeek: { traffic: 0, confidence: 0 },
-          nextMonth: { performance: 0, confidence: 0 },
-          quarterlyGoals: { onTrack: false, progress: 0 },
-        },
-      };
-
-      return createApiSuccessResponse({
-        analytics: emptyAnalytics,
+      return createSuccessResponse({
+        analytics: analyticsData,
         teamId: validatedTeamId,
-        projectIds: [],
+        projectIds,
         timeRange,
         fallback: fallback === "team",
       });
+    } catch (error) {
+      console.error("Analytics API error:", error);
+      return new Response(
+        JSON.stringify({
+          error: "Internal server error",
+          code: "INTERNAL_ERROR",
+          status: 500,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
     }
-
-    // Fetch analytics data
-    const analyticsData = await fetchAnalyticsData(
-      supabase,
-      projectIds,
-      timeRange,
-      fallback === "team"
-    );
-
-    return createApiSuccessResponse({
-      analytics: analyticsData,
-      teamId: validatedTeamId,
-      projectIds,
-      timeRange,
-      fallback: fallback === "team",
-    });
-  } catch (error) {
-    console.error("Analytics API error:", error);
-    return createApiErrorResponse(
-      "Internal server error",
-      500,
-      "INTERNAL_ERROR"
-    );
   }
-});
+);
 
 /**
  * Fetch comprehensive analytics data for given projects

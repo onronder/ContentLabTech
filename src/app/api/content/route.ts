@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import {
   withApiAuth,
-  createApiSuccessResponse,
-  createApiErrorResponse,
+  createSuccessResponse,
   validateTeamAccess,
-} from "@/lib/auth/api-auth";
+  type AuthContext,
+} from "@/lib/auth/withApiAuth";
 
 interface CreateContentRequest {
   projectId: string;
@@ -28,193 +27,190 @@ interface ContentFilters {
   offset: number;
 }
 
-export const POST = withApiAuth(async (request: NextRequest, user) => {
-  try {
-    console.log("🚀 Content API POST - Starting request handling");
-    console.log("👤 Authenticated user:", { id: user.id, email: user.email });
+export const POST = withApiAuth(
+  async (request: NextRequest, context: AuthContext) => {
+    try {
+      console.log("🚀 Content API POST - Starting request handling");
+      console.log("👤 Authenticated user:", {
+        id: context.user.id,
+        email: context.user.email,
+      });
 
-    // Parse request body
-    const body: CreateContentRequest = await request.json();
-    const {
-      projectId,
-      title,
-      content,
-      url,
-      meta_description,
-      focus_keywords = [],
-      target_audience,
-      content_type = "article",
-      status = "draft",
-    } = body;
-
-    if (!projectId || !title || !content) {
-      return createApiErrorResponse(
-        "Project ID, title, and content are required",
-        400,
-        "INVALID_REQUEST"
-      );
-    }
-
-    // Validate project access - first need to get the team from project
-    const supabase = createClient(
-      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-
-    // Get project to determine team ownership
-    const { data: project, error: projectError } = await supabase
-      .from("projects")
-      .select("team_id")
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !project) {
-      return createApiErrorResponse(
-        "Project not found",
-        404,
-        "PROJECT_NOT_FOUND"
-      );
-    }
-
-    // Validate team access (requires member or higher)
-    const teamAccess = await validateTeamAccess(
-      user.id,
-      project.team_id,
-      "member"
-    );
-    if (!teamAccess.hasAccess) {
-      return createApiErrorResponse(
-        teamAccess.error || "Insufficient permissions to create content",
-        403,
-        "INSUFFICIENT_PERMISSIONS"
-      );
-    }
-
-    // Calculate initial SEO scores
-    const seoScore = calculateSEOScore(
-      title,
-      content,
-      meta_description,
-      focus_keywords
-    );
-    const readabilityScore = calculateReadabilityScore(content);
-    const wordCount = content
-      .split(/\s+/)
-      .filter(word => word.length > 0).length;
-
-    // Create content item
-    const { data: newContent, error: createError } = await supabase
-      .from("content_items")
-      .insert({
-        project_id: projectId,
+      // Parse request body
+      const body: CreateContentRequest = await request.json();
+      const {
+        projectId,
         title,
         content,
         url,
         meta_description,
-        focus_keywords,
+        focus_keywords = [],
         target_audience,
-        content_type,
-        status,
-        seo_score: seoScore,
-        readability_score: readabilityScore,
-        word_count: wordCount,
-        created_by: user.id,
-      })
-      .select("*")
-      .single();
+        content_type = "article",
+        status = "draft",
+      } = body;
 
-    if (createError) {
-      console.error("Error creating content:", createError);
-      return createApiErrorResponse(
-        "Failed to create content",
-        500,
-        "CREATE_CONTENT_ERROR"
+      if (!projectId || !title || !content) {
+        return new Response(
+          JSON.stringify({
+            error: "Project ID, title, and content are required",
+            code: "INVALID_REQUEST",
+            status: 400,
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Get project to determine team ownership
+      const { data: project, error: projectError } = await context.supabase
+        .from("projects")
+        .select("team_id")
+        .eq("id", projectId)
+        .single();
+
+      if (projectError || !project) {
+        return new Response(
+          JSON.stringify({
+            error: "Project not found",
+            code: "PROJECT_NOT_FOUND",
+            status: 404,
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Validate team access (requires member or higher)
+      const teamAccess = await validateTeamAccess(
+        context.supabase,
+        context.user.id,
+        project.team_id,
+        "member"
       );
-    }
+      if (!teamAccess.hasAccess) {
+        return new Response(
+          JSON.stringify({
+            error:
+              teamAccess.error || "Insufficient permissions to create content",
+            code: "INSUFFICIENT_PERMISSIONS",
+            status: 403,
+          }),
+          { status: 403, headers: { "Content-Type": "application/json" } }
+        );
+      }
 
-    // Log content creation
-    await supabase.from("user_events").insert({
-      user_id: user.id,
-      event_type: "content_created",
-      event_data: {
-        content_id: newContent.id,
-        project_id: projectId,
+      // Calculate initial SEO scores
+      const seoScore = calculateSEOScore(
         title,
-        content_type,
-      },
-    });
+        content,
+        meta_description,
+        focus_keywords
+      );
+      const readabilityScore = calculateReadabilityScore(content);
+      const wordCount = content
+        .split(/\s+/)
+        .filter(word => word.length > 0).length;
 
-    // Trigger initial content analysis
-    try {
-      await supabase.functions.invoke("content-analysis", {
-        body: {
-          contentId: newContent.id,
-          analysisType: "full",
+      // Create content item
+      const { data: newContent, error: createError } = await context.supabase
+        .from("content_items")
+        .insert({
+          project_id: projectId,
+          title,
+          content,
+          url,
+          meta_description,
+          focus_keywords,
+          target_audience,
+          content_type,
+          status,
+          seo_score: seoScore,
+          readability_score: readabilityScore,
+          word_count: wordCount,
+          created_by: context.user.id,
+        })
+        .select("*")
+        .single();
+
+      if (createError) {
+        console.error("Error creating content:", createError);
+        return createApiErrorResponse(
+          "Failed to create content",
+          500,
+          "CREATE_CONTENT_ERROR"
+        );
+      }
+
+      // Log content creation
+      await supabase.from("user_events").insert({
+        user_id: user.id,
+        event_type: "content_created",
+        event_data: {
+          content_id: newContent.id,
+          project_id: projectId,
+          title,
+          content_type,
         },
       });
-    } catch (error) {
-      console.error("Error triggering content analysis:", error);
-      // Don't fail the request if analysis fails
-    }
 
-    return createApiSuccessResponse(
-      {
-        content: newContent,
-      },
-      201
-    );
-  } catch (error) {
-    console.error("API error:", error);
-    return createApiErrorResponse(
-      "Internal server error",
-      500,
-      "INTERNAL_ERROR"
-    );
-  }
-});
-
-export const GET = withApiAuth(async (request: NextRequest, user) => {
-  try {
-    console.log("🚀 Content API GET - Starting request handling");
-    console.log("👤 Authenticated user:", { id: user.id, email: user.email });
-
-    // Parse query parameters
-    const { searchParams } = new URL(request.url);
-    const filters: ContentFilters = {
-      limit: Math.min(parseInt(searchParams.get("limit") || "50"), 100),
-      offset: parseInt(searchParams.get("offset") || "0"),
-    };
-
-    const projectId = searchParams.get("projectId");
-    const teamId = searchParams.get("teamId");
-    const status = searchParams.get("status");
-    const contentType = searchParams.get("content_type");
-    const search = searchParams.get("search");
-
-    if (projectId) filters.projectId = projectId;
-    if (status) filters.status = status;
-    if (contentType) filters.content_type = contentType;
-    if (search) filters.search = search;
-
-    const supabase = createClient(
-      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["SUPABASE_SERVICE_ROLE_KEY"]!,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
+      // Trigger initial content analysis
+      try {
+        await supabase.functions.invoke("content-analysis", {
+          body: {
+            contentId: newContent.id,
+            analysisType: "full",
+          },
+        });
+      } catch (error) {
+        console.error("Error triggering content analysis:", error);
+        // Don't fail the request if analysis fails
       }
-    );
 
-    // Build query
-    let query = supabase.from("content_items").select(`
+      return createApiSuccessResponse(
+        {
+          content: newContent,
+        },
+        201
+      );
+    } catch (error) {
+      console.error("API error:", error);
+      return createApiErrorResponse(
+        "Internal server error",
+        500,
+        "INTERNAL_ERROR"
+      );
+    }
+  }
+);
+
+export const GET = withApiAuth(
+  async (request: NextRequest, context: AuthContext) => {
+    try {
+      console.log("🚀 Content API GET - Starting request handling");
+      console.log("👤 Authenticated user:", {
+        id: context.user.id,
+        email: context.user.email,
+      });
+
+      // Parse query parameters
+      const { searchParams } = new URL(request.url);
+      const filters: ContentFilters = {
+        limit: Math.min(parseInt(searchParams.get("limit") || "50"), 100),
+        offset: parseInt(searchParams.get("offset") || "0"),
+      };
+
+      const projectId = searchParams.get("projectId");
+      const teamId = searchParams.get("teamId");
+      const status = searchParams.get("status");
+      const contentType = searchParams.get("content_type");
+      const search = searchParams.get("search");
+
+      if (projectId) filters.projectId = projectId;
+      if (status) filters.status = status;
+      if (contentType) filters.content_type = contentType;
+      if (search) filters.search = search;
+
+      // Build query
+      let query = context.supabase.from("content_items").select(`
         id,
         title,
         content,
@@ -237,155 +233,156 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
         )
       `);
 
-    // Apply filters
-    if (filters.projectId) {
-      // Get project to validate team access
-      const { data: project, error: projectError } = await supabase
-        .from("projects")
-        .select("team_id")
-        .eq("id", filters.projectId)
-        .single();
+      // Apply filters
+      if (filters.projectId) {
+        // Get project to validate team access
+        const { data: project, error: projectError } = await supabase
+          .from("projects")
+          .select("team_id")
+          .eq("id", filters.projectId)
+          .single();
 
-      if (projectError || !project) {
-        return createApiErrorResponse(
-          "Project not found",
-          404,
-          "PROJECT_NOT_FOUND"
+        if (projectError || !project) {
+          return createApiErrorResponse(
+            "Project not found",
+            404,
+            "PROJECT_NOT_FOUND"
+          );
+        }
+
+        // Validate team access (requires member or higher)
+        const teamAccess = await validateTeamAccess(
+          user.id,
+          project.team_id,
+          "member"
+        );
+        if (!teamAccess.hasAccess) {
+          return createApiErrorResponse(
+            teamAccess.error || "Insufficient permissions to view content",
+            403,
+            "INSUFFICIENT_PERMISSIONS"
+          );
+        }
+
+        query = query.eq("project_id", filters.projectId);
+      } else if (teamId) {
+        // Filter by team - get projects for this team
+        const { data: teamProjects } = await supabase
+          .from("projects")
+          .select("id")
+          .eq("team_id", teamId);
+
+        if (!teamProjects?.length) {
+          return createApiSuccessResponse({
+            content: [],
+            total: 0,
+            filters,
+          });
+        }
+
+        const projectIds = teamProjects.map(p => p.id);
+        query = query.in("project_id", projectIds);
+      } else {
+        // Get user's accessible projects
+        const { data: teamMemberships } = await supabase
+          .from("team_members")
+          .select("team_id")
+          .eq("user_id", user.id);
+
+        if (!teamMemberships?.length) {
+          return createApiSuccessResponse({
+            content: [],
+            total: 0,
+            filters,
+          });
+        }
+
+        const teamIds = teamMemberships.map(tm => tm.team_id);
+        const { data: projects } = await supabase
+          .from("projects")
+          .select("id")
+          .in("team_id", teamIds);
+
+        if (!projects?.length) {
+          return createApiSuccessResponse({
+            content: [],
+            total: 0,
+            filters,
+          });
+        }
+
+        const projectIds = projects.map(p => p.id);
+        query = query.in("project_id", projectIds);
+      }
+
+      if (filters.status) {
+        query = query.eq("status", filters.status);
+      }
+
+      if (filters.content_type) {
+        query = query.eq("content_type", filters.content_type);
+      }
+
+      if (filters.search) {
+        query = query.or(
+          `title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`
         );
       }
 
-      // Validate team access (requires member or higher)
-      const teamAccess = await validateTeamAccess(
-        user.id,
-        project.team_id,
-        "member"
-      );
-      if (!teamAccess.hasAccess) {
+      // Get total count
+      const { count } = await query;
+
+      // Apply pagination and ordering
+      query = query
+        .order("updated_at", { ascending: false })
+        .range(filters.offset, filters.offset + filters.limit - 1);
+
+      const { data: content, error } = await query;
+
+      if (error) {
+        console.error("Error fetching content:", error);
         return createApiErrorResponse(
-          teamAccess.error || "Insufficient permissions to view content",
-          403,
-          "INSUFFICIENT_PERMISSIONS"
+          "Failed to fetch content",
+          500,
+          "FETCH_CONTENT_ERROR"
         );
       }
 
-      query = query.eq("project_id", filters.projectId);
-    } else if (teamId) {
-      // Filter by team - get projects for this team
-      const { data: teamProjects } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("team_id", teamId);
+      // If no content found and fallback is requested, return mock data
+      if (
+        (!content || content.length === 0) &&
+        searchParams.get("fallback") === "team"
+      ) {
+        console.log("📄 No content found, returning mock data for fallback");
 
-      if (!teamProjects?.length) {
+        const mockContent = generateMockContentData(
+          teamId || "mock-team",
+          projectId || "mock-project"
+        );
+
         return createApiSuccessResponse({
-          content: [],
-          total: 0,
+          content: mockContent,
+          total: mockContent.length,
           filters,
+          fallback: true,
         });
       }
-
-      const projectIds = teamProjects.map(p => p.id);
-      query = query.in("project_id", projectIds);
-    } else {
-      // Get user's accessible projects
-      const { data: teamMemberships } = await supabase
-        .from("team_members")
-        .select("team_id")
-        .eq("user_id", user.id);
-
-      if (!teamMemberships?.length) {
-        return createApiSuccessResponse({
-          content: [],
-          total: 0,
-          filters,
-        });
-      }
-
-      const teamIds = teamMemberships.map(tm => tm.team_id);
-      const { data: projects } = await supabase
-        .from("projects")
-        .select("id")
-        .in("team_id", teamIds);
-
-      if (!projects?.length) {
-        return createApiSuccessResponse({
-          content: [],
-          total: 0,
-          filters,
-        });
-      }
-
-      const projectIds = projects.map(p => p.id);
-      query = query.in("project_id", projectIds);
-    }
-
-    if (filters.status) {
-      query = query.eq("status", filters.status);
-    }
-
-    if (filters.content_type) {
-      query = query.eq("content_type", filters.content_type);
-    }
-
-    if (filters.search) {
-      query = query.or(
-        `title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`
-      );
-    }
-
-    // Get total count
-    const { count } = await query;
-
-    // Apply pagination and ordering
-    query = query
-      .order("updated_at", { ascending: false })
-      .range(filters.offset, filters.offset + filters.limit - 1);
-
-    const { data: content, error } = await query;
-
-    if (error) {
-      console.error("Error fetching content:", error);
-      return createApiErrorResponse(
-        "Failed to fetch content",
-        500,
-        "FETCH_CONTENT_ERROR"
-      );
-    }
-
-    // If no content found and fallback is requested, return mock data
-    if (
-      (!content || content.length === 0) &&
-      searchParams.get("fallback") === "team"
-    ) {
-      console.log("📄 No content found, returning mock data for fallback");
-
-      const mockContent = generateMockContentData(
-        teamId || "mock-team",
-        projectId || "mock-project"
-      );
 
       return createApiSuccessResponse({
-        content: mockContent,
-        total: mockContent.length,
+        content: content || [],
+        total: count || 0,
         filters,
-        fallback: true,
       });
+    } catch (error) {
+      console.error("API error:", error);
+      return createApiErrorResponse(
+        "Internal server error",
+        500,
+        "INTERNAL_ERROR"
+      );
     }
-
-    return createApiSuccessResponse({
-      content: content || [],
-      total: count || 0,
-      filters,
-    });
-  } catch (error) {
-    console.error("API error:", error);
-    return createApiErrorResponse(
-      "Internal server error",
-      500,
-      "INTERNAL_ERROR"
-    );
   }
-});
+);
 
 // Helper functions
 function calculateSEOScore(
