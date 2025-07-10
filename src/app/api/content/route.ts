@@ -4,7 +4,7 @@ import {
   createSuccessResponse,
   validateTeamAccess,
   type AuthContext,
-} from "@/lib/auth/withApiAuth-v2";
+} from "@/lib/auth/withApiAuth-definitive";
 
 interface CreateContentRequest {
   projectId: string;
