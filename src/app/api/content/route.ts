@@ -352,6 +352,26 @@ export const GET = withApiAuth(async (request: NextRequest, user) => {
       );
     }
 
+    // If no content found and fallback is requested, return mock data
+    if (
+      (!content || content.length === 0) &&
+      searchParams.get("fallback") === "team"
+    ) {
+      console.log("📄 No content found, returning mock data for fallback");
+
+      const mockContent = generateMockContentData(
+        teamId || "mock-team",
+        projectId || "mock-project"
+      );
+
+      return createApiSuccessResponse({
+        content: mockContent,
+        total: mockContent.length,
+        filters,
+        fallback: true,
+      });
+    }
+
     return createApiSuccessResponse({
       content: content || [],
       total: count || 0,
@@ -466,4 +486,124 @@ function countSyllables(word: string): number {
   }
 
   return Math.max(1, count);
+}
+
+/**
+ * Generate mock content data for testing and fallback
+ */
+function generateMockContentData(teamId: string, projectId: string) {
+  const mockContent = [
+    {
+      id: "mock-content-1",
+      project_id: projectId,
+      title: "Getting Started with SEO Best Practices",
+      content:
+        "Search engine optimization is crucial for driving organic traffic to your website. This comprehensive guide covers the fundamentals of SEO, including keyword research, on-page optimization, and technical SEO considerations.",
+      url: "https://example.com/seo-guide",
+      content_type: "article",
+      status: "published",
+      seo_score: 85,
+      readability_score: 78,
+      word_count: 1250,
+      meta_title: "Complete SEO Guide for Beginners | Best Practices",
+      meta_description:
+        "Learn essential SEO techniques to improve your website's search rankings and drive more organic traffic.",
+      focus_keywords: ["SEO", "search engine optimization", "organic traffic"],
+      published_at: new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000
+      ).toISOString(),
+      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      created_by: "mock-user-1",
+      project: {
+        id: projectId,
+        name: "Marketing Website",
+        description: "Main marketing website project",
+      },
+      stats: {
+        views: 1542,
+        engagement: 3.8,
+        conversions: 12,
+        lastAnalyzed: new Date(
+          Date.now() - 1 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      },
+    },
+    {
+      id: "mock-content-2",
+      project_id: projectId,
+      title: "10 Content Marketing Strategies That Work",
+      content:
+        "Content marketing is more than just creating blog posts. It's about creating valuable, relevant content that resonates with your audience and drives meaningful engagement.",
+      url: "https://example.com/content-marketing",
+      content_type: "blog_post",
+      status: "published",
+      seo_score: 92,
+      readability_score: 85,
+      word_count: 1800,
+      meta_title: "10 Proven Content Marketing Strategies | Ultimate Guide",
+      meta_description:
+        "Discover 10 effective content marketing strategies that will help you engage your audience and grow your business.",
+      focus_keywords: [
+        "content marketing",
+        "marketing strategies",
+        "audience engagement",
+      ],
+      published_at: new Date(
+        Date.now() - 3 * 24 * 60 * 60 * 1000
+      ).toISOString(),
+      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      created_by: "mock-user-2",
+      project: {
+        id: projectId,
+        name: "Marketing Website",
+        description: "Main marketing website project",
+      },
+      stats: {
+        views: 2341,
+        engagement: 4.2,
+        conversions: 18,
+        lastAnalyzed: new Date(
+          Date.now() - 1 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      },
+    },
+    {
+      id: "mock-content-3",
+      project_id: projectId,
+      title: "How to Improve Your Website's Core Web Vitals",
+      content:
+        "Core Web Vitals are essential metrics that measure the user experience of your website. Learn how to optimize LCP, FID, and CLS for better performance.",
+      url: "https://example.com/core-web-vitals",
+      content_type: "article",
+      status: "draft",
+      seo_score: 78,
+      readability_score: 82,
+      word_count: 950,
+      meta_title: "Core Web Vitals Optimization Guide | Performance Tips",
+      meta_description:
+        "Learn how to improve your website's Core Web Vitals and boost your search rankings with our comprehensive guide.",
+      focus_keywords: ["core web vitals", "website performance", "page speed"],
+      published_at: null,
+      created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      created_by: "mock-user-1",
+      project: {
+        id: projectId,
+        name: "Marketing Website",
+        description: "Main marketing website project",
+      },
+      stats: {
+        views: 0,
+        engagement: 0,
+        conversions: 0,
+        lastAnalyzed: new Date(
+          Date.now() - 1 * 24 * 60 * 60 * 1000
+        ).toISOString(),
+      },
+    },
+  ];
+
+  return mockContent;
 }
