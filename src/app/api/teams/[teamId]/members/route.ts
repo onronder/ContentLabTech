@@ -9,7 +9,7 @@ import {
   createSuccessResponse,
   validateTeamAccess,
   type AuthContext,
-} from "@/lib/auth/withApiAuth";
+} from "@/lib/auth/withApiAuth-v2";
 
 async function handleGet(
   request: NextRequest,

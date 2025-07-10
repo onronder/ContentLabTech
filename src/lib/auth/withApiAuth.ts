@@ -41,14 +41,29 @@ export function withApiAuth<T extends any[]>(
     try {
       // Get cookies with proper error handling
       const cookieStore = await cookies();
-      const cookieCount = cookieStore.getAll().length;
+      const allCookies = cookieStore.getAll();
+      const cookieCount = allCookies.length;
+      
+      // Find Supabase auth cookies specifically
+      const authCookies = allCookies.filter(c => 
+        c.name.includes('supabase') || 
+        c.name.includes('sb-') ||
+        c.name.includes('auth')
+      );
 
-      console.log("🍪 withApiAuth: Cookie analysis", {
-        cookieCount,
+      console.log("🍪 withApiAuth: Detailed cookie analysis", {
+        totalCookies: cookieCount,
         hasCookies: cookieCount > 0,
-        cookies: cookieStore
-          .getAll()
-          .map(c => ({ name: c.name, hasValue: !!c.value })),
+        authCookiesCount: authCookies.length,
+        authCookieNames: authCookies.map(c => c.name),
+        allCookieNames: allCookies.map(c => c.name),
+        // Show first few characters of auth cookie values for debugging
+        authCookieValues: authCookies.map(c => ({ 
+          name: c.name, 
+          hasValue: !!c.value,
+          length: c.value?.length || 0,
+          preview: c.value?.substring(0, 20) + '...' || 'empty'
+        }))
       });
 
       // Create Supabase client with server-side cookies
@@ -60,8 +75,11 @@ export function withApiAuth<T extends any[]>(
             get(name: string) {
               const cookie = cookieStore.get(name);
               console.log(
-                `🍪 Cookie get: ${name} = ${cookie ? "present" : "missing"}`
+                `🍪 Cookie get: ${name} = ${cookie ? `present (${cookie.value?.length} chars)` : "missing"}`
               );
+              if (cookie && name.includes('sb-')) {
+                console.log(`🔍 Supabase cookie ${name} preview:`, cookie.value?.substring(0, 50) + '...');
+              }
               return cookie?.value;
             },
             set(name: string, value: string, options: any) {

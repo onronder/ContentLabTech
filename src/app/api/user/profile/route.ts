@@ -8,7 +8,7 @@ import {
   withApiAuth,
   createSuccessResponse,
   type AuthContext,
-} from "@/lib/auth/withApiAuth";
+} from "@/lib/auth/withApiAuth-v2";
 
 async function handleGet(request: NextRequest, context: AuthContext) {
   console.log("👤 User Profile: Fetching profile for user", context.user.id);
