@@ -20,7 +20,33 @@ export interface ApiResponse<T = any> {
 }
 
 /**
- * Make authenticated API request with proper credentials
+ * Get CSRF token from cookie for server-side requests
+ */
+function getCSRFToken(): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  try {
+    const cookies = document.cookie.split(";");
+    const csrfCookie = cookies.find(cookie =>
+      cookie.trim().startsWith("csrf-token=")
+    );
+
+    if (csrfCookie) {
+      const token = csrfCookie.split("=")[1];
+      return token ? decodeURIComponent(token) : null;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("❌ API Client: Error reading CSRF token:", error);
+    return null;
+  }
+}
+
+/**
+ * Make authenticated API request with proper credentials and CSRF protection
  */
 export async function apiRequest<T = any>(
   endpoint: string,
@@ -42,12 +68,16 @@ export async function apiRequest<T = any>(
     }
   }
 
-  // Default fetch options with authentication
+  // Get CSRF token for protection
+  const csrfToken = getCSRFToken();
+
+  // Default fetch options with authentication and CSRF protection
   const requestOptions: RequestInit = {
     method: "GET",
     credentials: "include", // Include cookies for session auth
     headers: {
       "Content-Type": "application/json",
+      ...(csrfToken && { "X-CSRF-Token": csrfToken }),
       ...headers,
     },
     ...fetchOptions,
