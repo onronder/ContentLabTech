@@ -11,59 +11,158 @@ import type { Database } from "@/types/database";
  * Create server-side Supabase client with user session
  */
 export async function createClient() {
-  const cookieStore = await cookies();
+  console.log("🔍 createClient: Starting client creation");
 
-  return createServerClient<Database>(
-    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-    process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+  // Environment variables debug
+  console.log("🔍 Environment Check:", {
+    SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    NODE_ENV: process.env.NODE_ENV,
+    URL_VALUE: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + "...",
+  });
+
+  try {
+    const cookieStore = await cookies();
+    console.log("🔍 createClient: Cookie store obtained", {
+      available: !!cookieStore,
+    });
+
+    const client = createServerClient<Database>(
+      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
+      {
+        cookies: {
+          get(name: string) {
+            const value = cookieStore.get(name)?.value;
+            if (name.includes("supabase")) {
+              console.log("🔍 createClient: Getting Supabase cookie", {
+                name,
+                hasValue: !!value,
+                valueLength: value?.length || 0,
+              });
+            }
+            return value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            if (name.includes("supabase")) {
+              console.log("🔍 createClient: Setting Supabase cookie", {
+                name,
+                valueLength: value.length,
+                options,
+              });
+            }
+            try {
+              cookieStore.set({ name, value, ...options });
+            } catch (error) {
+              console.error("❌ createClient: Cookie setting error", {
+                name,
+                error,
+              });
+              // The `set` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
+          remove(name: string, options: CookieOptions) {
+            if (name.includes("supabase")) {
+              console.log("🔍 createClient: Removing Supabase cookie", {
+                name,
+              });
+            }
+            try {
+              cookieStore.set({ name, value: "", ...options });
+            } catch (error) {
+              console.error("❌ createClient: Cookie removal error", {
+                name,
+                error,
+              });
+              // The `delete` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
+          },
         },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: "", ...options });
-          } catch {
-            // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-      },
-    }
-  );
+      }
+    );
+
+    console.log("✅ createClient: Client created successfully");
+    return client;
+  } catch (exception) {
+    console.error("💥 createClient: Exception caught", {
+      error: exception instanceof Error ? exception.message : exception,
+      stack: exception instanceof Error ? exception.stack : undefined,
+    });
+    throw exception;
+  }
 }
 
 /**
  * Get the current authenticated user from the session
  */
 export async function getCurrentUser() {
-  try {
-    const supabase = await createClient();
+  console.log("🔍 getCurrentUser: Starting session retrieval");
 
+  try {
+    console.log("🔍 getCurrentUser: Creating Supabase client...");
+    const supabase = await createClient();
+    console.log("🔍 getCurrentUser: Supabase client created", {
+      client: !!supabase,
+    });
+
+    console.log("🔍 getCurrentUser: Calling supabase.auth.getUser()...");
     const {
       data: { user },
       error,
     } = await supabase.auth.getUser();
 
+    console.log("🔍 getCurrentUser: Auth getUser result", {
+      user: user
+        ? {
+            id: user.id,
+            email: user.email,
+            aud: user.aud,
+            role: user.role,
+            email_confirmed_at: user.email_confirmed_at,
+            last_sign_in_at: user.last_sign_in_at,
+          }
+        : null,
+      error: error
+        ? {
+            message: error.message,
+            status: error.status,
+            code: error.code,
+          }
+        : null,
+    });
+
     if (error) {
-      console.error("Error getting current user:", error);
+      console.error("❌ getCurrentUser: Auth error", {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        details: error,
+      });
       return null;
     }
 
+    if (!user) {
+      console.log("⚠️ getCurrentUser: No user found in session");
+      return null;
+    }
+
+    console.log("✅ getCurrentUser: User retrieved successfully", {
+      id: user.id,
+      email: user.email,
+      hasSession: true,
+    });
     return user;
-  } catch (error) {
-    console.error("Failed to get current user:", error);
+  } catch (exception) {
+    console.error("💥 getCurrentUser: Exception caught", {
+      error: exception instanceof Error ? exception.message : exception,
+      stack: exception instanceof Error ? exception.stack : undefined,
+      type: typeof exception,
+    });
     return null;
   }
 }
@@ -72,22 +171,46 @@ export async function getCurrentUser() {
  * Get the current user's session
  */
 export async function getCurrentSession() {
+  console.log("🔍 getCurrentSession: Starting session retrieval");
+
   try {
     const supabase = await createClient();
+    console.log("🔍 getCurrentSession: Supabase client created");
 
     const {
       data: { session },
       error,
     } = await supabase.auth.getSession();
 
+    console.log("🔍 getCurrentSession: Session result", {
+      session: session
+        ? {
+            access_token: session.access_token ? "present" : "missing",
+            refresh_token: session.refresh_token ? "present" : "missing",
+            expires_at: session.expires_at,
+            expires_in: session.expires_in,
+            user: session.user
+              ? { id: session.user.id, email: session.user.email }
+              : null,
+          }
+        : null,
+      error: error ? error.message : null,
+    });
+
     if (error) {
-      console.error("Error getting current session:", error);
+      console.error("❌ getCurrentSession: Session error", error);
       return null;
+    }
+
+    if (session) {
+      console.log("✅ getCurrentSession: Session retrieved successfully");
+    } else {
+      console.log("⚠️ getCurrentSession: No active session found");
     }
 
     return session;
   } catch (error) {
-    console.error("Failed to get current session:", error);
+    console.error("💥 getCurrentSession: Exception caught", error);
     return null;
   }
 }

@@ -1,10 +1,11 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   withApiAuth,
   createSuccessResponse,
   validateTeamAccess,
   type AuthContext,
 } from "@/lib/auth/withApiAuth-definitive";
+import { getCurrentUser, createClient } from "@/lib/auth/session";
 
 interface CreateContentRequest {
   projectId: string;
@@ -188,221 +189,205 @@ export const POST = withApiAuth(
   }
 );
 
-export const GET = withApiAuth(
-  async (request: NextRequest, context: AuthContext) => {
-    try {
-      console.log("🚀 Content API GET - Starting request handling");
-      console.log("👤 Authenticated user:", {
-        id: context.user.id,
-        email: context.user.email,
-      });
+// DEBUG VERSION - Testing core session functionality directly
+export async function GET(request: NextRequest) {
+  console.log("🚀 Content API: DEBUG REQUEST RECEIVED");
+  console.log("🔍 Request details:", {
+    method: request.method,
+    url: request.url,
+    headers: {
+      "user-agent": request.headers.get("user-agent")?.substring(0, 50),
+      cookie: request.headers.get("cookie") ? "present" : "missing",
+      authorization: request.headers.get("authorization")
+        ? "present"
+        : "missing",
+    },
+  });
 
-      // Parse query parameters
-      const { searchParams } = new URL(request.url);
-      const filters: ContentFilters = {
-        limit: Math.min(parseInt(searchParams.get("limit") || "50"), 100),
-        offset: parseInt(searchParams.get("offset") || "0"),
-      };
+  try {
+    // PHASE 1: Test getCurrentUser
+    console.log("🔍 Content API: PHASE 1 - Testing getCurrentUser...");
+    const user = await getCurrentUser();
 
-      const projectId = searchParams.get("projectId");
-      const teamId = searchParams.get("teamId");
-      const status = searchParams.get("status");
-      const contentType = searchParams.get("content_type");
-      const search = searchParams.get("search");
-
-      if (projectId) filters.projectId = projectId;
-      if (status) filters.status = status;
-      if (contentType) filters.content_type = contentType;
-      if (search) filters.search = search;
-
-      // Build query
-      let query = context.supabase.from("content_items").select(`
-        id,
-        title,
-        content,
-        url,
-        meta_description,
-        focus_keywords,
-        target_audience,
-        content_type,
-        status,
-        seo_score,
-        readability_score,
-        word_count,
-        created_at,
-        updated_at,
-        created_by,
-        project:projects (
-          id,
-          name,
-          team_id
-        )
-      `);
-
-      // Apply filters
-      if (filters.projectId) {
-        // Get project to validate team access
-        const { data: project, error: projectError } = await context.supabase
-          .from("projects")
-          .select("team_id")
-          .eq("id", filters.projectId)
-          .single();
-
-        if (projectError || !project) {
-          return new Response(
-            JSON.stringify({
-              error: "Project not found",
-              code: "PROJECT_NOT_FOUND",
-              status: 404,
-            }),
-            { status: 404, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        // Validate team access (requires member or higher)
-        const teamAccess = await validateTeamAccess(
-          context.supabase,
-          context.user.id,
-          project.team_id,
-          "member"
-        );
-        if (!teamAccess.hasAccess) {
-          return new Response(
-            JSON.stringify({
-              error:
-                teamAccess.error || "Insufficient permissions to view content",
-              code: "INSUFFICIENT_PERMISSIONS",
-              status: 403,
-            }),
-            { status: 403, headers: { "Content-Type": "application/json" } }
-          );
-        }
-
-        query = query.eq("project_id", filters.projectId);
-      } else if (teamId) {
-        // Filter by team - get projects for this team
-        const { data: teamProjects } = await context.supabase
-          .from("projects")
-          .select("id")
-          .eq("team_id", teamId);
-
-        if (!teamProjects?.length) {
-          return createSuccessResponse({
-            content: [],
-            total: 0,
-            filters,
-          });
-        }
-
-        const projectIds = teamProjects.map((p: any) => p.id);
-        query = query.in("project_id", projectIds);
-      } else {
-        // Get user's accessible projects
-        const { data: teamMemberships } = await context.supabase
-          .from("team_members")
-          .select("team_id")
-          .eq("user_id", context.user.id);
-
-        if (!teamMemberships?.length) {
-          return createSuccessResponse({
-            content: [],
-            total: 0,
-            filters,
-          });
-        }
-
-        const teamIds = teamMemberships.map((tm: any) => tm.team_id);
-        const { data: projects } = await context.supabase
-          .from("projects")
-          .select("id")
-          .in("team_id", teamIds);
-
-        if (!projects?.length) {
-          return createSuccessResponse({
-            content: [],
-            total: 0,
-            filters,
-          });
-        }
-
-        const projectIds = projects.map((p: any) => p.id);
-        query = query.in("project_id", projectIds);
-      }
-
-      if (filters.status) {
-        query = query.eq("status", filters.status);
-      }
-
-      if (filters.content_type) {
-        query = query.eq("content_type", filters.content_type);
-      }
-
-      if (filters.search) {
-        query = query.or(
-          `title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`
-        );
-      }
-
-      // Get total count
-      const { count } = await query;
-
-      // Apply pagination and ordering
-      query = query
-        .order("updated_at", { ascending: false })
-        .range(filters.offset, filters.offset + filters.limit - 1);
-
-      const { data: content, error } = await query;
-
-      if (error) {
-        console.error("Error fetching content:", error);
-        return new Response(
-          JSON.stringify({
-            error: "Failed to fetch content",
-            code: "FETCH_CONTENT_ERROR",
-            status: 500,
-          }),
-          { status: 500, headers: { "Content-Type": "application/json" } }
-        );
-      }
-
-      // If no content found and fallback is requested, return mock data
-      if (
-        (!content || content.length === 0) &&
-        searchParams.get("fallback") === "team"
-      ) {
-        console.log("📄 No content found, returning mock data for fallback");
-
-        const mockContent = generateMockContentData(
-          teamId || "mock-team",
-          projectId || "mock-project"
-        );
-
-        return createSuccessResponse({
-          content: mockContent,
-          total: mockContent.length,
-          filters,
-          fallback: true,
-        });
-      }
-
-      return createSuccessResponse({
-        content: content || [],
-        total: count || 0,
-        filters,
-      });
-    } catch (error) {
-      console.error("API error:", error);
-      return new Response(
-        JSON.stringify({
-          error: "Internal server error",
-          code: "INTERNAL_ERROR",
-          status: 500,
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+    if (!user) {
+      console.error(
+        "❌ Content API: PHASE 1 FAILED - No user from getCurrentUser"
+      );
+      return NextResponse.json(
+        {
+          phase: 1,
+          error: "No authenticated user found",
+          details: "getCurrentUser() returned null",
+          success: false,
+        },
+        { status: 401 }
       );
     }
+
+    console.log("✅ Content API: PHASE 1 SUCCESS - User authenticated", {
+      id: user.id,
+      email: user.email,
+      aud: user.aud,
+      role: user.role,
+    });
+
+    // PHASE 2: Test createClient
+    console.log("🔍 Content API: PHASE 2 - Testing createClient...");
+    const supabase = await createClient();
+    console.log("✅ Content API: PHASE 2 SUCCESS - Client created");
+
+    // PHASE 3: Test basic database query
+    console.log("🔍 Content API: PHASE 3 - Testing basic database query...");
+    const { data: testTeams, error: teamsError } = await supabase
+      .from("teams")
+      .select("id, name, owner_id")
+      .eq("owner_id", user.id)
+      .limit(3);
+
+    console.log("🔍 Content API: PHASE 3 - Teams query result", {
+      data: testTeams,
+      error: teamsError
+        ? {
+            message: teamsError.message,
+            code: teamsError.code,
+            details: teamsError.details,
+            hint: teamsError.hint,
+          }
+        : null,
+    });
+
+    if (teamsError) {
+      console.error("❌ Content API: PHASE 3 FAILED - Database query failed");
+      return NextResponse.json(
+        {
+          phase: 3,
+          error: "Database query failed",
+          details: {
+            message: teamsError.message,
+            code: teamsError.code,
+            hint: teamsError.hint,
+          },
+          user: { id: user.id, email: user.email },
+          success: false,
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log("✅ Content API: PHASE 3 SUCCESS - Database query successful");
+
+    // PHASE 4: Test team_members query
+    console.log("🔍 Content API: PHASE 4 - Testing team_members query...");
+    const { data: teamMemberships, error: membershipsError } = await supabase
+      .from("team_members")
+      .select("team_id, role")
+      .eq("user_id", user.id)
+      .limit(5);
+
+    console.log("🔍 Content API: PHASE 4 - Team memberships result", {
+      data: teamMemberships,
+      error: membershipsError ? membershipsError.message : null,
+    });
+
+    if (membershipsError) {
+      console.error(
+        "❌ Content API: PHASE 4 FAILED - Team memberships query failed"
+      );
+      return NextResponse.json(
+        {
+          phase: 4,
+          error: "Team memberships query failed",
+          details: membershipsError.message,
+          user: { id: user.id, email: user.email },
+          testTeams: testTeams,
+          success: false,
+        },
+        { status: 500 }
+      );
+    }
+
+    console.log(
+      "✅ Content API: PHASE 4 SUCCESS - Team memberships query successful"
+    );
+
+    // PHASE 5: Test projects query
+    console.log("🔍 Content API: PHASE 5 - Testing projects query...");
+    const teamIds = teamMemberships?.map(tm => tm.team_id) || [];
+    const { data: projects, error: projectsError } = await supabase
+      .from("projects")
+      .select("id, name, team_id")
+      .in("team_id", teamIds)
+      .limit(5);
+
+    console.log("🔍 Content API: PHASE 5 - Projects query result", {
+      teamIds: teamIds,
+      data: projects,
+      error: projectsError ? projectsError.message : null,
+    });
+
+    console.log(
+      "🎉 Content API: ALL PHASES SUCCESSFUL - Core session debugging complete"
+    );
+
+    return NextResponse.json({
+      success: true,
+      message: "Core session debugging successful - ALL PHASES PASSED",
+      phases: {
+        phase1_getCurrentUser: "✅ SUCCESS",
+        phase2_createClient: "✅ SUCCESS",
+        phase3_basicQuery: "✅ SUCCESS",
+        phase4_teamMemberships: "✅ SUCCESS",
+        phase5_projects: "✅ SUCCESS",
+      },
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          aud: user.aud,
+          role: user.role,
+          email_confirmed_at: user.email_confirmed_at,
+          last_sign_in_at: user.last_sign_in_at,
+        },
+        teams: testTeams,
+        teamMemberships: teamMemberships,
+        projects: projects,
+        stats: {
+          teamsOwned: testTeams?.length || 0,
+          teamMemberships: teamMemberships?.length || 0,
+          accessibleProjects: projects?.length || 0,
+        },
+      },
+      debug: {
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV,
+      },
+    });
+  } catch (exception) {
+    console.error("💥 Content API: UNHANDLED EXCEPTION", {
+      error: exception instanceof Error ? exception.message : exception,
+      stack: exception instanceof Error ? exception.stack : undefined,
+      type: typeof exception,
+    });
+
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: {
+          message:
+            exception instanceof Error ? exception.message : "Unknown error",
+          type: typeof exception,
+          stack:
+            exception instanceof Error
+              ? exception.stack?.split("\n").slice(0, 5)
+              : undefined,
+        },
+        success: false,
+        phase: "exception_handler",
+      },
+      { status: 500 }
+    );
   }
-);
+}
 
 // Helper functions
 function calculateSEOScore(
