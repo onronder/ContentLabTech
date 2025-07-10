@@ -65,7 +65,28 @@ interface AnalyticsData {
 }
 
 export const AnalyticsDashboard = () => {
-  const { currentTeam, teams, teamsLoading } = useAuth();
+  const authData = useAuth();
+  const { currentTeam, teams, teamsLoading } = authData;
+
+  // Enhanced component-level debugging
+  console.log("📡 AnalyticsDashboard: Component team data received:", {
+    componentName: "AnalyticsDashboard",
+    hookReturnedTeam: currentTeam,
+    teamId: currentTeam?.id,
+    teamName: currentTeam?.name,
+    teamsCount: teams?.length || 0,
+    teamsLoading,
+    readyForApiCall: !!currentTeam?.id,
+    fullAuthData: {
+      user: authData.user
+        ? { id: authData.user.id, email: authData.user.email }
+        : null,
+      currentTeam: authData.currentTeam,
+      teams: authData.teams,
+      loading: authData.loading,
+      teamsLoading: authData.teamsLoading,
+    },
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(

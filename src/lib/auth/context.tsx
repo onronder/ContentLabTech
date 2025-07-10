@@ -77,6 +77,29 @@ export const useAuth = (): AuthContextType => {
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
+
+  // Enhanced debugging for team data flow tracking
+  console.log("🔧 useAuth Hook Debug:", {
+    contextAvailable: !!context,
+    user: context.user
+      ? { id: context.user.id, email: context.user.email }
+      : null,
+    teams: context.teams
+      ? context.teams.map(t => ({ id: t.id, name: t.name, role: t.userRole }))
+      : [],
+    currentTeam: context.currentTeam
+      ? {
+          id: context.currentTeam.id,
+          name: context.currentTeam.name,
+          role: context.currentTeamRole,
+        }
+      : null,
+    teamsLoading: context.teamsLoading,
+    loading: context.loading,
+    teamDataAvailable: !!context.currentTeam,
+    readyForApiCall: !!context.currentTeam?.id,
+  });
+
   return context;
 };
 
@@ -109,6 +132,37 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     TeamMember["role"] | null
   >(null);
   const [teamsLoading, setTeamsLoading] = useState(false);
+
+  // Debug team state changes
+  useEffect(() => {
+    console.log("🔍 Auth Context: Team state changed", {
+      currentTeam: currentTeam
+        ? {
+            id: currentTeam.id,
+            name: currentTeam.name,
+            role: currentTeam.userRole,
+          }
+        : null,
+      currentTeamRole,
+      teamsCount: teams.length,
+      teams: teams.map(t => ({ id: t.id, name: t.name, role: t.userRole })),
+    });
+  }, [currentTeam, currentTeamRole, teams]);
+
+  // Load teams when user changes (backup mechanism)
+  useEffect(() => {
+    if (user && !teamsLoading && teams.length === 0) {
+      console.log(
+        "🔍 Auth Context: User available but no teams, loading teams",
+        {
+          userId: user.id,
+          teamsLoading,
+          teamsCount: teams.length,
+        }
+      );
+      loadUserTeams(user.id);
+    }
+  }, [user, teamsLoading, teams.length]);
 
   // Enhanced configuration validation
   const validateSupabaseConfig = useCallback(() => {
@@ -298,6 +352,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         userRole: team.team_members[0]?.role || "member",
       }));
 
+      console.log("🔍 Auth Context: About to set teams state", {
+        teamsWithRole,
+        count: teamsWithRole.length,
+        beforeSetTeams: teams,
+      });
+
       setTeams(teamsWithRole);
       debugLog("Teams loaded", { count: teamsWithRole.length });
 
@@ -308,6 +368,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         : teamsWithRole[0];
 
       if (targetTeam) {
+        console.log("🔍 Auth Context: About to set current team", {
+          targetTeam,
+          beforeSetCurrentTeam: currentTeam,
+        });
+
         setCurrentTeam(targetTeam);
         setCurrentTeamRole(targetTeam.userRole);
         setToLocalStorage("currentTeamId", targetTeam.id);
@@ -534,6 +599,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     resetAuthState,
     getDebugInfo,
   };
+
+  // Debug context value creation
+  console.log("🔍 Auth Context: Creating context value", {
+    user: user ? { id: user.id, email: user.email } : null,
+    teams: teams.map(t => ({ id: t.id, name: t.name, role: t.userRole })),
+    currentTeam: currentTeam
+      ? {
+          id: currentTeam.id,
+          name: currentTeam.name,
+          role: currentTeam.userRole,
+        }
+      : null,
+    currentTeamRole,
+    teamsLoading,
+    loading,
+    contextValueHasCurrentTeam: !!contextValue.currentTeam,
+  });
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
