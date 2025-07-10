@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth/context";
+import { endpoints } from "@/lib/api/client";
 import {
   BarChart3,
   TrendingUp,
@@ -142,30 +143,21 @@ export const AnalyticsDashboard = () => {
     setError(null);
 
     try {
-      const apiUrl = `/api/analytics?teamId=${currentTeam.id}&timeRange=${selectedTimeRange}&fallback=team`;
-      console.log("📡 API URL:", apiUrl);
-
-      const response = await fetch(apiUrl);
-      console.log("📡 API Response:", {
-        status: response.status,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries()),
+      const response = await endpoints.analytics(currentTeam.id, {
+        timeRange: selectedTimeRange,
+        fallback: "team",
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ API Error Response:", errorText);
-        throw new Error(
-          `Failed to load analytics data: ${response.status} ${errorText}`
-        );
+      if (!response.success) {
+        console.error("❌ Analytics API Error:", response.error);
+        throw new Error(response.error || "Failed to load analytics data");
       }
 
-      const data = await response.json();
-      console.log("📡 API Success Response:", data);
+      console.log("📡 Analytics API Success:", response.data);
 
       // Use actual API response data
       setAnalyticsData(
-        data.analytics || {
+        response.data?.analytics || {
           overview: {
             totalProjects: 3,
             totalContent: 47,

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth/context";
+import { endpoints } from "@/lib/api/client";
 import {
   Plus,
   Search,
@@ -154,41 +155,27 @@ export const ContentManager = () => {
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        teamId: currentTeam.id,
-        limit: filters.limit.toString(),
-        offset: filters.offset.toString(),
+      const params: Record<string, any> = {
+        limit: filters.limit,
+        offset: filters.offset,
         fallback: "team",
-      });
+      };
 
-      if (filters.status) params.append("status", filters.status);
-      if (filters.contentType)
-        params.append("contentType", filters.contentType);
-      if (filters.projectId) params.append("projectId", filters.projectId);
-      if (filters.search) params.append("search", filters.search);
+      if (filters.status) params.status = filters.status;
+      if (filters.contentType) params.contentType = filters.contentType;
+      if (filters.projectId) params.projectId = filters.projectId;
+      if (filters.search) params.search = filters.search;
 
-      const apiUrl = `/api/content?${params.toString()}`;
-      console.log("📡 Content API URL:", apiUrl);
+      const response = await endpoints.content(currentTeam.id, params);
 
-      const response = await fetch(apiUrl);
-      console.log("📡 Content API Response:", {
-        status: response.status,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("❌ Content API Error Response:", errorText);
-        throw new Error(
-          `Failed to load content: ${response.status} ${errorText}`
-        );
+      if (!response.success) {
+        console.error("❌ Content API Error:", response.error);
+        throw new Error(response.error || "Failed to load content");
       }
 
-      const data = await response.json();
-      console.log("📡 Content API Success Response:", data);
-      setContent(data.content || []);
-      setTotalContent(data.total || 0);
+      console.log("📡 Content API Success:", response.data);
+      setContent(response.data?.content || []);
+      setTotalContent(response.data?.total || 0);
     } catch (err) {
       console.error("❌ Content API Error:", err);
       const errorMessage =
