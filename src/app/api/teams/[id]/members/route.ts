@@ -14,16 +14,16 @@ import {
 async function handleGet(
   request: NextRequest,
   context: AuthContext,
-  { params }: { params: { teamId: string } }
+  { params }: { params: { id: string } }
 ) {
-  console.log("👥 Team Members: Fetching members for team", params.teamId);
+  console.log("👥 Team Members: Fetching members for team", params.id);
 
   try {
     // Validate team access
     const teamAccess = await validateTeamAccess(
       context.supabase,
       context.user.id,
-      params.teamId,
+      params.id,
       "member"
     );
     if (!teamAccess.hasAccess) {
@@ -55,7 +55,7 @@ async function handleGet(
         )
       `
       )
-      .eq("team_id", params.teamId)
+      .eq("team_id", params.id)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -74,7 +74,7 @@ async function handleGet(
     const { data: team, error: teamError } = await context.supabase
       .from("teams")
       .select("id, name, description, owner_id, created_at")
-      .eq("id", params.teamId)
+      .eq("id", params.id)
       .single();
 
     if (teamError) {
@@ -98,7 +98,7 @@ async function handleGet(
       })) || [];
 
     console.log("✅ Team Members: Successfully fetched members", {
-      teamId: params.teamId,
+      teamId: params.id,
       membersCount: formattedMembers.length,
       currentUserRole: teamAccess.userRole,
     });
@@ -145,16 +145,16 @@ async function handleGet(
 async function handlePost(
   request: NextRequest,
   context: AuthContext,
-  { params }: { params: { teamId: string } }
+  { params }: { params: { id: string } }
 ) {
-  console.log("👥 Team Members: Adding member to team", params.teamId);
+  console.log("👥 Team Members: Adding member to team", params.id);
 
   try {
     // Validate team access (need admin or owner role)
     const teamAccess = await validateTeamAccess(
       context.supabase,
       context.user.id,
-      params.teamId,
+      params.id,
       "admin"
     );
     if (!teamAccess.hasAccess) {
@@ -186,7 +186,7 @@ async function handlePost(
     // Find user by email (this would need to be implemented based on your auth system)
     // For now, return a placeholder response
     console.log("✅ Team Members: Member invitation would be sent", {
-      teamId: params.teamId,
+      teamId: params.id,
       email,
       role,
       invitedBy: context.user.id,
@@ -197,7 +197,7 @@ async function handlePost(
       invitation: {
         email,
         role,
-        teamId: params.teamId,
+        teamId: params.id,
         invitedBy: context.user.id,
         status: "pending",
       },

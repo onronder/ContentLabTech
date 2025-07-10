@@ -50,8 +50,6 @@ export function withApiAuth<T extends any[]>(
         console.log("❌ Definitive Auth: Authentication failed", {
           method: request.method,
           url: request.url,
-          validationError: validationResult.error,
-          validationMethod: validationResult.method,
         });
 
         return NextResponse.json(
