@@ -7,9 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser, createClient } from "./session";
 import type { User } from "@supabase/supabase-js";
 
-export interface AuthenticatedUser extends User {
-  // Inherits all User properties from Supabase
-}
+export type AuthenticatedUser = User;
 
 export interface AuthContext {
   user: AuthenticatedUser;
@@ -56,7 +54,7 @@ export function withApiAuth<T extends any[]>(
               authMethod: "session",
             },
           },
-          { 
+          {
             status: 401,
             headers: {
               "Content-Type": "application/json",
@@ -103,14 +101,13 @@ export function withApiAuth<T extends any[]>(
       });
 
       enhancedResponse.headers.set("Access-Control-Allow-Credentials", "true");
-      
+
       const origin = request.headers.get("origin");
       if (origin) {
         enhancedResponse.headers.set("Access-Control-Allow-Origin", origin);
       }
 
       return enhancedResponse;
-
     } catch (error) {
       console.error("❌ withApiAuth v2: Authentication error", {
         error: error instanceof Error ? error.message : String(error),
@@ -130,7 +127,7 @@ export function withApiAuth<T extends any[]>(
             message: "Internal authentication error occurred",
           },
         },
-        { 
+        {
           status: 500,
           headers: {
             "Content-Type": "application/json",
@@ -175,10 +172,10 @@ export async function validateTeamAccess(
   requiredRole?: "owner" | "admin" | "member"
 ): Promise<{ hasAccess: boolean; userRole?: string; error?: string }> {
   try {
-    console.log("🏢 validateTeamAccess: Checking access", { 
-      userId, 
-      teamId, 
-      requiredRole 
+    console.log("🏢 validateTeamAccess: Checking access", {
+      userId,
+      teamId,
+      requiredRole,
     });
 
     const { data: membership, error } = await supabase
@@ -189,18 +186,18 @@ export async function validateTeamAccess(
       .single();
 
     if (error) {
-      console.log("❌ validateTeamAccess: Database error", { 
+      console.log("❌ validateTeamAccess: Database error", {
         error: error.message,
-        code: error.code 
+        code: error.code,
       });
-      
+
       if (error.code === "PGRST116") {
         return {
           hasAccess: false,
           error: "User is not a member of this team",
         };
       }
-      
+
       return {
         hasAccess: false,
         error: `Team access validation failed: ${error.message}`,
@@ -218,7 +215,8 @@ export async function validateTeamAccess(
     // Check role hierarchy if required
     if (requiredRole) {
       const roleHierarchy = { owner: 3, admin: 2, member: 1, viewer: 0 };
-      const userLevel = roleHierarchy[membership.role as keyof typeof roleHierarchy] ?? 0;
+      const userLevel =
+        roleHierarchy[membership.role as keyof typeof roleHierarchy] ?? 0;
       const requiredLevel = roleHierarchy[requiredRole];
 
       if (userLevel < requiredLevel) {

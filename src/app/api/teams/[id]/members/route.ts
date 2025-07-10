@@ -14,16 +14,17 @@ import {
 async function handleGet(
   request: NextRequest,
   context: AuthContext,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log("👥 Team Members: Fetching members for team", params.id);
+  const resolvedParams = await params;
+  console.log("👥 Team Members: Fetching members for team", resolvedParams.id);
 
   try {
     // Validate team access
     const teamAccess = await validateTeamAccess(
       context.supabase,
       context.user.id,
-      params.id,
+      resolvedParams.id,
       "member"
     );
     if (!teamAccess.hasAccess) {
@@ -55,7 +56,7 @@ async function handleGet(
         )
       `
       )
-      .eq("team_id", params.id)
+      .eq("team_id", resolvedParams.id)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -74,7 +75,7 @@ async function handleGet(
     const { data: team, error: teamError } = await context.supabase
       .from("teams")
       .select("id, name, description, owner_id, created_at")
-      .eq("id", params.id)
+      .eq("id", resolvedParams.id)
       .single();
 
     if (teamError) {
@@ -83,7 +84,7 @@ async function handleGet(
 
     // Format members data
     const formattedMembers =
-      members?.map(member => ({
+      members?.map((member: any) => ({
         id: member.id,
         role: member.role,
         joinedAt: member.created_at,
@@ -98,7 +99,7 @@ async function handleGet(
       })) || [];
 
     console.log("✅ Team Members: Successfully fetched members", {
-      teamId: params.id,
+      teamId: resolvedParams.id,
       membersCount: formattedMembers.length,
       currentUserRole: teamAccess.userRole,
     });
@@ -145,16 +146,17 @@ async function handleGet(
 async function handlePost(
   request: NextRequest,
   context: AuthContext,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  console.log("👥 Team Members: Adding member to team", params.id);
+  const resolvedParams = await params;
+  console.log("👥 Team Members: Adding member to team", resolvedParams.id);
 
   try {
     // Validate team access (need admin or owner role)
     const teamAccess = await validateTeamAccess(
       context.supabase,
       context.user.id,
-      params.id,
+      resolvedParams.id,
       "admin"
     );
     if (!teamAccess.hasAccess) {
@@ -186,7 +188,7 @@ async function handlePost(
     // Find user by email (this would need to be implemented based on your auth system)
     // For now, return a placeholder response
     console.log("✅ Team Members: Member invitation would be sent", {
-      teamId: params.id,
+      teamId: resolvedParams.id,
       email,
       role,
       invitedBy: context.user.id,
@@ -197,7 +199,7 @@ async function handlePost(
       invitation: {
         email,
         role,
-        teamId: params.id,
+        teamId: resolvedParams.id,
         invitedBy: context.user.id,
         status: "pending",
       },

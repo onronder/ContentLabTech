@@ -112,7 +112,7 @@ export const GET = withApiAuth(
           );
         }
 
-        projectIds = teamProjects?.map(p => p.id) || [];
+        projectIds = teamProjects?.map((p: any) => p.id) || [];
       }
 
       // Handle project-level analytics

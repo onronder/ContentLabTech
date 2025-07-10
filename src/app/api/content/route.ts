@@ -294,7 +294,7 @@ export const GET = withApiAuth(
           });
         }
 
-        const projectIds = teamProjects.map(p => p.id);
+        const projectIds = teamProjects.map((p: any) => p.id);
         query = query.in("project_id", projectIds);
       } else {
         // Get user's accessible projects
@@ -311,7 +311,7 @@ export const GET = withApiAuth(
           });
         }
 
-        const teamIds = teamMemberships.map(tm => tm.team_id);
+        const teamIds = teamMemberships.map((tm: any) => tm.team_id);
         const { data: projects } = await context.supabase
           .from("projects")
           .select("id")
@@ -325,7 +325,7 @@ export const GET = withApiAuth(
           });
         }
 
-        const projectIds = projects.map(p => p.id);
+        const projectIds = projects.map((p: any) => p.id);
         query = query.in("project_id", projectIds);
       }
 

@@ -88,8 +88,9 @@ async function handleGet(request: NextRequest, context: AuthContext) {
       teams,
       stats: {
         totalTeams: teams.length,
-        ownedTeams: teams.filter(t => t.owner_id === context.user.id).length,
-        adminTeams: teams.filter(t => t.userRole === "admin").length,
+        ownedTeams: teams.filter((t: any) => t.owner_id === context.user.id)
+          .length,
+        adminTeams: teams.filter((t: any) => t.userRole === "admin").length,
       },
     });
   } catch (error) {
