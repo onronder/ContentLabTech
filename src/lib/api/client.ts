@@ -1,7 +1,10 @@
 /**
  * Authenticated API Client
  * Centralized API client with proper authentication handling
+ * Production-ready with absolute URL resolution for Vercel deployment
  */
+
+import { getApiEndpoint, debugApiRouting } from "@/lib/utils/api";
 
 export interface ApiRequestOptions extends RequestInit {
   /** URL search parameters */
@@ -54,8 +57,10 @@ export async function apiRequest<T = any>(
 ): Promise<ApiResponse<T>> {
   const { params, headers = {}, ...fetchOptions } = options;
 
+  // Convert relative endpoint to absolute URL for production
+  let absoluteUrl = getApiEndpoint(endpoint);
+
   // Build URL with params
-  let url = endpoint;
   if (params) {
     const searchParams = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -64,9 +69,17 @@ export async function apiRequest<T = any>(
       }
     });
     if (searchParams.toString()) {
-      url += `?${searchParams.toString()}`;
+      absoluteUrl += `?${searchParams.toString()}`;
     }
   }
+
+  // Debug API routing in development/production
+  const envInfo = debugApiRouting();
+  console.log(`🔗 API URL Resolution:`, {
+    originalEndpoint: endpoint,
+    absoluteUrl,
+    environment: envInfo,
+  });
 
   // Get CSRF token for protection
   const csrfToken = getCSRFToken();
@@ -83,14 +96,15 @@ export async function apiRequest<T = any>(
     ...fetchOptions,
   };
 
-  console.log(`🌐 API Request: ${requestOptions.method} ${url}`, {
+  console.log(`🌐 API Request: ${requestOptions.method} ${absoluteUrl}`, {
     options: requestOptions,
-    endpoint,
+    originalEndpoint: endpoint,
+    absoluteUrl,
     params,
   });
 
   try {
-    const response = await fetch(url, requestOptions);
+    const response = await fetch(absoluteUrl, requestOptions);
 
     console.log(`📡 API Response: ${response.status} ${response.statusText}`, {
       status: response.status,
