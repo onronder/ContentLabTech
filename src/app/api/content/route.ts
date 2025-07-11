@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   withApiAuth,
   createSuccessResponse,
   validateTeamAccess,
   type AuthContext,
 } from "@/lib/auth/withApiAuth-definitive";
-import { getCurrentUser, createClient } from "@/lib/auth/session";
 
 interface CreateContentRequest {
   projectId: string;
@@ -99,7 +98,7 @@ export const POST = withApiAuth(
         );
       }
 
-      // Calculate initial SEO scores
+      // Calculate SEO and readability scores
       const seoScore = calculateSEOScore(
         title,
         content,
@@ -107,76 +106,70 @@ export const POST = withApiAuth(
         focus_keywords
       );
       const readabilityScore = calculateReadabilityScore(content);
-      const wordCount = content
-        .split(/\s+/)
-        .filter(word => word.length > 0).length;
+      const wordCount = content.split(/\s+/).length;
 
-      // Create content item
+      // Create content record
       const { data: newContent, error: createError } = await context.supabase
-        .from("content_items")
-        .insert({
-          project_id: projectId,
-          title,
-          content,
-          url,
-          meta_description,
-          focus_keywords,
-          target_audience,
-          content_type,
-          status,
-          seo_score: seoScore,
-          readability_score: readabilityScore,
-          word_count: wordCount,
-          created_by: context.user.id,
-        })
-        .select("*")
+        .from("content")
+        .insert([
+          {
+            project_id: projectId,
+            title,
+            content,
+            url,
+            meta_description,
+            focus_keywords,
+            target_audience,
+            content_type,
+            status,
+            seo_score: seoScore,
+            readability_score: readabilityScore,
+            word_count: wordCount,
+            created_by: context.user.id,
+          },
+        ])
+        .select()
         .single();
 
       if (createError) {
-        console.error("Error creating content:", createError);
+        console.error("❌ Content API: Failed to create content", {
+          error: createError.message,
+          code: createError.code,
+        });
         return new Response(
           JSON.stringify({
             error: "Failed to create content",
-            code: "CREATE_CONTENT_ERROR",
+            code: "CREATE_FAILED",
+            details: createError.message,
             status: 500,
           }),
           { status: 500, headers: { "Content-Type": "application/json" } }
         );
       }
 
-      // Log content creation
-      await context.supabase.from("user_events").insert({
-        user_id: context.user.id,
-        event_type: "content_created",
-        event_data: {
-          content_id: newContent.id,
-          project_id: projectId,
-          title,
-          content_type,
-        },
+      console.log("✅ Content API: Content created successfully", {
+        contentId: newContent.id,
+        title: newContent.title,
+        userId: context.user.id,
       });
-
-      // Trigger initial content analysis
-      try {
-        await context.supabase.functions.invoke("content-analysis", {
-          body: {
-            contentId: newContent.id,
-            analysisType: "full",
-          },
-        });
-      } catch (error) {
-        console.error("Error triggering content analysis:", error);
-        // Don't fail the request if analysis fails
-      }
 
       return createSuccessResponse(
         {
           content: newContent,
+          scores: {
+            seo: seoScore,
+            readability: readabilityScore,
+            wordCount,
+          },
         },
         201
       );
     } catch (error) {
-      console.error("API error:", error);
+      console.error("❌ Content API: Unexpected error", {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
       return new Response(
         JSON.stringify({
           error: "Internal server error",
@@ -189,205 +182,137 @@ export const POST = withApiAuth(
   }
 );
 
-// DEBUG VERSION - Testing core session functionality directly
-export async function GET(request: NextRequest) {
-  console.log("🚀 Content API: DEBUG REQUEST RECEIVED");
-  console.log("🔍 Request details:", {
-    method: request.method,
-    url: request.url,
-    headers: {
-      "user-agent": request.headers.get("user-agent")?.substring(0, 50),
-      cookie: request.headers.get("cookie") ? "present" : "missing",
-      authorization: request.headers.get("authorization")
-        ? "present"
-        : "missing",
-    },
-  });
+// Enhanced GET endpoint with comprehensive authentication handling
+export const GET = withApiAuth(
+  async (request: NextRequest, context: AuthContext) => {
+    try {
+      console.log("🚀 Content API GET - Starting request handling");
+      console.log("👤 Authenticated user:", {
+        id: context.user.id,
+        email: context.user.email,
+      });
 
-  try {
-    // PHASE 1: Test getCurrentUser
-    console.log("🔍 Content API: PHASE 1 - Testing getCurrentUser...");
-    const user = await getCurrentUser();
+      // Get query parameters
+      const { searchParams } = new URL(request.url);
+      const projectId = searchParams.get("projectId");
+      const status = searchParams.get("status");
+      const contentType = searchParams.get("content_type");
+      const search = searchParams.get("search");
+      const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+      const offset = parseInt(searchParams.get("offset") || "0");
 
-    if (!user) {
-      console.error(
-        "❌ Content API: PHASE 1 FAILED - No user from getCurrentUser"
-      );
-      return NextResponse.json(
-        {
-          phase: 1,
-          error: "No authenticated user found",
-          details: "getCurrentUser() returned null",
-          success: false,
-        },
-        { status: 401 }
-      );
-    }
+      console.log("📋 Query parameters:", {
+        projectId,
+        status,
+        contentType,
+        search,
+        limit,
+        offset,
+      });
 
-    console.log("✅ Content API: PHASE 1 SUCCESS - User authenticated", {
-      id: user.id,
-      email: user.email,
-      aud: user.aud,
-      role: user.role,
-    });
+      // Build query
+      let query = context.supabase
+        .from("content")
+        .select(
+          `
+          *,
+          project:projects(
+            id,
+            name,
+            team_id,
+            team:teams(id, name)
+          )
+        `
+        )
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
 
-    // PHASE 2: Test createClient
-    console.log("🔍 Content API: PHASE 2 - Testing createClient...");
-    const supabase = await createClient();
-    console.log("✅ Content API: PHASE 2 SUCCESS - Client created");
+      // Apply filters
+      if (projectId) {
+        query = query.eq("project_id", projectId);
+      }
+      if (status) {
+        query = query.eq("status", status);
+      }
+      if (contentType) {
+        query = query.eq("content_type", contentType);
+      }
+      if (search) {
+        query = query.or(
+          `title.ilike.%${search}%,content.ilike.%${search}%,meta_description.ilike.%${search}%`
+        );
+      }
 
-    // PHASE 3: Test basic database query
-    console.log("🔍 Content API: PHASE 3 - Testing basic database query...");
-    const { data: testTeams, error: teamsError } = await supabase
-      .from("teams")
-      .select("id, name, owner_id")
-      .eq("owner_id", user.id)
-      .limit(3);
+      // Execute query
+      const { data: content, error } = await query;
 
-    console.log("🔍 Content API: PHASE 3 - Teams query result", {
-      data: testTeams,
-      error: teamsError
-        ? {
-            message: teamsError.message,
-            code: teamsError.code,
-            details: teamsError.details,
-            hint: teamsError.hint,
+      if (error) {
+        console.error("❌ Content API: Database query failed", {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+
+        return new Response(
+          JSON.stringify({
+            error: "Failed to fetch content",
+            code: "DATABASE_ERROR",
+            details: error.message,
+            status: 500,
+          }),
+          { status: 500, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // Filter content based on team access
+      const filteredContent = [];
+      for (const item of content || []) {
+        if (item.project?.team_id) {
+          const teamAccess = await validateTeamAccess(
+            context.supabase,
+            context.user.id,
+            item.project.team_id,
+            "member"
+          );
+          if (teamAccess.hasAccess) {
+            filteredContent.push(item);
           }
-        : null,
-    });
+        }
+      }
 
-    if (teamsError) {
-      console.error("❌ Content API: PHASE 3 FAILED - Database query failed");
-      return NextResponse.json(
-        {
-          phase: 3,
-          error: "Database query failed",
-          details: {
-            message: teamsError.message,
-            code: teamsError.code,
-            hint: teamsError.hint,
-          },
-          user: { id: user.id, email: user.email },
-          success: false,
+      console.log("✅ Content API: Successfully retrieved content", {
+        totalItems: content?.length || 0,
+        accessibleItems: filteredContent.length,
+        userId: context.user.id,
+      });
+
+      return createSuccessResponse({
+        content: filteredContent,
+        pagination: {
+          limit,
+          offset,
+          total: filteredContent.length,
         },
-        { status: 500 }
+      });
+    } catch (error) {
+      console.error("❌ Content API: Unexpected error", {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: context.user.id,
+      });
+
+      return new Response(
+        JSON.stringify({
+          error: "Internal server error",
+          code: "INTERNAL_ERROR",
+          status: 500,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
-
-    console.log("✅ Content API: PHASE 3 SUCCESS - Database query successful");
-
-    // PHASE 4: Test team_members query
-    console.log("🔍 Content API: PHASE 4 - Testing team_members query...");
-    const { data: teamMemberships, error: membershipsError } = await supabase
-      .from("team_members")
-      .select("team_id, role")
-      .eq("user_id", user.id)
-      .limit(5);
-
-    console.log("🔍 Content API: PHASE 4 - Team memberships result", {
-      data: teamMemberships,
-      error: membershipsError ? membershipsError.message : null,
-    });
-
-    if (membershipsError) {
-      console.error(
-        "❌ Content API: PHASE 4 FAILED - Team memberships query failed"
-      );
-      return NextResponse.json(
-        {
-          phase: 4,
-          error: "Team memberships query failed",
-          details: membershipsError.message,
-          user: { id: user.id, email: user.email },
-          testTeams: testTeams,
-          success: false,
-        },
-        { status: 500 }
-      );
-    }
-
-    console.log(
-      "✅ Content API: PHASE 4 SUCCESS - Team memberships query successful"
-    );
-
-    // PHASE 5: Test projects query
-    console.log("🔍 Content API: PHASE 5 - Testing projects query...");
-    const teamIds = teamMemberships?.map(tm => tm.team_id) || [];
-    const { data: projects, error: projectsError } = await supabase
-      .from("projects")
-      .select("id, name, team_id")
-      .in("team_id", teamIds)
-      .limit(5);
-
-    console.log("🔍 Content API: PHASE 5 - Projects query result", {
-      teamIds: teamIds,
-      data: projects,
-      error: projectsError ? projectsError.message : null,
-    });
-
-    console.log(
-      "🎉 Content API: ALL PHASES SUCCESSFUL - Core session debugging complete"
-    );
-
-    return NextResponse.json({
-      success: true,
-      message: "Core session debugging successful - ALL PHASES PASSED",
-      phases: {
-        phase1_getCurrentUser: "✅ SUCCESS",
-        phase2_createClient: "✅ SUCCESS",
-        phase3_basicQuery: "✅ SUCCESS",
-        phase4_teamMemberships: "✅ SUCCESS",
-        phase5_projects: "✅ SUCCESS",
-      },
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          aud: user.aud,
-          role: user.role,
-          email_confirmed_at: user.email_confirmed_at,
-          last_sign_in_at: user.last_sign_in_at,
-        },
-        teams: testTeams,
-        teamMemberships: teamMemberships,
-        projects: projects,
-        stats: {
-          teamsOwned: testTeams?.length || 0,
-          teamMemberships: teamMemberships?.length || 0,
-          accessibleProjects: projects?.length || 0,
-        },
-      },
-      debug: {
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV,
-      },
-    });
-  } catch (exception) {
-    console.error("💥 Content API: UNHANDLED EXCEPTION", {
-      error: exception instanceof Error ? exception.message : exception,
-      stack: exception instanceof Error ? exception.stack : undefined,
-      type: typeof exception,
-    });
-
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        details: {
-          message:
-            exception instanceof Error ? exception.message : "Unknown error",
-          type: typeof exception,
-          stack:
-            exception instanceof Error
-              ? exception.stack?.split("\n").slice(0, 5)
-              : undefined,
-        },
-        success: false,
-        phase: "exception_handler",
-      },
-      { status: 500 }
-    );
   }
-}
+);
 
 // Helper functions
 function calculateSEOScore(
@@ -488,124 +413,4 @@ function countSyllables(word: string): number {
   }
 
   return Math.max(1, count);
-}
-
-/**
- * Generate mock content data for testing and fallback
- */
-function generateMockContentData(teamId: string, projectId: string) {
-  const mockContent = [
-    {
-      id: "mock-content-1",
-      project_id: projectId,
-      title: "Getting Started with SEO Best Practices",
-      content:
-        "Search engine optimization is crucial for driving organic traffic to your website. This comprehensive guide covers the fundamentals of SEO, including keyword research, on-page optimization, and technical SEO considerations.",
-      url: "https://example.com/seo-guide",
-      content_type: "article",
-      status: "published",
-      seo_score: 85,
-      readability_score: 78,
-      word_count: 1250,
-      meta_title: "Complete SEO Guide for Beginners | Best Practices",
-      meta_description:
-        "Learn essential SEO techniques to improve your website's search rankings and drive more organic traffic.",
-      focus_keywords: ["SEO", "search engine optimization", "organic traffic"],
-      published_at: new Date(
-        Date.now() - 7 * 24 * 60 * 60 * 1000
-      ).toISOString(),
-      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-      created_by: "mock-user-1",
-      project: {
-        id: projectId,
-        name: "Marketing Website",
-        description: "Main marketing website project",
-      },
-      stats: {
-        views: 1542,
-        engagement: 3.8,
-        conversions: 12,
-        lastAnalyzed: new Date(
-          Date.now() - 1 * 24 * 60 * 60 * 1000
-        ).toISOString(),
-      },
-    },
-    {
-      id: "mock-content-2",
-      project_id: projectId,
-      title: "10 Content Marketing Strategies That Work",
-      content:
-        "Content marketing is more than just creating blog posts. It's about creating valuable, relevant content that resonates with your audience and drives meaningful engagement.",
-      url: "https://example.com/content-marketing",
-      content_type: "blog_post",
-      status: "published",
-      seo_score: 92,
-      readability_score: 85,
-      word_count: 1800,
-      meta_title: "10 Proven Content Marketing Strategies | Ultimate Guide",
-      meta_description:
-        "Discover 10 effective content marketing strategies that will help you engage your audience and grow your business.",
-      focus_keywords: [
-        "content marketing",
-        "marketing strategies",
-        "audience engagement",
-      ],
-      published_at: new Date(
-        Date.now() - 3 * 24 * 60 * 60 * 1000
-      ).toISOString(),
-      created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      created_by: "mock-user-2",
-      project: {
-        id: projectId,
-        name: "Marketing Website",
-        description: "Main marketing website project",
-      },
-      stats: {
-        views: 2341,
-        engagement: 4.2,
-        conversions: 18,
-        lastAnalyzed: new Date(
-          Date.now() - 1 * 24 * 60 * 60 * 1000
-        ).toISOString(),
-      },
-    },
-    {
-      id: "mock-content-3",
-      project_id: projectId,
-      title: "How to Improve Your Website's Core Web Vitals",
-      content:
-        "Core Web Vitals are essential metrics that measure the user experience of your website. Learn how to optimize LCP, FID, and CLS for better performance.",
-      url: "https://example.com/core-web-vitals",
-      content_type: "article",
-      status: "draft",
-      seo_score: 78,
-      readability_score: 82,
-      word_count: 950,
-      meta_title: "Core Web Vitals Optimization Guide | Performance Tips",
-      meta_description:
-        "Learn how to improve your website's Core Web Vitals and boost your search rankings with our comprehensive guide.",
-      focus_keywords: ["core web vitals", "website performance", "page speed"],
-      published_at: null,
-      created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-      updated_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      created_by: "mock-user-1",
-      project: {
-        id: projectId,
-        name: "Marketing Website",
-        description: "Main marketing website project",
-      },
-      stats: {
-        views: 0,
-        engagement: 0,
-        conversions: 0,
-        lastAnalyzed: new Date(
-          Date.now() - 1 * 24 * 60 * 60 * 1000
-        ).toISOString(),
-      },
-    },
-  ];
-
-  return mockContent;
 }

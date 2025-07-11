@@ -28,58 +28,92 @@ export async function createClient() {
       available: !!cookieStore,
     });
 
+    // Get all cookies for debugging
+    const allCookies = cookieStore.getAll();
+    const supabaseCookies = allCookies.filter(cookie =>
+      cookie.name.includes("supabase")
+    );
+
+    console.log("🔍 createClient: All Supabase cookies found", {
+      count: supabaseCookies.length,
+      cookies: supabaseCookies.map(c => ({
+        name: c.name,
+        hasValue: !!c.value,
+        valueLength: c.value?.length || 0,
+        valueStart: c.value?.substring(0, 20) + "...",
+      })),
+    });
+
     const client = createServerClient<Database>(
       process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
       process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
       {
         cookies: {
           get(name: string) {
-            const value = cookieStore.get(name)?.value;
+            const cookie = cookieStore.get(name);
+            const value = cookie?.value;
             if (name.includes("supabase")) {
-              console.log("🔍 createClient: Getting Supabase cookie", {
+              console.log("🍪 createClient: Getting Supabase cookie", {
                 name,
                 hasValue: !!value,
                 valueLength: value?.length || 0,
+                cookieFound: !!cookie,
               });
             }
             return value;
           },
           set(name: string, value: string, options: CookieOptions) {
             if (name.includes("supabase")) {
-              console.log("🔍 createClient: Setting Supabase cookie", {
+              console.log("🍪 createClient: Setting Supabase cookie", {
                 name,
                 valueLength: value.length,
-                options,
+                options: {
+                  ...options,
+                  httpOnly: options.httpOnly ?? true,
+                  secure:
+                    options.secure ?? process.env.NODE_ENV === "production",
+                  sameSite: options.sameSite ?? "lax",
+                  path: options.path ?? "/",
+                },
               });
             }
             try {
-              cookieStore.set({ name, value, ...options });
+              cookieStore.set({
+                name,
+                value,
+                ...options,
+                httpOnly: options.httpOnly ?? true,
+                secure: options.secure ?? process.env.NODE_ENV === "production",
+                sameSite: options.sameSite ?? "lax",
+                path: options.path ?? "/",
+              });
             } catch (error) {
               console.error("❌ createClient: Cookie setting error", {
                 name,
-                error,
+                error: error instanceof Error ? error.message : error,
               });
-              // The `set` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
             }
           },
           remove(name: string, options: CookieOptions) {
             if (name.includes("supabase")) {
-              console.log("🔍 createClient: Removing Supabase cookie", {
+              console.log("🍪 createClient: Removing Supabase cookie", {
                 name,
+                options,
               });
             }
             try {
-              cookieStore.set({ name, value: "", ...options });
+              cookieStore.set({
+                name,
+                value: "",
+                ...options,
+                expires: new Date(0),
+                maxAge: 0,
+              });
             } catch (error) {
               console.error("❌ createClient: Cookie removal error", {
                 name,
-                error,
+                error: error instanceof Error ? error.message : error,
               });
-              // The `delete` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
             }
           },
         },
