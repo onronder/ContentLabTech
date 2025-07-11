@@ -25,13 +25,13 @@ const supabaseServiceRole = createClient(
  */
 function extractSessionFromRequest(request: NextRequest): string | null {
   console.log("🔍 Backend Session: Starting cookie extraction");
-  
+
   // Get cookie header
   const cookieHeader = request.headers.get("cookie");
   console.log("🍪 Backend Session: Cookie header", {
     present: !!cookieHeader,
     length: cookieHeader?.length || 0,
-    preview: cookieHeader?.substring(0, 100) + "..." || "none"
+    preview: cookieHeader?.substring(0, 100) + "..." || "none",
   });
 
   if (!cookieHeader) {
@@ -43,7 +43,7 @@ function extractSessionFromRequest(request: NextRequest): string | null {
   const cookies = cookieHeader.split(";").map(c => c.trim());
   console.log("🍪 Backend Session: Parsed cookies", {
     count: cookies.length,
-    names: cookies.map(c => c.split("=")[0]).slice(0, 10) // First 10 cookie names
+    names: cookies.map(c => c.split("=")[0]).slice(0, 10), // First 10 cookie names
   });
 
   // Look for Supabase session cookies in all possible formats
@@ -54,14 +54,14 @@ function extractSessionFromRequest(request: NextRequest): string | null {
     "auth-token",
     // Next.js/Supabase SSR cookies
     "sb-access-token",
-    "sb-refresh-token"
+    "sb-refresh-token",
   ];
 
   let sessionToken: string | null = null;
-  
+
   for (const cookie of cookies) {
     const [name, value] = cookie.split("=");
-    
+
     // Check if this cookie matches any session pattern
     for (const pattern of sessionCookiePatterns) {
       if (name && name.includes(pattern) && value) {
@@ -69,9 +69,9 @@ function extractSessionFromRequest(request: NextRequest): string | null {
           name,
           hasValue: !!value,
           valueLength: value?.length || 0,
-          preview: value?.substring(0, 30) + "..." || "empty"
+          preview: value?.substring(0, 30) + "..." || "empty",
         });
-        
+
         // For access tokens, this is likely our session token
         if (name.includes("access-token") || name.includes("auth-token")) {
           sessionToken = value;
@@ -80,13 +80,14 @@ function extractSessionFromRequest(request: NextRequest): string | null {
         }
       }
     }
-    
+
     if (sessionToken) break;
   }
 
   if (!sessionToken) {
     console.log("❌ Backend Session: No session token found in cookies");
-    console.log("🔍 Backend Session: Available cookie names:", 
+    console.log(
+      "🔍 Backend Session: Available cookie names:",
       cookies.map(c => c.split("=")[0]).join(", ")
     );
   }
@@ -97,26 +98,34 @@ function extractSessionFromRequest(request: NextRequest): string | null {
 /**
  * Validate session token with Supabase
  */
-async function validateSessionWithSupabase(sessionToken: string): Promise<User> {
+async function validateSessionWithSupabase(
+  sessionToken: string
+): Promise<User> {
   console.log("🔍 Backend Session: Validating with Supabase", {
     tokenLength: sessionToken.length,
-    tokenPreview: sessionToken.substring(0, 20) + "..."
+    tokenPreview: sessionToken.substring(0, 20) + "...",
   });
 
   try {
     // Method 1: Try getUser with the token
-    const { data: { user }, error } = await supabaseServiceRole.auth.getUser(sessionToken);
-    
+    const {
+      data: { user },
+      error,
+    } = await supabaseServiceRole.auth.getUser(sessionToken);
+
     console.log("🔍 Backend Session: Supabase validation result", {
       hasUser: !!user,
       hasError: !!error,
       errorMessage: error?.message,
       userId: user?.id,
-      userEmail: user?.email
+      userEmail: user?.email,
     });
 
     if (error) {
-      console.log("❌ Backend Session: Supabase validation error:", error.message);
+      console.log(
+        "❌ Backend Session: Supabase validation error:",
+        error.message
+      );
       throw new Error(`Session validation failed: ${error.message}`);
     }
 
@@ -128,7 +137,7 @@ async function validateSessionWithSupabase(sessionToken: string): Promise<User> 
     console.log("✅ Backend Session: Session validation successful", {
       userId: user.id,
       email: user.email,
-      lastSignIn: user.last_sign_in_at
+      lastSignIn: user.last_sign_in_at,
     });
 
     return user;
@@ -141,21 +150,25 @@ async function validateSessionWithSupabase(sessionToken: string): Promise<User> 
 /**
  * Alternative session validation using different approach
  */
-async function validateSessionAlternative(request: NextRequest): Promise<User | null> {
+async function validateSessionAlternative(
+  request: NextRequest
+): Promise<User | null> {
   console.log("🔄 Backend Session: Trying alternative validation approach");
-  
+
   try {
     // Create a server client that reads from the request cookies directly
     const { createServerClient } = await import("@supabase/ssr");
-    
+
     const supabase = createServerClient(
       process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!,
+      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
       {
         cookies: {
           get(name: string) {
             const cookieValue = request.cookies.get(name)?.value;
-            console.log(`🍪 Alternative: Getting cookie ${name}: ${cookieValue ? 'found' : 'missing'}`);
+            console.log(
+              `🍪 Alternative: Getting cookie ${name}: ${cookieValue ? "found" : "missing"}`
+            );
             return cookieValue;
           },
           set() {
@@ -168,28 +181,36 @@ async function validateSessionAlternative(request: NextRequest): Promise<User | 
       }
     );
 
-    const { data: { session }, error } = await supabase.auth.getSession();
-    
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.getSession();
+
     console.log("🔍 Backend Session: Alternative validation result", {
       hasSession: !!session,
       hasUser: !!session?.user,
       hasError: !!error,
-      errorMessage: error?.message
+      errorMessage: error?.message,
     });
 
     if (error) {
-      console.log("❌ Backend Session: Alternative validation error:", error.message);
+      console.log(
+        "❌ Backend Session: Alternative validation error:",
+        error.message
+      );
       return null;
     }
 
     if (!session?.user) {
-      console.log("❌ Backend Session: No session/user found in alternative method");
+      console.log(
+        "❌ Backend Session: No session/user found in alternative method"
+      );
       return null;
     }
 
     console.log("✅ Backend Session: Alternative validation successful", {
       userId: session.user.id,
-      email: session.user.email
+      email: session.user.email,
     });
 
     return session.user;
@@ -213,19 +234,19 @@ export async function validateBackendSession(request: NextRequest): Promise<{
     url: request.url,
     method: request.method,
     hasHeaders: !!request.headers,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 
   // Method 1: Extract token and validate with service role
   try {
     const sessionToken = extractSessionFromRequest(request);
-    
+
     if (sessionToken) {
       const user = await validateSessionWithSupabase(sessionToken);
       return {
         success: true,
         user,
-        method: "service-role-token"
+        method: "service-role-token",
       };
     }
   } catch (error) {
@@ -235,12 +256,12 @@ export async function validateBackendSession(request: NextRequest): Promise<{
   // Method 2: Alternative SSR approach
   try {
     const user = await validateSessionAlternative(request);
-    
+
     if (user) {
       return {
         success: true,
         user,
-        method: "ssr-session"
+        method: "ssr-session",
       };
     }
   } catch (error) {
@@ -252,6 +273,6 @@ export async function validateBackendSession(request: NextRequest): Promise<{
   return {
     success: false,
     error: "Session validation failed - no valid session found",
-    method: "none"
+    method: "none",
   };
 }

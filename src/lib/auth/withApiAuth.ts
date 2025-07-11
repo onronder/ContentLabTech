@@ -43,12 +43,13 @@ export function withApiAuth<T extends any[]>(
       const cookieStore = await cookies();
       const allCookies = cookieStore.getAll();
       const cookieCount = allCookies.length;
-      
+
       // Find Supabase auth cookies specifically
-      const authCookies = allCookies.filter(c => 
-        c.name.includes('supabase') || 
-        c.name.includes('sb-') ||
-        c.name.includes('auth')
+      const authCookies = allCookies.filter(
+        c =>
+          c.name.includes("supabase") ||
+          c.name.includes("sb-") ||
+          c.name.includes("auth")
       );
 
       console.log("🍪 withApiAuth: Detailed cookie analysis", {
@@ -58,18 +59,18 @@ export function withApiAuth<T extends any[]>(
         authCookieNames: authCookies.map(c => c.name),
         allCookieNames: allCookies.map(c => c.name),
         // Show first few characters of auth cookie values for debugging
-        authCookieValues: authCookies.map(c => ({ 
-          name: c.name, 
+        authCookieValues: authCookies.map(c => ({
+          name: c.name,
           hasValue: !!c.value,
           length: c.value?.length || 0,
-          preview: c.value?.substring(0, 20) + '...' || 'empty'
-        }))
+          preview: c.value?.substring(0, 20) + "..." || "empty",
+        })),
       });
 
       // Create Supabase client with server-side cookies
       const supabase = createServerClient<Database>(
         process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-        process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!,
+        process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
         {
           cookies: {
             get(name: string) {
@@ -77,8 +78,11 @@ export function withApiAuth<T extends any[]>(
               console.log(
                 `🍪 Cookie get: ${name} = ${cookie ? `present (${cookie.value?.length} chars)` : "missing"}`
               );
-              if (cookie && name.includes('sb-')) {
-                console.log(`🔍 Supabase cookie ${name} preview:`, cookie.value?.substring(0, 50) + '...');
+              if (cookie && name.includes("sb-")) {
+                console.log(
+                  `🔍 Supabase cookie ${name} preview:`,
+                  cookie.value?.substring(0, 50) + "..."
+                );
               }
               return cookie?.value;
             },
