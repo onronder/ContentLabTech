@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { AppLayout } from "@/components/layout";
+import { fetch } from "@/lib/utils/fetch";
 
 interface DebugData {
   debug: {

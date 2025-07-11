@@ -3,7 +3,8 @@
  * Real-time error monitoring with context capture and intelligent aggregation
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { fetch } from "@/lib/utils/fetch";
 
 interface ErrorContext {
   userId?: string;
@@ -27,8 +28,13 @@ interface ErrorDetails {
   id: string;
   message: string;
   stack?: string;
-  type: 'javascript' | 'network' | 'validation' | 'authentication' | 'performance';
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  type:
+    | "javascript"
+    | "network"
+    | "validation"
+    | "authentication"
+    | "performance";
+  severity: "low" | "medium" | "high" | "critical";
   count: number;
   firstOccurrence: number;
   lastOccurrence: number;
@@ -76,11 +82,11 @@ class ErrorTracker {
   }
 
   private setupGlobalErrorHandlers(): void {
-    window.addEventListener('error', (event) => {
+    window.addEventListener("error", event => {
       this.captureError({
         message: event.message,
         stack: event.error?.stack,
-        type: 'javascript',
+        type: "javascript",
         severity: this.determineSeverity(event.error),
         source: {
           filename: event.filename,
@@ -100,12 +106,12 @@ class ErrorTracker {
         if (!response.ok) {
           this.captureError({
             message: `Network request failed: ${response.status} ${response.statusText}`,
-            type: 'network',
-            severity: response.status >= 500 ? 'high' : 'medium',
+            type: "network",
+            severity: response.status >= 500 ? "high" : "medium",
             context: {
               url: args[0]?.toString(),
               status: response.status,
-              method: args[1]?.method || 'GET',
+              method: args[1]?.method || "GET",
             },
           });
         }
@@ -113,11 +119,11 @@ class ErrorTracker {
       } catch (error) {
         this.captureError({
           message: `Network request error: ${error}`,
-          type: 'network',
-          severity: 'high',
+          type: "network",
+          severity: "high",
           context: {
             url: args[0]?.toString(),
-            method: args[1]?.method || 'GET',
+            method: args[1]?.method || "GET",
           },
         });
         throw error;
@@ -125,50 +131,54 @@ class ErrorTracker {
     };
 
     // Monitor online/offline status
-    window.addEventListener('online', () => {
+    window.addEventListener("online", () => {
       this.isOnline = true;
       this.syncErrorQueue();
     });
 
-    window.addEventListener('offline', () => {
+    window.addEventListener("offline", () => {
       this.isOnline = false;
     });
   }
 
   private setupUnhandledRejectionHandler(): void {
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener("unhandledrejection", event => {
       this.captureError({
         message: `Unhandled promise rejection: ${event.reason}`,
         stack: event.reason?.stack,
-        type: 'javascript',
-        severity: 'high',
+        type: "javascript",
+        severity: "high",
       });
     });
   }
 
-  private determineSeverity(error: Error): ErrorDetails['severity'] {
-    if (!error) return 'low';
-    
-    const message = error.message?.toLowerCase() || '';
-    const stack = error.stack?.toLowerCase() || '';
+  private determineSeverity(error: Error): ErrorDetails["severity"] {
+    if (!error) return "low";
+
+    const message = error.message?.toLowerCase() || "";
+    const stack = error.stack?.toLowerCase() || "";
 
     // Critical errors
-    if (message.includes('chunk') || message.includes('loading')) return 'critical';
-    if (message.includes('network') || message.includes('fetch')) return 'high';
-    if (stack.includes('authentication') || stack.includes('auth')) return 'high';
-    
+    if (message.includes("chunk") || message.includes("loading"))
+      return "critical";
+    if (message.includes("network") || message.includes("fetch")) return "high";
+    if (stack.includes("authentication") || stack.includes("auth"))
+      return "high";
+
     // Medium errors
-    if (message.includes('validation') || message.includes('form')) return 'medium';
-    if (stack.includes('useeffect') || stack.includes('usestate')) return 'medium';
-    
-    return 'low';
+    if (message.includes("validation") || message.includes("form"))
+      return "medium";
+    if (stack.includes("useeffect") || stack.includes("usestate"))
+      return "medium";
+
+    return "low";
   }
 
   captureError(errorInput: {
     message: string;
     stack?: string;
-    type: ErrorDetails['type'];
-    severity?: ErrorDetails['severity'];
+    type: ErrorDetails["type"];
+    severity?: ErrorDetails["severity"];
     component?: string;
     action?: string;
     context?: Record<string, unknown>;
@@ -191,7 +201,7 @@ class ErrorTracker {
     };
 
     const existingError = this.errors.get(errorId);
-    
+
     if (existingError) {
       // Update existing error
       existingError.count++;
@@ -204,7 +214,9 @@ class ErrorTracker {
         message: errorInput.message,
         stack: errorInput.stack,
         type: errorInput.type,
-        severity: errorInput.severity || this.determineSeverityFromMessage(errorInput.message),
+        severity:
+          errorInput.severity ||
+          this.determineSeverityFromMessage(errorInput.message),
         count: 1,
         firstOccurrence: timestamp,
         lastOccurrence: timestamp,
@@ -215,7 +227,7 @@ class ErrorTracker {
 
       this.errors.set(errorId, newError);
       this.notifySubscribers(newError);
-      
+
       // Add to queue for syncing
       this.errorQueue.push(newError);
     }
@@ -230,24 +242,29 @@ class ErrorTracker {
   }
 
   private generateErrorId(message: string, stack?: string): string {
-    const content = `${message}${stack?.split('\n')[0] || ''}`;
+    const content = `${message}${stack?.split("\n")[0] || ""}`;
     let hash = 0;
     for (let i = 0; i < content.length; i++) {
       const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash).toString(36);
   }
 
-  private determineSeverityFromMessage(message: string): ErrorDetails['severity'] {
+  private determineSeverityFromMessage(
+    message: string
+  ): ErrorDetails["severity"] {
     const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('critical') || lowerMessage.includes('fatal')) return 'critical';
-    if (lowerMessage.includes('error') || lowerMessage.includes('failed')) return 'high';
-    if (lowerMessage.includes('warning') || lowerMessage.includes('deprecated')) return 'medium';
-    
-    return 'low';
+
+    if (lowerMessage.includes("critical") || lowerMessage.includes("fatal"))
+      return "critical";
+    if (lowerMessage.includes("error") || lowerMessage.includes("failed"))
+      return "high";
+    if (lowerMessage.includes("warning") || lowerMessage.includes("deprecated"))
+      return "medium";
+
+    return "low";
   }
 
   private getPerformanceMetrics() {
@@ -263,7 +280,9 @@ class ErrorTracker {
   }
 
   private estimateNetworkLatency(): number {
-    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    const navigation = performance.getEntriesByType(
+      "navigation"
+    )[0] as PerformanceNavigationTiming;
     return navigation ? navigation.responseStart - navigation.requestStart : 0;
   }
 
@@ -272,9 +291,9 @@ class ErrorTracker {
 
     try {
       // Simulate API call - replace with actual endpoint
-      await fetch('/api/monitoring/errors', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch("/api/monitoring/errors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           errors: this.errorQueue,
           sessionId: this.sessionId,
@@ -285,7 +304,7 @@ class ErrorTracker {
       // Clear queue on successful sync
       this.errorQueue = [];
     } catch (error) {
-      console.warn('Failed to sync errors:', error);
+      console.warn("Failed to sync errors:", error);
       // Keep errors in queue for retry
     }
   }
@@ -306,15 +325,18 @@ class ErrorTracker {
 
     // Recovery strategies based on error type
     switch (error.type) {
-      case 'network':
+      case "network":
         // Retry network requests
-        setTimeout(() => this.triggerNetworkRetry(error), 1000 * error.recoveryAttempts);
+        setTimeout(
+          () => this.triggerNetworkRetry(error),
+          1000 * error.recoveryAttempts
+        );
         break;
-      case 'authentication':
+      case "authentication":
         // Trigger re-authentication
         this.triggerReAuthentication();
         break;
-      case 'performance':
+      case "performance":
         // Clear caches, reload if necessary
         this.clearPerformanceCaches();
         break;
@@ -323,38 +345,43 @@ class ErrorTracker {
 
   private triggerNetworkRetry(error: ErrorDetails): void {
     // Implementation would depend on your specific network layer
-    console.log('Attempting network retry for:', error.message);
+    console.log("Attempting network retry for:", error.message);
   }
 
   private triggerReAuthentication(): void {
     // Trigger auth refresh
-    window.dispatchEvent(new CustomEvent('auth:refresh-required'));
+    window.dispatchEvent(new CustomEvent("auth:refresh-required"));
   }
 
   private clearPerformanceCaches(): void {
     try {
-      if ('caches' in window) {
+      if ("caches" in window) {
         caches.keys().then(names => {
           names.forEach(name => caches.delete(name));
         });
       }
     } catch (error) {
-      console.warn('Cache clearing failed:', error);
+      console.warn("Cache clearing failed:", error);
     }
   }
 
   // Public API methods
   getErrors(): ErrorDetails[] {
-    return Array.from(this.errors.values()).sort((a, b) => b.lastOccurrence - a.lastOccurrence);
+    return Array.from(this.errors.values()).sort(
+      (a, b) => b.lastOccurrence - a.lastOccurrence
+    );
   }
 
   getErrorAggregation(): ErrorAggregation {
     const errors = Array.from(this.errors.values());
-    
+
     return {
-      errorsByType: this.aggregateBy(errors, 'type'),
-      errorsByComponent: this.aggregateBy(errors, error => error.context.component || 'unknown'),
-      errorsBySeverity: this.aggregateBy(errors, 'severity'),
+      errorsByType: this.aggregateBy(errors, "type"),
+      errorsByComponent: this.aggregateBy(
+        errors,
+        error => error.context.component || "unknown"
+      ),
+      errorsBySeverity: this.aggregateBy(errors, "severity"),
       totalErrors: errors.reduce((sum, error) => sum + error.count, 0),
       uniqueErrors: errors.length,
       errorRate: this.calculateErrorRate(errors),
@@ -362,12 +389,18 @@ class ErrorTracker {
     };
   }
 
-  private aggregateBy<T>(items: T[], key: keyof T | ((item: T) => string)): Record<string, number> {
-    return items.reduce((acc, item) => {
-      const value = typeof key === 'function' ? key(item) : String(item[key]);
-      acc[value] = (acc[value] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+  private aggregateBy<T>(
+    items: T[],
+    key: keyof T | ((item: T) => string)
+  ): Record<string, number> {
+    return items.reduce(
+      (acc, item) => {
+        const value = typeof key === "function" ? key(item) : String(item[key]);
+        acc[value] = (acc[value] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
   }
 
   private calculateErrorRate(errors: ErrorDetails[]): number {
@@ -398,7 +431,7 @@ class ErrorTracker {
       try {
         callback(error);
       } catch (err) {
-        console.warn('Error in error tracking subscriber:', err);
+        console.warn("Error in error tracking subscriber:", err);
       }
     });
   }
@@ -409,12 +442,16 @@ class ErrorTracker {
   }
 
   exportErrors(): string {
-    return JSON.stringify({
-      sessionId: this.sessionId,
-      timestamp: Date.now(),
-      errors: Array.from(this.errors.values()),
-      aggregation: this.getErrorAggregation(),
-    }, null, 2);
+    return JSON.stringify(
+      {
+        sessionId: this.sessionId,
+        timestamp: Date.now(),
+        errors: Array.from(this.errors.values()),
+        aggregation: this.getErrorAggregation(),
+      },
+      null,
+      2
+    );
   }
 }
 
@@ -436,15 +473,21 @@ export function useErrorTracking() {
     return unsubscribe;
   }, [tracker]);
 
-  const captureError = useCallback((errorInput: Parameters<typeof tracker.captureError>[0]) => {
-    tracker.captureError(errorInput);
-  }, [tracker]);
+  const captureError = useCallback(
+    (errorInput: Parameters<typeof tracker.captureError>[0]) => {
+      tracker.captureError(errorInput);
+    },
+    [tracker]
+  );
 
-  const markResolved = useCallback((errorId: string) => {
-    tracker.markErrorResolved(errorId);
-    setErrors(tracker.getErrors());
-    setAggregation(tracker.getErrorAggregation());
-  }, [tracker]);
+  const markResolved = useCallback(
+    (errorId: string) => {
+      tracker.markErrorResolved(errorId);
+      setErrors(tracker.getErrors());
+      setAggregation(tracker.getErrorAggregation());
+    },
+    [tracker]
+  );
 
   const exportData = useCallback(() => {
     return tracker.exportErrors();
@@ -467,8 +510,8 @@ export function createErrorTrackingHandler(componentName?: string) {
     tracker.captureError({
       message: error.message,
       stack: error.stack || undefined,
-      type: 'javascript',
-      severity: 'high',
+      type: "javascript",
+      severity: "high",
       component: componentName,
       context: {
         componentStack: errorInfo?.componentStack,

@@ -6,6 +6,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { fetch } from "@/lib/utils/fetch";
 import { useWebSocketSubscription } from "./useWebSocketConnection";
 import type {
   CompetitiveAnalysisResult,

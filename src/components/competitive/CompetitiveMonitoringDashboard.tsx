@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { fetch } from "@/lib/utils/fetch";
 import {
   Select,
   SelectContent,
@@ -41,13 +42,16 @@ import {
   CheckCircle,
   Zap,
 } from "lucide-react";
-import { 
+import {
   useCompetitiveWebSocket,
   type AnalysisUpdateMessage,
   type AnalysisCompleteMessage,
   type AlertCreatedMessage,
 } from "@/lib/competitive/websocket";
-import type { CompetitiveAnalysisResult, CompetitiveAlert } from "@/lib/competitive/types";
+import type {
+  CompetitiveAnalysisResult,
+  CompetitiveAlert,
+} from "@/lib/competitive/types";
 
 interface CompetitiveMonitoringProps {
   projectId: string;
@@ -130,14 +134,16 @@ export function CompetitiveMonitoringDashboard({
   const [error, setError] = useState<string | null>(null);
   const [selectedTimeframe, setSelectedTimeframe] = useState("7d");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
+
   // Real-time WebSocket state
   const [liveAnalyses, setLiveAnalyses] = useState<LiveAnalysis[]>([]);
   const [realtimeAlerts, setRealtimeAlerts] = useState<CompetitiveAlert[]>([]);
-  const [completedResults, setCompletedResults] = useState<CompetitiveAnalysisResult[]>([]);
+  const [completedResults, setCompletedResults] = useState<
+    CompetitiveAnalysisResult[]
+  >([]);
   const [connectionStats, setConnectionStats] = useState<ConnectionStats>({
     isConnected: false,
-    connectionState: 'closed',
+    connectionState: "closed",
     reconnectAttempts: 0,
   });
   const [, setIsInitializing] = useState(true);
@@ -145,14 +151,14 @@ export function CompetitiveMonitoringDashboard({
   // WebSocket event handlers
   const handleAnalysisUpdate = useCallback((message: AnalysisUpdateMessage) => {
     const { jobId, status, progress, estimatedTimeRemaining } = message.payload;
-    
+
     setLiveAnalyses(prev => {
       const existing = prev.find(a => a.jobId === jobId);
       if (existing) {
-        return prev.map(a => 
-          a.jobId === jobId 
-            ? { 
-                ...a, 
+        return prev.map(a =>
+          a.jobId === jobId
+            ? {
+                ...a,
                 status: status.status,
                 progress: status.progress || progress,
                 estimatedTimeRemaining,
@@ -160,40 +166,51 @@ export function CompetitiveMonitoringDashboard({
             : a
         );
       } else {
-        return [...prev, {
-          jobId,
-          competitorName: `Analysis ${jobId.slice(-8)}`,
-          status: status.status,
-          progress: status.progress || progress,
-          estimatedTimeRemaining: estimatedTimeRemaining || undefined,
-          startedAt: new Date(),
-          completedAt: undefined,
-        }];
+        return [
+          ...prev,
+          {
+            jobId,
+            competitorName: `Analysis ${jobId.slice(-8)}`,
+            status: status.status,
+            progress: status.progress || progress,
+            estimatedTimeRemaining: estimatedTimeRemaining || undefined,
+            startedAt: new Date(),
+            completedAt: undefined,
+          },
+        ];
       }
     });
   }, []);
 
-  const handleAnalysisComplete = useCallback((message: AnalysisCompleteMessage) => {
-    const { jobId, result } = message.payload;
-    
-    setLiveAnalyses(prev => 
-      prev.map(a => 
-        a.jobId === jobId 
-          ? { ...a, status: "completed", progress: 100, completedAt: new Date() }
-          : a
-      )
-    );
+  const handleAnalysisComplete = useCallback(
+    (message: AnalysisCompleteMessage) => {
+      const { jobId, result } = message.payload;
 
-    setCompletedResults(prev => [result, ...prev.slice(0, 9)]);
-    
-    // Note: Could trigger a data refresh here if needed
-  }, []);
+      setLiveAnalyses(prev =>
+        prev.map(a =>
+          a.jobId === jobId
+            ? {
+                ...a,
+                status: "completed",
+                progress: 100,
+                completedAt: new Date(),
+              }
+            : a
+        )
+      );
+
+      setCompletedResults(prev => [result, ...prev.slice(0, 9)]);
+
+      // Note: Could trigger a data refresh here if needed
+    },
+    []
+  );
 
   const handleAlertCreated = useCallback((message: AlertCreatedMessage) => {
     const { alert } = message.payload;
-    
+
     setRealtimeAlerts(prev => [alert, ...prev.slice(0, 19)]);
-    
+
     // Also add to main alerts
     setAlerts(prev => [
       {
@@ -210,7 +227,7 @@ export function CompetitiveMonitoringDashboard({
           domain: alert.competitorId,
         },
       },
-      ...prev.slice(0, 19)
+      ...prev.slice(0, 19),
     ]);
   }, []);
 
@@ -318,7 +335,7 @@ export function CompetitiveMonitoringDashboard({
           }));
         }
       } catch (error) {
-        console.error('Failed to initialize WebSocket:', error);
+        console.error("Failed to initialize WebSocket:", error);
         if (mounted) {
           setIsInitializing(false);
         }
@@ -411,15 +428,21 @@ export function CompetitiveMonitoringDashboard({
 
   // Calculate monitoring statistics
   const monitoringStats = useMemo(() => {
-    const activeAnalyses = liveAnalyses.filter(a => a.status === "processing").length;
+    const activeAnalyses = liveAnalyses.filter(
+      a => a.status === "processing"
+    ).length;
     const completedToday = completedResults.filter(r => {
       const today = new Date();
       return new Date(r.timestamp).toDateString() === today.toDateString();
     }).length;
-    const criticalRealtimeAlerts = realtimeAlerts.filter(a => a.severity === "critical").length;
-    const avgProgress = liveAnalyses.length > 0 
-      ? liveAnalyses.reduce((sum, a) => sum + a.progress, 0) / liveAnalyses.length 
-      : 0;
+    const criticalRealtimeAlerts = realtimeAlerts.filter(
+      a => a.severity === "critical"
+    ).length;
+    const avgProgress =
+      liveAnalyses.length > 0
+        ? liveAnalyses.reduce((sum, a) => sum + a.progress, 0) /
+          liveAnalyses.length
+        : 0;
 
     return {
       activeAnalyses,
@@ -432,13 +455,15 @@ export function CompetitiveMonitoringDashboard({
 
   const getConnectionStatusColor = () => {
     if (connectionStats.isConnected) return "text-green-600";
-    if (connectionStats.connectionState === "connecting") return "text-yellow-600";
+    if (connectionStats.connectionState === "connecting")
+      return "text-yellow-600";
     return "text-red-600";
   };
 
   const getConnectionStatusIcon = () => {
     if (connectionStats.isConnected) return <Wifi className="h-4 w-4" />;
-    if (connectionStats.connectionState === "connecting") return <RefreshCw className="h-4 w-4 animate-spin" />;
+    if (connectionStats.connectionState === "connecting")
+      return <RefreshCw className="h-4 w-4 animate-spin" />;
     return <WifiOff className="h-4 w-4" />;
   };
 
@@ -491,13 +516,15 @@ export function CompetitiveMonitoringDashboard({
           </span>
           <div className="flex-1">
             <div className="font-medium">
-              Real-time Monitoring {connectionStats.isConnected ? "Active" : "Disconnected"}
+              Real-time Monitoring{" "}
+              {connectionStats.isConnected ? "Active" : "Disconnected"}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-muted-foreground text-sm">
               Status: {connectionStats.connectionState}
               {connectionStats.lastConnected && (
                 <span className="ml-2">
-                  Last connected: {connectionStats.lastConnected.toLocaleTimeString()}
+                  Last connected:{" "}
+                  {connectionStats.lastConnected.toLocaleTimeString()}
                 </span>
               )}
             </div>
@@ -697,8 +724,12 @@ export function CompetitiveMonitoringDashboard({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Active Analyses</p>
-                    <p className="text-2xl font-bold text-blue-600">{monitoringStats.activeAnalyses}</p>
+                    <p className="text-muted-foreground text-sm font-medium">
+                      Active Analyses
+                    </p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {monitoringStats.activeAnalyses}
+                    </p>
                   </div>
                   <Activity className="h-8 w-8 text-blue-600" />
                 </div>
@@ -709,8 +740,12 @@ export function CompetitiveMonitoringDashboard({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Completed Today</p>
-                    <p className="text-2xl font-bold text-green-600">{monitoringStats.completedToday}</p>
+                    <p className="text-muted-foreground text-sm font-medium">
+                      Completed Today
+                    </p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {monitoringStats.completedToday}
+                    </p>
                   </div>
                   <CheckCircle className="h-8 w-8 text-green-600" />
                 </div>
@@ -721,8 +756,12 @@ export function CompetitiveMonitoringDashboard({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Critical Alerts</p>
-                    <p className="text-2xl font-bold text-red-600">{monitoringStats.criticalAlerts}</p>
+                    <p className="text-muted-foreground text-sm font-medium">
+                      Critical Alerts
+                    </p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {monitoringStats.criticalAlerts}
+                    </p>
                   </div>
                   <AlertTriangle className="h-8 w-8 text-red-600" />
                 </div>
@@ -733,8 +772,12 @@ export function CompetitiveMonitoringDashboard({
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Avg Progress</p>
-                    <p className="text-2xl font-bold text-purple-600">{Math.round(monitoringStats.avgProgress)}%</p>
+                    <p className="text-muted-foreground text-sm font-medium">
+                      Avg Progress
+                    </p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {Math.round(monitoringStats.avgProgress)}%
+                    </p>
                   </div>
                   <TrendingUp className="h-8 w-8 text-purple-600" />
                 </div>
@@ -756,43 +799,56 @@ export function CompetitiveMonitoringDashboard({
             <CardContent className="space-y-4">
               {liveAnalyses.length > 0 ? (
                 liveAnalyses.map(analysis => (
-                  <div key={analysis.jobId} className="space-y-2 rounded-lg border p-4">
+                  <div
+                    key={analysis.jobId}
+                    className="space-y-2 rounded-lg border p-4"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Badge
                           variant={
-                            analysis.status === "completed" ? "default" :
-                            analysis.status === "processing" ? "secondary" :
-                            analysis.status === "failed" ? "destructive" : "outline"
+                            analysis.status === "completed"
+                              ? "default"
+                              : analysis.status === "processing"
+                                ? "secondary"
+                                : analysis.status === "failed"
+                                  ? "destructive"
+                                  : "outline"
                           }
                         >
                           {analysis.status}
                         </Badge>
-                        <span className="font-medium">{analysis.competitorName}</span>
+                        <span className="font-medium">
+                          {analysis.competitorName}
+                        </span>
                       </div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-muted-foreground text-sm">
                         <Clock className="mr-1 inline h-3 w-3" />
                         {analysis.startedAt.toLocaleTimeString()}
                       </div>
                     </div>
-                    
+
                     <Progress value={analysis.progress} className="h-2" />
-                    
-                    <div className="flex justify-between text-sm text-muted-foreground">
+
+                    <div className="text-muted-foreground flex justify-between text-sm">
                       <span>{analysis.progress}% complete</span>
                       {analysis.estimatedTimeRemaining && (
-                        <span>ETA: {Math.round(analysis.estimatedTimeRemaining / 60)}m</span>
+                        <span>
+                          ETA:{" "}
+                          {Math.round(analysis.estimatedTimeRemaining / 60)}m
+                        </span>
                       )}
                     </div>
-                    
-                    <div className="text-xs text-muted-foreground">
+
+                    <div className="text-muted-foreground text-xs">
                       Job ID: {analysis.jobId}
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-muted-foreground py-8 text-center">
-                  No active analyses. Live updates will appear here when analyses start.
+                  No active analyses. Live updates will appear here when
+                  analyses start.
                 </div>
               )}
             </CardContent>
@@ -818,17 +874,25 @@ export function CompetitiveMonitoringDashboard({
                         <div className="mb-1 flex items-center gap-2">
                           <Badge
                             variant={
-                              alert.severity === "critical" ? "destructive" :
-                              alert.severity === "high" ? "destructive" :
-                              alert.severity === "medium" ? "default" : "secondary"
+                              alert.severity === "critical"
+                                ? "destructive"
+                                : alert.severity === "high"
+                                  ? "destructive"
+                                  : alert.severity === "medium"
+                                    ? "default"
+                                    : "secondary"
                             }
                           >
                             {alert.severity}
                           </Badge>
-                          <span className="text-sm font-medium">{alert.type}</span>
+                          <span className="text-sm font-medium">
+                            {alert.type}
+                          </span>
                         </div>
                         <h4 className="font-semibold">{alert.title}</h4>
-                        <p className="text-muted-foreground text-sm">{alert.description}</p>
+                        <p className="text-muted-foreground text-sm">
+                          {alert.description}
+                        </p>
                       </div>
                       <div className="text-muted-foreground text-xs">
                         <Clock className="mr-1 inline h-3 w-3" />
@@ -839,7 +903,8 @@ export function CompetitiveMonitoringDashboard({
                 ))
               ) : (
                 <div className="text-muted-foreground py-8 text-center">
-                  No real-time alerts. New alerts will appear here automatically.
+                  No real-time alerts. New alerts will appear here
+                  automatically.
                 </div>
               )}
             </CardContent>

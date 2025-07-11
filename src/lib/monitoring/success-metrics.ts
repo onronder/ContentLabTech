@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { fetch } from "@/lib/utils/fetch";
 
 interface UserAction {
   id: string;

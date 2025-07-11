@@ -4,6 +4,7 @@
  */
 
 import { supabase } from "@/lib/supabase/client";
+import { fetch } from "@/lib/utils/fetch";
 import type { Team, TeamMember } from "@/lib/supabase/client";
 
 export interface TeamWithUserRole extends Team {

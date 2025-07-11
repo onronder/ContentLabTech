@@ -27,6 +27,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { fetch } from "@/lib/utils/fetch";
 import { useCompetitiveIntelligence } from "@/hooks/useCompetitiveIntelligence";
 // import type { Competitor } from "@/lib/competitive/types";
 import {

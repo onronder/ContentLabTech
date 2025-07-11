@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth/context";
+import { fetch } from "@/lib/utils/fetch";
 import { Loader2, FileText, PenTool, Sparkles } from "lucide-react";
 
 interface ContentItem {

@@ -7,6 +7,7 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
+import { fetch } from "@/lib/utils/fetch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -160,9 +161,12 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
     if (!canRemoveMember()) return;
 
     try {
-      const response = await fetch(`/api/team/members?teamId=${member.id}&userId=${member.id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/team/members?teamId=${member.id}&userId=${member.id}`,
+        {
+          method: "DELETE",
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to remove member");
@@ -180,7 +184,9 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
   const formatLastActive = (lastActive: string) => {
     const date = new Date(lastActive);
     const now = new Date();
-    const diffHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    const diffHours = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+    );
 
     if (member.isOnline) return "Online now";
     if (diffHours < 1) return "Active recently";
@@ -191,44 +197,51 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
 
   return (
     <>
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="transition-shadow hover:shadow-md">
         <CardContent className="p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-start space-x-3">
               {/* Avatar */}
               <div className="relative">
-                <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-lg">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-purple-500 text-lg font-semibold text-white">
                   {member.fullName.charAt(0).toUpperCase()}
                 </div>
                 {/* Online Status */}
-                <div className={cn(
-                  "absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-white",
-                  member.isOnline ? "bg-green-500" : "bg-gray-400"
-                )} />
+                <div
+                  className={cn(
+                    "absolute -right-1 -bottom-1 h-4 w-4 rounded-full border-2 border-white",
+                    member.isOnline ? "bg-green-500" : "bg-gray-400"
+                  )}
+                />
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center space-x-2">
-                  <h3 className="font-semibold text-gray-900 truncate">
+                  <h3 className="truncate font-semibold text-gray-900">
                     {member.fullName}
                   </h3>
                   <Badge
                     variant="outline"
-                    className={cn("flex items-center space-x-1", getRoleBadgeVariant(member.role))}
+                    className={cn(
+                      "flex items-center space-x-1",
+                      getRoleBadgeVariant(member.role)
+                    )}
                   >
                     {getRoleIcon(member.role)}
                     <span className="capitalize">{member.role}</span>
                   </Badge>
                 </div>
-                <p className="text-sm text-gray-600 truncate">{member.email}</p>
-                <div className="flex items-center space-x-4 mt-2">
+                <p className="truncate text-sm text-gray-600">{member.email}</p>
+                <div className="mt-2 flex items-center space-x-4">
                   <div className="flex items-center space-x-1 text-xs text-gray-500">
                     <Clock className="h-3 w-3" />
                     <span>{formatLastActive(member.lastActive)}</span>
                   </div>
                   <div className="flex items-center space-x-1 text-xs text-gray-500">
                     <Calendar className="h-3 w-3" />
-                    <span>Joined {new Date(member.joinedAt).toLocaleDateString()}</span>
+                    <span>
+                      Joined {new Date(member.joinedAt).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -245,9 +258,11 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  
+
                   <DropdownMenuItem
-                    onClick={() => window.open(`mailto:${member.email}`, '_blank')}
+                    onClick={() =>
+                      window.open(`mailto:${member.email}`, "_blank")
+                    }
                   >
                     <Mail className="mr-2 h-4 w-4" />
                     Send Email
@@ -263,7 +278,7 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
                   {canRemoveMember() && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => setShowRemoveDialog(true)}
                         className="text-red-600 focus:text-red-600"
                       >
@@ -279,11 +294,15 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
 
           {/* Role Change Section */}
           {showRoleSelect && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <div className="mt-4 rounded-lg bg-gray-50 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Change Role</p>
-                  <p className="text-xs text-gray-600">Select a new role for this member</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    Change Role
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    Select a new role for this member
+                  </p>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Select
@@ -326,8 +345,9 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
               <span>Remove Team Member</span>
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove <strong>{member.fullName}</strong> from the team? 
-              They will lose access to all team projects and resources. This action cannot be undone.
+              Are you sure you want to remove <strong>{member.fullName}</strong>{" "}
+              from the team? They will lose access to all team projects and
+              resources. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

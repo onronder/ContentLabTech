@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
+import { fetch } from "@/lib/utils/fetch";
 
 import { useSupabaseAuth } from "./use-supabase-auth";
 import { supabase } from "@/lib/supabase/client";

@@ -28,13 +28,35 @@ export const getApiBaseUrl = (): string => {
 };
 
 /**
+ * Enhanced API endpoint resolver with comprehensive environment handling
  * Constructs absolute API endpoint URLs for server-side requests
  * Ensures all API calls work in production Vercel environment
  */
 export const getApiEndpoint = (path: string): string => {
   const baseUrl = getApiBaseUrl();
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  return `${baseUrl}${cleanPath}`;
+  const fullUrl = `${baseUrl}${cleanPath}`;
+
+  // Validation logging for debugging
+  if (
+    process.env.NODE_ENV === "development" ||
+    process.env.DEBUG_API === "true"
+  ) {
+    console.log("🎯 API Endpoint Resolution:", {
+      inputPath: path,
+      baseUrl,
+      cleanPath,
+      fullUrl,
+      environment: {
+        VERCEL_URL: process.env.VERCEL_URL,
+        NODE_ENV: process.env.NODE_ENV,
+        isProduction: process.env.NODE_ENV === "production",
+        isVercel: !!process.env.VERCEL_URL,
+      },
+    });
+  }
+
+  return fullUrl;
 };
 
 /**

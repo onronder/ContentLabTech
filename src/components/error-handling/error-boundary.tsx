@@ -6,6 +6,7 @@
 "use client";
 
 import React, { Component, ReactNode, ErrorInfo } from "react";
+import { fetch } from "@/lib/utils/fetch";
 import { AlertTriangle, RefreshCw, Home, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";

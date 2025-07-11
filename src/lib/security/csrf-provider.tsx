@@ -13,6 +13,7 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
+import { fetch } from "@/lib/utils/fetch";
 
 interface CSRFContextType {
   token: string | null;
