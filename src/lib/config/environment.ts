@@ -15,9 +15,9 @@ const environmentSchema = z.object({
 
   // Supabase - Critical for database operations
   NEXT_PUBLIC_SUPABASE_URL: z.string().url("Invalid Supabase URL"),
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z
     .string()
-    .min(1, "Supabase publishable key is required"),
+    .min(1, "Supabase anon key is required"),
   SUPABASE_SERVICE_ROLE_KEY: z
     .string()
     .min(1, "Supabase service role key is required")
@@ -91,7 +91,7 @@ export interface ValidationResult {
 // Critical environment variables that will break core functionality
 const CRITICAL_VARS = [
   "NEXT_PUBLIC_SUPABASE_URL",
-  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
 ] as const;
 
 // Important but optional variables that reduce functionality
@@ -151,21 +151,21 @@ export function validateEnvironment(): ValidationResult {
     }
 
     if (
-      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] &&
-      !process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"].startsWith(
+      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] &&
+      !process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"].startsWith(
         "sb_publishable_"
       )
     ) {
-      errors.push("Supabase publishable key has invalid format");
+      errors.push("Supabase anon key has invalid format");
     }
 
     // Check for legacy JWT tokens
     if (
-      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] &&
-      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"].startsWith("eyJ")
+      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] &&
+      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"].startsWith("eyJ")
     ) {
       errors.push(
-        "CRITICAL: Legacy JWT token detected as publishable key. This will cause browser crashes."
+        "CRITICAL: Legacy JWT token detected as anon key. This will cause browser crashes."
       );
     }
 

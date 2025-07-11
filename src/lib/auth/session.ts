@@ -18,7 +18,7 @@ export async function createClient() {
   // Environment variables debug
   console.log("🔍 Environment Check:", {
     SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    SUPABASE_ANON_KEY: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
     NODE_ENV: process.env.NODE_ENV,
     URL_VALUE: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + "...",
@@ -48,7 +48,7 @@ export async function createClient() {
 
     const client = createServerClient<Database>(
       process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
+      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!,
       {
         cookies: {
           get(name: string) {

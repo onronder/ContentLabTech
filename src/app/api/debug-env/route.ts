@@ -9,8 +9,7 @@ export async function GET(request: NextRequest) {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL
       ? "SET"
       : "MISSING",
-    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env
-      .NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       ? "SET"
       : "MISSING",
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -25,17 +24,17 @@ export async function GET(request: NextRequest) {
     supabaseUrlValid:
       process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("supabase.co") || false,
     publishableKeyLength:
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.length || 0,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length || 0,
     serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
     secretKeyLength: process.env.SUPABASE_SECRET_KEY?.length || 0,
 
     // Partial key validation (first/last 10 chars)
     supabaseUrlPreview:
       process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 50) + "...",
-    publishableKeyPreview: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-      ? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.substring(0, 20) +
+    publishableKeyPreview: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(0, 20) +
         "..." +
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.substring(-10)
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.substring(-10)
       : "MISSING",
     serviceKeyPreview: process.env.SUPABASE_SERVICE_ROLE_KEY
       ? process.env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 20) +
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
   // Step 1.2: Validate Environment Variables
   const requiredEnvVars = [
     "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", // This is the correct key name
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY", // This is the correct key name
     "SUPABASE_SERVICE_ROLE_KEY",
   ];
 
@@ -74,11 +73,11 @@ export async function GET(request: NextRequest) {
 
   // Key length validation
   if (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY &&
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.length < 100
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length < 100
   ) {
     issues.push(
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY appears too short (should be ~107 chars)"
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY appears too short (should be ~107 chars)"
     );
   }
 
@@ -113,19 +112,18 @@ export async function GET(request: NextRequest) {
     urlStartsCorrect:
       process.env.NEXT_PUBLIC_SUPABASE_URL?.startsWith("https://") || false,
     publishableKeyStartsCorrect:
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.startsWith("eyJ") ||
-      false,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.startsWith("eyJ") || false,
     serviceKeyStartsCorrect:
       process.env.SUPABASE_SERVICE_ROLE_KEY?.startsWith("eyJ") || false,
   };
 
   // Additional key format validation
   if (
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY &&
-    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.startsWith("eyJ")
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.startsWith("eyJ")
   ) {
     issues.push(
-      'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY should start with "eyJ" (JWT format)'
+      'NEXT_PUBLIC_SUPABASE_ANON_KEY should start with "eyJ" (JWT format)'
     );
   }
 

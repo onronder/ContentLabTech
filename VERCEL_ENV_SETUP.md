@@ -16,7 +16,7 @@ NODE_ENV=production
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_your_key_here
 SUPABASE_SECRET_KEY=sb_secret_your_secret_key_here
 ```
 

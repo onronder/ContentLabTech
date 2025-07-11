@@ -15,7 +15,7 @@ ContentLab Nexus has been successfully migrated back to Supabase legacy JWT keys
 **Before (New Keys - Problematic):**
 
 ```bash
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 SUPABASE_SECRET_KEY=sb_secret_...
 ```
 
@@ -30,7 +30,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 #### 1. Supabase Client (`src/lib/supabase/client.ts`)
 
-- Updated to use `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- Updated to use `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead of `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - Added legacy JWT format validation
 
 #### 2. Server Configuration (`src/lib/supabase/server.ts`)
@@ -70,7 +70,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_LEGACY_ANON_KEY_HERE
 SUPABASE_SERVICE_ROLE_KEY=YOUR_LEGACY_SERVICE_ROLE_KEY_HERE
 
 # Remove these new format keys:
-# NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
 # SUPABASE_SECRET_KEY=sb_secret_...
 ```
 

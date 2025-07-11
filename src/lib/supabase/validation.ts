@@ -29,8 +29,8 @@ export const validateEnvironmentConfig = () => {
   const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
   // Check for legacy keys first, then fallback to new keys
   const anonKey =
-    process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+    process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
+    process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
   const serviceRoleKey =
     process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
     process.env["SUPABASE_SECRET_KEY"];
@@ -46,7 +46,7 @@ export const validateEnvironmentConfig = () => {
 
   if (!anonKey) {
     errors.push(
-      "Missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+      "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY"
     );
   } else if (
     !validateLegacyAnonKey(anonKey) &&
@@ -121,7 +121,7 @@ export const checkDevelopmentWarnings = () => {
 
     // Check for placeholder values
     const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
-    const publishableKey = process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+    const publishableKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
     if (
       url?.includes("placeholder") ||
@@ -138,9 +138,8 @@ export const checkDevelopmentWarnings = () => {
 // Configuration status helper
 export const getConfigurationStatus = () => {
   const hasUrl = !!process.env["NEXT_PUBLIC_SUPABASE_URL"];
-  const hasAnonKey = !!process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
-  const hasPublishableKey =
-    !!process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"];
+  const hasAnonKey = !!process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+  const hasPublishableKey = !!process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
   const hasLegacyServiceKey = !!process.env["SUPABASE_SERVICE_ROLE_KEY"];
   const hasNewServiceKey = !!process.env["SUPABASE_SECRET_KEY"];
 

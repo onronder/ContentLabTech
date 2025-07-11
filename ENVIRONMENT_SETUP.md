@@ -23,7 +23,7 @@ curl -X POST http://localhost:3000/api/debug-env \
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 
 # Supabase Publishable Key (Public/Anon Key)
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # Supabase Service Role Key (Private/Secret Key)
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -47,7 +47,7 @@ NODE_ENV=production
 
 ### Issue 1: Key Name Confusion
 
-**Problem**: Using `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+**Problem**: Using `NEXT_PUBLIC_SUPABASE_ANON_KEY` instead of `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
 **Solution**: Update your environment variables:
 
@@ -56,7 +56,7 @@ NODE_ENV=production
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 # ✅ NEW (correct)
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 ### Issue 2: Missing Service Role Key
@@ -92,7 +92,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://localhost:3000        # Wrong domain
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
@@ -164,18 +164,18 @@ curl http://localhost:3000/api/content
   "status": "Environment Variables Audit Complete",
   "validation": {
     "requiredVarsPresent": false,
-    "missingVariables": ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+    "missingVariables": ["NEXT_PUBLIC_SUPABASE_ANON_KEY"],
     "issues": [
-      "Missing environment variables: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY should start with 'eyJ' (JWT format)"
+      "Missing environment variables: NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY should start with 'eyJ' (JWT format)"
     ],
     "warnings": [
-      "Found NEXT_PUBLIC_SUPABASE_ANON_KEY but missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY - key names may be incorrect"
+      "Found NEXT_PUBLIC_SUPABASE_ANON_KEY but missing NEXT_PUBLIC_SUPABASE_ANON_KEY - key names may be incorrect"
     ]
   },
   "recommendations": [
     "🚨 CRITICAL: Fix the issues listed above before proceeding",
-    "📝 Rename NEXT_PUBLIC_SUPABASE_ANON_KEY to NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+    "📝 Rename NEXT_PUBLIC_SUPABASE_ANON_KEY to NEXT_PUBLIC_SUPABASE_ANON_KEY"
   ]
 }
 ```
@@ -197,7 +197,7 @@ curl http://localhost:3000/api/content
 ## 🛠️ Troubleshooting Checklist
 
 - [ ] All required environment variables are set
-- [ ] Variable names are correct (especially `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`)
+- [ ] Variable names are correct (especially `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
 - [ ] Keys start with `eyJ` (JWT format)
 - [ ] URL includes `https://` and `.supabase.co`
 - [ ] Keys are from the correct Supabase project

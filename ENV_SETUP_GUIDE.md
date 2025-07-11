@@ -32,7 +32,7 @@ This guide explains exactly WHERE to create each environment variable and HOW to
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 SUPABASE_SECRET_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
@@ -160,7 +160,7 @@ GOOGLE_AI_API_KEY=AIzaSy1234567890...
 3. Go to **Settings** → **API**
 4. Copy the values:
    - URL → use for `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_URL`
-   - Anon public key → use for `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+   - Anon public key → use for `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - Service role secret → use for `SUPABASE_SECRET_KEY`
 
 ### Step 3: Email Setup (Resend)

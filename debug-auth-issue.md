@@ -5,7 +5,7 @@
 ### Current Key in .env.local:
 
 ```
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_mT3MRZEJ0wNKBRvYS4S8bA_sAfqszRu
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_mT3MRZEJ0wNKBRvYS4S8bA_sAfqszRu
 ```
 
 ### Issue:

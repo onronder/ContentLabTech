@@ -58,7 +58,7 @@ return true;
 ```bash
 # Current keys are VALID and COMPLETE
 NEXT_PUBLIC_SUPABASE_URL=https://rwyaipbxlvrilagkirsq.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_mT3MRZEJ0wNKBRvYS4S8bA_sAfqszRu
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_mT3MRZEJ0wNKBRvYS4S8bA_sAfqszRu
 SUPABASE_SECRET_KEY=sb_secret_8XmLzdbY4f0-R8i5QREzBQ_lkongp52
 ```
 

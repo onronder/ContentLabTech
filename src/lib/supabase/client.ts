@@ -25,7 +25,7 @@ validateBrowserSecurity();
 // Supabase client configuration with legacy JWT keys
 export const supabase = createClient<Database>(
   process.env["NEXT_PUBLIC_SUPABASE_URL"] || "https://placeholder.supabase.co",
-  process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ||
+  process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder_legacy_key",
   {
     auth: {
