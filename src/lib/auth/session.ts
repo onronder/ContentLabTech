@@ -6,9 +6,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
+import { createClient as createServerAuthClient } from "@/lib/supabase/server-auth";
 
 /**
  * Create server-side Supabase client with user session
+ * @deprecated Use createServerAuthClient from @/lib/supabase/server-auth instead
  */
 export async function createClient() {
   console.log("🔍 createClient: Starting client creation");
@@ -139,7 +141,8 @@ export async function getCurrentUser() {
 
   try {
     console.log("🔍 getCurrentUser: Creating Supabase client...");
-    const supabase = await createClient();
+    // Use the new server auth client
+    const supabase = await createServerAuthClient();
     console.log("🔍 getCurrentUser: Supabase client created", {
       client: !!supabase,
     });
@@ -208,7 +211,8 @@ export async function getCurrentSession() {
   console.log("🔍 getCurrentSession: Starting session retrieval");
 
   try {
-    const supabase = await createClient();
+    // Use the new server auth client
+    const supabase = await createServerAuthClient();
     console.log("🔍 getCurrentSession: Supabase client created");
 
     const {
@@ -267,7 +271,8 @@ export async function requireAuth() {
  */
 export async function getUserTeams(userId?: string) {
   try {
-    const supabase = await createClient();
+    // Use the new server auth client
+    const supabase = await createServerAuthClient();
     const user = userId ? { id: userId } : await getCurrentUser();
 
     if (!user) {
@@ -320,7 +325,8 @@ export async function validateTeamAccess(
       return false;
     }
 
-    const supabase = await createClient();
+    // Use the new server auth client
+    const supabase = await createServerAuthClient();
     const { data: membership, error } = await supabase
       .from("team_members")
       .select("role")
@@ -371,7 +377,8 @@ export async function validateProjectAccess(
       return false;
     }
 
-    const supabase = await createClient();
+    // Use the new server auth client
+    const supabase = await createServerAuthClient();
 
     // Get project's team
     const { data: project, error: projectError } = await supabase

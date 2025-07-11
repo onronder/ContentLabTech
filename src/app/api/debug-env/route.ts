@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
   ];
 
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-  const issues = [];
-  const warnings = [];
+  const issues = [] as string[];
+  const warnings = [] as string[];
 
   // Check for missing variables
   if (missingVars.length > 0) {
@@ -145,13 +145,13 @@ export async function GET(request: NextRequest) {
     environment: envCheck,
     validation: {
       requiredVarsPresent: missingVars.length === 0,
-      missingVariables: missingVars,
+      missingVariables: missingVars as string[],
       issues: issues,
       warnings: warnings,
       keyValidation: keyValidation,
       deploymentInfo: deploymentInfo,
     },
-    recommendations: [],
+    recommendations: [] as string[],
   };
 
   // Generate recommendations
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
     // Test Supabase connection with current environment
     const supabaseConnectionTest = {
       canCreateClient: false,
-      error: null,
+      error: null as string | null,
       clientCreated: false,
     };
 

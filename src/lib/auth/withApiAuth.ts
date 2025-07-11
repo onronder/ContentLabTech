@@ -7,6 +7,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import type { Database } from "@/types/database";
+import { createClient as createServerAuthClient } from "@/lib/supabase/server-auth";
 
 export interface AuthenticatedUser {
   id: string;
@@ -39,74 +40,10 @@ export function withApiAuth<T extends any[]>(
     });
 
     try {
-      // Get cookies with proper error handling
-      const cookieStore = await cookies();
-      const allCookies = cookieStore.getAll();
-      const cookieCount = allCookies.length;
-
-      // Find Supabase auth cookies specifically
-      const authCookies = allCookies.filter(
-        c =>
-          c.name.includes("supabase") ||
-          c.name.includes("sb-") ||
-          c.name.includes("auth")
-      );
-
-      console.log("🍪 withApiAuth: Detailed cookie analysis", {
-        totalCookies: cookieCount,
-        hasCookies: cookieCount > 0,
-        authCookiesCount: authCookies.length,
-        authCookieNames: authCookies.map(c => c.name),
-        allCookieNames: allCookies.map(c => c.name),
-        // Show first few characters of auth cookie values for debugging
-        authCookieValues: authCookies.map(c => ({
-          name: c.name,
-          hasValue: !!c.value,
-          length: c.value?.length || 0,
-          preview: c.value?.substring(0, 20) + "..." || "empty",
-        })),
-      });
-
-      // Create Supabase client with server-side cookies
-      const supabase = createServerClient<Database>(
-        process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-        process.env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]!,
-        {
-          cookies: {
-            get(name: string) {
-              const cookie = cookieStore.get(name);
-              console.log(
-                `🍪 Cookie get: ${name} = ${cookie ? `present (${cookie.value?.length} chars)` : "missing"}`
-              );
-              if (cookie && name.includes("sb-")) {
-                console.log(
-                  `🔍 Supabase cookie ${name} preview:`,
-                  cookie.value?.substring(0, 50) + "..."
-                );
-              }
-              return cookie?.value;
-            },
-            set(name: string, value: string, options: any) {
-              console.log(
-                `🍪 Cookie set: ${name} (${options.httpOnly ? "httpOnly" : "client-accessible"})`
-              );
-              try {
-                cookieStore.set({ name, value, ...options });
-              } catch (error) {
-                console.warn(`⚠️ Cookie set failed for ${name}:`, error);
-              }
-            },
-            remove(name: string, options: any) {
-              console.log(`🍪 Cookie remove: ${name}`);
-              try {
-                cookieStore.set({ name, value: "", ...options });
-              } catch (error) {
-                console.warn(`⚠️ Cookie remove failed for ${name}:`, error);
-              }
-            },
-          },
-        }
-      );
+      // Use the new server auth client
+      console.log("🔍 withApiAuth: Creating server auth client");
+      const supabase = await createServerAuthClient();
+      console.log("🔍 withApiAuth: Server auth client created");
 
       // Get session with detailed logging
       console.log("🔍 withApiAuth: Attempting to get session from Supabase");
