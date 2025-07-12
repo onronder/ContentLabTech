@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "./session";
 import { createClient } from "./session";
+import { cookies } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 
 export interface AuthContext {
@@ -34,6 +35,61 @@ export function withApiAuth<T extends any[]>(
       origin: request.headers.get("origin"),
       referer: request.headers.get("referer"),
     });
+
+    // Enhanced cookie debugging at API entry point
+    try {
+      const cookieStore = await cookies();
+      const allCookies = cookieStore.getAll();
+      const cookieHeader = request.headers.get("cookie");
+
+      console.log("🍪 withApiAuth: Cookie Analysis at API Entry", {
+        cookieHeaderPresent: !!cookieHeader,
+        cookieHeaderLength: cookieHeader?.length || 0,
+        nextjsCookieCount: allCookies.length,
+        cookieNames: allCookies.map(c => c.name),
+        supabaseCookies: allCookies
+          .filter(
+            c =>
+              c.name.includes("sb-") ||
+              c.name.includes("supabase") ||
+              c.name.includes("auth-token")
+          )
+          .map(c => ({
+            name: c.name,
+            hasValue: !!c.value,
+            valueLength: c.value.length,
+          })),
+        requestHeaders: {
+          authorization: request.headers.get("authorization"),
+          contentType: request.headers.get("content-type"),
+          host: request.headers.get("host"),
+        },
+      });
+
+      // If no cookies found, log detailed analysis
+      if (allCookies.length === 0 || !cookieHeader) {
+        console.warn("⚠️ withApiAuth: NO COOKIES DETECTED", {
+          issue: "No cookies received by API route",
+          possibleCauses: [
+            "Cookie domain mismatch",
+            "HTTPS/Security flag issues",
+            "SameSite policy blocking",
+            "Frontend not sending cookies",
+            "Cookie path restrictions",
+          ],
+          debugSteps: [
+            "Check browser Network tab for cookie headers",
+            "Verify cookie domain matches API domain",
+            "Check cookie security attributes",
+            "Test with /api/debug-cookies endpoint",
+          ],
+        });
+      }
+    } catch (cookieError) {
+      console.error("❌ withApiAuth: Cookie debugging failed", {
+        error: cookieError instanceof Error ? cookieError.message : cookieError,
+      });
+    }
 
     try {
       // Use session utilities for authentication

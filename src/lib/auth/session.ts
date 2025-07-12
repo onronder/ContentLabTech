@@ -135,11 +135,46 @@ export async function createClient() {
 
 /**
  * Get the current authenticated user from the session
+ * Enhanced with production-grade cookie debugging
  */
 export async function getCurrentUser() {
   console.log("🔍 getCurrentUser: Starting session retrieval");
 
+  // Enhanced cookie debugging
   try {
+    // First, let's check what cookies we can access
+    const cookieStore = await cookies();
+    const allCookies = cookieStore.getAll();
+    const supabaseCookies = allCookies.filter(
+      cookie =>
+        cookie.name.includes("sb-") ||
+        cookie.name.includes("supabase") ||
+        cookie.name.includes("auth-token")
+    );
+
+    console.log("🍪 getCurrentUser: Cookie Analysis", {
+      totalCookies: allCookies.length,
+      supabaseCookiesFound: supabaseCookies.length,
+      cookieNames: allCookies.map(c => c.name),
+      supabaseCookieDetails: supabaseCookies.map(c => ({
+        name: c.name,
+        hasValue: !!c.value,
+        valueLength: c.value.length,
+        valueStart: c.value.substring(0, 30) + "...",
+      })),
+    });
+
+    // Check if we have any authentication-related cookies
+    if (supabaseCookies.length === 0) {
+      console.warn(
+        "⚠️ getCurrentUser: No Supabase authentication cookies found"
+      );
+      console.log(
+        "🔍 Available cookies:",
+        allCookies.map(c => c.name)
+      );
+    }
+
     console.log("🔍 getCurrentUser: Creating Supabase client...");
     // Use the new server auth client
     const supabase = await createServerAuthClient();
@@ -179,12 +214,24 @@ export async function getCurrentUser() {
         status: error.status,
         code: error.code,
         details: error,
+        cookieContext: {
+          totalCookies: allCookies.length,
+          supabaseCookies: supabaseCookies.length,
+          hasCookies: allCookies.length > 0,
+        },
       });
       return null;
     }
 
     if (!user) {
-      console.log("⚠️ getCurrentUser: No user found in session");
+      console.log("⚠️ getCurrentUser: No user found in session", {
+        cookieContext: {
+          totalCookies: allCookies.length,
+          supabaseCookies: supabaseCookies.length,
+          hasCookies: allCookies.length > 0,
+          cookieNames: allCookies.map(c => c.name),
+        },
+      });
       return null;
     }
 
@@ -192,6 +239,10 @@ export async function getCurrentUser() {
       id: user.id,
       email: user.email,
       hasSession: true,
+      cookieContext: {
+        supabaseCookies: supabaseCookies.length,
+        totalCookies: allCookies.length,
+      },
     });
     return user;
   } catch (exception) {
