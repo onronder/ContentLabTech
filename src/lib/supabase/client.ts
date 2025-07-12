@@ -1,9 +1,10 @@
 /**
  * Supabase client configuration for ContentLab Nexus
  * Provides type-safe database client with RLS support
+ * Updated to use SSR-compatible browser client for proper cookie handling
  */
 
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 import type { Database } from "@/types/database";
 import {
@@ -22,28 +23,11 @@ if (!config.isValid && process.env.NODE_ENV === "production") {
 // Browser security check
 validateBrowserSecurity();
 
-// Supabase client configuration with legacy JWT keys
-export const supabase = createClient<Database>(
+// CRITICAL FIX: SSR-compatible browser client for proper cookie handling
+export const supabase = createBrowserClient<Database>(
   process.env["NEXT_PUBLIC_SUPABASE_URL"] || "https://placeholder.supabase.co",
   process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder_legacy_key",
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-    global: {
-      headers: {
-        "X-Client-Info": "contentlab-nexus-client",
-      },
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 10,
-      },
-    },
-  }
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder_legacy_key"
 );
 
 // Type-safe database types
