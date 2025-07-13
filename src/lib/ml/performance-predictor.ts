@@ -1027,7 +1027,7 @@ export class MLPerformanceService {
 
       // Get content data
       const { data: content } = await supabase
-        .from("contents")
+        .from("content_items")
         .select("*")
         .eq("id", contentId)
         .single();

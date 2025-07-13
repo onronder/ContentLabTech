@@ -110,7 +110,7 @@ export const POST = withApiAuth(
 
       // Create content record
       const { data: newContent, error: createError } = await context.supabase
-        .from("content")
+        .from("content_items")
         .insert([
           {
             project_id: projectId,
@@ -212,7 +212,7 @@ export const GET = withApiAuth(
 
       // Build query
       let query = context.supabase
-        .from("content")
+        .from("content_items")
         .select(
           `
           *,
