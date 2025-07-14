@@ -119,11 +119,7 @@ export async function GET(request: NextRequest) {
           name,
           description
         ),
-        inviter:auth.users!team_invitations_invited_by_fkey(
-          id,
-          email,
-          raw_user_meta_data
-        )
+        invited_by
       `
       )
       .eq("token", token)
@@ -167,6 +163,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Get inviter details
+    const { data: inviter } = await supabase.auth.admin.getUserById(
+      invitation.invited_by
+    );
+
     return NextResponse.json({
       success: true,
       data: {
@@ -176,10 +177,11 @@ export async function GET(request: NextRequest) {
         expires_at: invitation.expires_at,
         team: invitation.team,
         inviter: {
-          email: invitation.inviter.email,
+          email: inviter?.user?.email || "Unknown",
           name:
-            invitation.inviter.raw_user_meta_data?.name ||
-            invitation.inviter.email,
+            inviter?.user?.user_metadata?.name ||
+            inviter?.user?.email ||
+            "Unknown",
         },
       },
     });

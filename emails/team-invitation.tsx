@@ -133,7 +133,10 @@ export const TeamInvitationEmail = ({
             </Section>
 
             <Section style={buttonContainer}>
-              <Button pX={20} pY={12} style={button} href={inviteUrl}>
+              <Button
+                style={{ ...button, padding: "12px 20px" }}
+                href={inviteUrl}
+              >
                 Accept Invitation
               </Button>
             </Section>

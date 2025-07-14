@@ -6,7 +6,7 @@ import {
   type AuthContext,
 } from "@/lib/auth/withApiAuth-definitive";
 import { sendEmail } from "@/lib/email/send";
-import { TeamInvitationEmail } from "@/emails/team-invitation";
+import { TeamInvitationEmail } from "../../../../../../emails/team-invitation";
 
 interface InviteTeamMemberRequest {
   email: string;

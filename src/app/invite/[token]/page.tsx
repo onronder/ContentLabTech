@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useSupabaseAuth } from "@/lib/auth/context";
+import { useAuth } from "@/lib/auth/context";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -41,7 +41,7 @@ interface AcceptanceResult {
 export default function InvitePage() {
   const params = useParams();
   const router = useRouter();
-  const { user, signIn } = useSupabaseAuth();
+  const { user } = useAuth();
   const token = params.token as string;
 
   const [invitation, setInvitation] = useState<InvitationDetails | null>(null);
@@ -79,7 +79,7 @@ export default function InvitePage() {
   const handleAcceptInvitation = async () => {
     if (!user) {
       // Redirect to sign in
-      signIn();
+      window.location.href = "/auth/signin";
       return;
     }
 

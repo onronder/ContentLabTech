@@ -1,163 +1,212 @@
-/**
- * User Profile API
- * Manages user profile data and preferences
- */
-
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   withApiAuth,
   createSuccessResponse,
   type AuthContext,
-} from "@/lib/auth/withApiAuth-v2";
+} from "@/lib/auth/withApiAuth-definitive";
 
-async function handleGet(request: NextRequest, context: AuthContext) {
-  console.log("👤 User Profile: Fetching profile for user", context.user.id);
+interface ProfileUpdateRequest {
+  displayName?: string;
+  avatarUrl?: string;
+  timezone?: string;
+  locale?: string;
+  theme?: string;
+}
 
-  try {
-    // Get user profile from database
-    const { data: profile, error } = await context.supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", context.user.id)
-      .single();
+// GET /api/user/profile - Get user profile
+export const GET = withApiAuth(
+  async (request: NextRequest, context: AuthContext) => {
+    try {
+      // Get user preferences
+      const { data: preferences, error: prefsError } = await context.supabase
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", context.user.id)
+        .single();
 
-    if (error && error.code !== "PGRST116") {
-      console.error("❌ Profile fetch error:", error);
-      return new Response(
-        JSON.stringify({
-          error: "Failed to fetch profile",
-          code: "PROFILE_FETCH_ERROR",
-          status: 500,
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
-    }
+      if (prefsError && prefsError.code !== "PGRST116") {
+        // PGRST116 means no rows found
+        console.error("Failed to fetch user preferences:", prefsError);
+        return NextResponse.json(
+          {
+            error: "Failed to fetch user preferences",
+            code: "DATABASE_ERROR",
+          },
+          { status: 500 }
+        );
+      }
 
-    // Get user teams
-    const { data: teamMemberships, error: teamsError } = await context.supabase
-      .from("team_members")
-      .select(
-        `
-        role,
-        created_at,
-        team:teams (
-          id,
-          name,
-          description,
-          owner_id
-        )
-      `
-      )
-      .eq("user_id", context.user.id);
+      // Get user data from auth.users
+      const { data: authUser, error: authError } =
+        await context.supabase.auth.getUser();
 
-    if (teamsError) {
-      console.error("❌ Teams fetch error:", teamsError);
-    }
+      if (authError) {
+        console.error("Failed to fetch auth user:", authError);
+        return NextResponse.json(
+          {
+            error: "Failed to fetch user data",
+            code: "AUTH_ERROR",
+          },
+          { status: 500 }
+        );
+      }
 
-    const teams =
-      teamMemberships?.map(tm => ({
-        ...tm.team,
-        userRole: tm.role,
-        joinedAt: tm.created_at,
-      })) || [];
-
-    console.log("✅ User Profile: Successfully fetched profile", {
-      userId: context.user.id,
-      hasProfile: !!profile,
-      teamsCount: teams.length,
-    });
-
-    return createSuccessResponse({
-      user: {
+      // Merge auth user data with preferences
+      const profile = {
         id: context.user.id,
         email: context.user.email,
-        created_at: context.user.created_at,
-        last_sign_in_at: context.user.last_sign_in_at,
-      },
-      profile: profile || {
-        id: context.user.id,
-        full_name: context.user.user_metadata?.full_name || null,
-        avatar_url: context.user.user_metadata?.avatar_url || null,
-        bio: null,
-        website: null,
-        location: null,
-        preferences: {},
-        created_at: context.user.created_at,
-        updated_at: context.user.created_at,
-      },
-      teams,
-      stats: {
-        totalTeams: teams.length,
-        ownedTeams: teams.filter((t: any) => t.owner_id === context.user.id)
-          .length,
-        adminTeams: teams.filter((t: any) => t.userRole === "admin").length,
-      },
-    });
-  } catch (error) {
-    console.error("❌ User Profile: Unexpected error:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        code: "INTERNAL_ERROR",
-        status: 500,
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
-  }
-}
+        displayName:
+          preferences?.display_name || authUser.user.user_metadata?.name || "",
+        avatarUrl:
+          preferences?.avatar_url ||
+          authUser.user.user_metadata?.avatar_url ||
+          "",
+        timezone: preferences?.timezone || "UTC",
+        locale: preferences?.locale || "en",
+        theme: preferences?.theme || "system",
+        createdAt: authUser.user.created_at,
+        updatedAt: preferences?.updated_at || authUser.user.created_at,
+        emailVerified: authUser.user.email_confirmed_at !== null,
+        provider: authUser.user.app_metadata?.provider || "email",
+      };
 
-async function handlePut(request: NextRequest, context: AuthContext) {
-  console.log("👤 User Profile: Updating profile for user", context.user.id);
-
-  try {
-    const body = await request.json();
-    const { full_name, bio, website, location, preferences } = body;
-
-    // Update or create profile
-    const { data: profile, error } = await context.supabase
-      .from("profiles")
-      .upsert({
-        id: context.user.id,
-        full_name,
-        bio,
-        website,
-        location,
-        preferences: preferences || {},
-        updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("❌ Profile update error:", error);
-      return new Response(
-        JSON.stringify({
-          error: "Failed to update profile",
-          code: "PROFILE_UPDATE_ERROR",
-          status: 500,
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+      return createSuccessResponse(profile);
+    } catch (error) {
+      console.error("Failed to get user profile:", error);
+      return NextResponse.json(
+        {
+          error: "Internal server error",
+          code: "INTERNAL_ERROR",
+        },
+        { status: 500 }
       );
     }
-
-    console.log("✅ User Profile: Successfully updated profile", {
-      userId: context.user.id,
-      updatedFields: Object.keys(body),
-    });
-
-    return createSuccessResponse({ profile });
-  } catch (error) {
-    console.error("❌ User Profile: Update error:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        code: "INTERNAL_ERROR",
-        status: 500,
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
-    );
   }
-}
+);
 
-export const GET = withApiAuth(handleGet);
-export const PUT = withApiAuth(handlePut);
+// PUT /api/user/profile - Update user profile
+export const PUT = withApiAuth(
+  async (request: NextRequest, context: AuthContext) => {
+    try {
+      const body: ProfileUpdateRequest = await request.json();
+      const updates: Record<string, any> = {};
+
+      // Validate and prepare updates
+      if (body.displayName !== undefined) {
+        updates.display_name = body.displayName.trim();
+      }
+      if (body.avatarUrl !== undefined) {
+        updates.avatar_url = body.avatarUrl;
+      }
+      if (body.timezone !== undefined) {
+        updates.timezone = body.timezone;
+      }
+      if (body.locale !== undefined) {
+        updates.locale = body.locale;
+      }
+      if (body.theme !== undefined) {
+        updates.theme = body.theme;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json(
+          {
+            error: "No valid fields to update",
+            code: "INVALID_REQUEST",
+          },
+          { status: 400 }
+        );
+      }
+
+      // Upsert user preferences
+      const { data: preferences, error: updateError } = await context.supabase
+        .from("user_preferences")
+        .upsert({
+          user_id: context.user.id,
+          ...updates,
+        })
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error("Failed to update user preferences:", updateError);
+        return NextResponse.json(
+          {
+            error: "Failed to update preferences",
+            code: "DATABASE_ERROR",
+            details: updateError.message,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Update auth metadata if display name changed
+      if (body.displayName !== undefined) {
+        const { error: metaError } = await context.supabase.auth.updateUser({
+          data: { name: body.displayName },
+        });
+
+        if (metaError) {
+          console.error("Failed to update user metadata:", metaError);
+        }
+      }
+
+      return createSuccessResponse({
+        message: "Profile updated successfully",
+        profile: {
+          displayName: preferences.display_name,
+          avatarUrl: preferences.avatar_url,
+          timezone: preferences.timezone,
+          locale: preferences.locale,
+          theme: preferences.theme,
+          updatedAt: preferences.updated_at,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to update user profile:", error);
+      return NextResponse.json(
+        {
+          error: "Internal server error",
+          code: "INTERNAL_ERROR",
+        },
+        { status: 500 }
+      );
+    }
+  }
+);
+
+// DELETE /api/user/profile - Delete user account
+export const DELETE = withApiAuth(
+  async (request: NextRequest, context: AuthContext) => {
+    try {
+      // Delete user data (cascade will handle related records)
+      const { error: deleteError } =
+        await context.supabase.auth.admin.deleteUser(context.user.id);
+
+      if (deleteError) {
+        console.error("Failed to delete user account:", deleteError);
+        return NextResponse.json(
+          {
+            error: "Failed to delete account",
+            code: "DELETE_ERROR",
+            details: deleteError.message,
+          },
+          { status: 500 }
+        );
+      }
+
+      return createSuccessResponse({
+        message: "Account deleted successfully",
+      });
+    } catch (error) {
+      console.error("Failed to delete user account:", error);
+      return NextResponse.json(
+        {
+          error: "Internal server error",
+          code: "INTERNAL_ERROR",
+        },
+        { status: 500 }
+      );
+    }
+  }
+);
