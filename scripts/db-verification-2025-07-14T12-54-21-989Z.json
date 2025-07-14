@@ -1,0 +1,92 @@
+{
+  "connection": {
+    "status": "healthy",
+    "message": "Connection successful",
+    "responseTime": 667,
+    "details": {
+      "responseTime": "667ms"
+    }
+  },
+  "tables": {
+    "status": "unhealthy",
+    "message": "Missing tables: team_invitations, user_preferences, notification_preferences, user_sessions, login_history, analytics_events",
+    "responseTime": 919,
+    "details": {
+      "existing": ["teams", "team_members", "projects", "content_items"],
+      "missing": [
+        {
+          "table": "team_invitations",
+          "error": "relation \"public.team_invitations\" does not exist"
+        },
+        {
+          "table": "user_preferences",
+          "error": "relation \"public.user_preferences\" does not exist"
+        },
+        {
+          "table": "notification_preferences",
+          "error": "relation \"public.notification_preferences\" does not exist"
+        },
+        {
+          "table": "user_sessions",
+          "error": "relation \"public.user_sessions\" does not exist"
+        },
+        {
+          "table": "login_history",
+          "error": "relation \"public.login_history\" does not exist"
+        },
+        {
+          "table": "analytics_events",
+          "error": "relation \"public.analytics_events\" does not exist"
+        }
+      ]
+    }
+  },
+  "policies": {
+    "status": "degraded",
+    "message": "Tables may be missing RLS: teams, user_preferences, projects",
+    "responseTime": 225,
+    "details": {
+      "withRLS": [],
+      "withoutRLS": [
+        {
+          "table": "teams"
+        },
+        {
+          "table": "user_preferences",
+          "error": "relation \"public.user_preferences\" does not exist"
+        },
+        {
+          "table": "projects"
+        }
+      ]
+    }
+  },
+  "migrations": {
+    "status": "degraded",
+    "message": "Cannot verify applied migrations",
+    "responseTime": 176,
+    "details": {
+      "migrationFiles": 12,
+      "error": "relation \"public.supabase_migrations.schema_migrations\" does not exist"
+    }
+  },
+  "performance": {
+    "status": "healthy",
+    "message": "All performance tests passed",
+    "responseTime": 284,
+    "details": {
+      "tests": [
+        {
+          "name": "Simple Select",
+          "time": "284ms"
+        },
+        {
+          "name": "Count Query",
+          "time": "273ms"
+        }
+      ],
+      "averageTime": "279ms"
+    }
+  },
+  "overall": "unhealthy"
+}

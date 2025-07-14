@@ -1,0 +1,76 @@
+{
+  "connection": {
+    "status": "degraded",
+    "message": "Connection is slow",
+    "responseTime": 2007,
+    "details": {
+      "threshold": "2000ms"
+    }
+  },
+  "tables": {
+    "status": "healthy",
+    "message": "All 10 required tables exist",
+    "responseTime": 592,
+    "details": {
+      "tables": [
+        "teams",
+        "team_members",
+        "team_invitations",
+        "user_preferences",
+        "notification_preferences",
+        "user_sessions",
+        "login_history",
+        "projects",
+        "content_items",
+        "analytics_events"
+      ]
+    }
+  },
+  "policies": {
+    "status": "degraded",
+    "message": "Tables may be missing RLS: teams, user_preferences, projects",
+    "responseTime": 286,
+    "details": {
+      "withRLS": [],
+      "withoutRLS": [
+        {
+          "table": "teams"
+        },
+        {
+          "table": "user_preferences"
+        },
+        {
+          "table": "projects"
+        }
+      ]
+    }
+  },
+  "migrations": {
+    "status": "degraded",
+    "message": "Cannot verify applied migrations",
+    "responseTime": 276,
+    "details": {
+      "migrationFiles": 12,
+      "error": "relation \"public.supabase_migrations.schema_migrations\" does not exist"
+    }
+  },
+  "performance": {
+    "status": "healthy",
+    "message": "All performance tests passed",
+    "responseTime": 953,
+    "details": {
+      "tests": [
+        {
+          "name": "Simple Select",
+          "time": "953ms"
+        },
+        {
+          "name": "Count Query",
+          "time": "951ms"
+        }
+      ],
+      "averageTime": "952ms"
+    }
+  },
+  "overall": "degraded"
+}
