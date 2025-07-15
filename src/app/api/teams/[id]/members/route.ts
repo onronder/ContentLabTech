@@ -39,33 +39,37 @@ async function handleGet(
       );
     }
 
-    // Get team members with profile information
+    // Get team members with user information
     const { data: members, error } = await context.supabase
       .from("team_members")
       .select(
         `
         id,
+        user_id,
         role,
         created_at,
-        updated_at,
-        user:profiles!team_members_user_id_fkey (
-          id,
-          full_name,
-          avatar_url,
-          bio
-        )
+        updated_at
       `
       )
       .eq("team_id", resolvedParams.id)
       .order("created_at", { ascending: true });
 
     if (error) {
-      console.error("❌ Team members fetch error:", error);
+      console.error("❌ Team members fetch error:", {
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+        teamId: resolvedParams.id,
+        userId: context.user.id,
+      });
       return new Response(
         JSON.stringify({
           error: "Failed to fetch team members",
           code: "MEMBERS_FETCH_ERROR",
           status: 500,
+          details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
@@ -79,24 +83,55 @@ async function handleGet(
       .single();
 
     if (teamError) {
-      console.error("❌ Team fetch error:", teamError);
+      console.error("❌ Team fetch error:", {
+        error: teamError.message,
+        code: teamError.code,
+        details: teamError.details,
+        hint: teamError.hint,
+        teamId: resolvedParams.id,
+        userId: context.user.id,
+      });
+    }
+
+    // Get user information for each member
+    const userIds = members?.map(m => m.user_id) || [];
+    let userProfiles: any[] = [];
+
+    if (userIds.length > 0) {
+      // Get user metadata from auth.users (using service role)
+      const { data: users, error: usersError } =
+        await context.supabase.auth.admin.listUsers();
+
+      if (!usersError && users) {
+        userProfiles = users.users.filter(user => userIds.includes(user.id));
+      } else {
+        console.warn("Could not fetch user profiles, using basic info");
+      }
     }
 
     // Format members data
     const formattedMembers =
-      members?.map((member: any) => ({
-        id: member.id,
-        role: member.role,
-        joinedAt: member.created_at,
-        lastUpdated: member.updated_at,
-        user: {
-          id: member.user?.id,
-          name: member.user?.full_name || "Unknown User",
-          avatar: member.user?.avatar_url,
-          bio: member.user?.bio,
-        },
-        isOwner: team?.owner_id === member.user?.id,
-      })) || [];
+      members?.map((member: any) => {
+        const userProfile = userProfiles.find(u => u.id === member.user_id);
+        return {
+          id: member.id,
+          role: member.role,
+          joinedAt: member.created_at,
+          lastUpdated: member.updated_at,
+          user: {
+            id: member.user_id,
+            name:
+              userProfile?.user_metadata?.full_name ||
+              userProfile?.user_metadata?.name ||
+              userProfile?.email ||
+              "Unknown User",
+            email: userProfile?.email || "Unknown Email",
+            avatar: userProfile?.user_metadata?.avatar_url || null,
+            bio: userProfile?.user_metadata?.bio || null,
+          },
+          isOwner: team?.owner_id === member.user_id,
+        };
+      }) || [];
 
     console.log("✅ Team Members: Successfully fetched members", {
       teamId: resolvedParams.id,
@@ -131,12 +166,24 @@ async function handleGet(
       },
     });
   } catch (error) {
-    console.error("❌ Team Members: Unexpected error:", error);
+    console.error("❌ Team Members: Unexpected error:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      teamId: resolvedParams.id,
+      userId: context.user.id,
+      timestamp: new Date().toISOString(),
+    });
     return new Response(
       JSON.stringify({
         error: "Internal server error",
         code: "INTERNAL_ERROR",
         status: 500,
+        details:
+          process.env.NODE_ENV === "development"
+            ? error instanceof Error
+              ? error.message
+              : String(error)
+            : undefined,
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

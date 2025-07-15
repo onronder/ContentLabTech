@@ -50,41 +50,111 @@ export const GET = withApiAuth(
         .from("team_invitations")
         .select(
           `
-          *,
-          invited_by_user:auth.users!team_invitations_invited_by_fkey(
-            id,
-            email,
-            raw_user_meta_data
-          )
+          id,
+          team_id,
+          email,
+          role,
+          status,
+          invited_by,
+          token,
+          created_at,
+          updated_at,
+          expires_at
         `
         )
         .eq("team_id", teamId)
         .order("created_at", { ascending: false });
 
       if (error) {
-        console.error("Failed to fetch invitations:", error);
+        console.error("Failed to fetch invitations:", {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          teamId,
+          userId: context.user.id,
+          timestamp: new Date().toISOString(),
+        });
         return NextResponse.json(
           {
             error: "Failed to fetch invitations",
             code: "DATABASE_ERROR",
-            details: error.message,
+            details:
+              process.env.NODE_ENV === "development"
+                ? error.message
+                : undefined,
           },
           { status: 500 }
         );
       }
 
-      // Clean up expired invitations
-      await context.supabase.rpc("cleanup_expired_invitations");
+      // Clean up expired invitations (remove expired ones)
+      const now = new Date().toISOString();
+      await context.supabase
+        .from("team_invitations")
+        .delete()
+        .eq("team_id", teamId)
+        .lt("expires_at", now);
+
+      // Get inviter information for each invitation
+      const inviterIds =
+        invitations?.map(inv => inv.invited_by).filter(Boolean) || [];
+      let inviterProfiles: any[] = [];
+
+      if (inviterIds.length > 0) {
+        // Get user information for inviters
+        const { data: users, error: usersError } =
+          await context.supabase.auth.admin.listUsers();
+
+        if (!usersError && users) {
+          inviterProfiles = users.users.filter(user =>
+            inviterIds.includes(user.id)
+          );
+        }
+      }
+
+      // Format invitations with inviter information
+      const formattedInvitations =
+        invitations?.map(invitation => {
+          const inviterProfile = inviterProfiles.find(
+            u => u.id === invitation.invited_by
+          );
+          return {
+            ...invitation,
+            invited_by_user: inviterProfile
+              ? {
+                  id: inviterProfile.id,
+                  email: inviterProfile.email,
+                  name:
+                    inviterProfile.user_metadata?.full_name ||
+                    inviterProfile.user_metadata?.name ||
+                    inviterProfile.email,
+                }
+              : null,
+          };
+        }) || [];
 
       return createSuccessResponse({
-        invitations: invitations || [],
+        invitations: formattedInvitations,
       });
     } catch (error) {
-      console.error("Failed to list invitations:", error);
+      console.error("Failed to list invitations:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        teamId: "unknown",
+        userId: context.user.id,
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json(
         {
           error: "Internal server error",
           code: "INTERNAL_ERROR",
+          details:
+            process.env.NODE_ENV === "development"
+              ? error instanceof Error
+                ? error.message
+                : String(error)
+              : undefined,
         },
         { status: 500 }
       );
@@ -162,13 +232,31 @@ export const POST = withApiAuth(
         );
       }
 
+      // Check if user is already a member by email
+      // First, get user ID from email if possible
+      let targetUserId = null;
+      const { data: users, error: usersError } =
+        await context.supabase.auth.admin.listUsers();
+
+      if (!usersError && users) {
+        const targetUser = users.users.find(u => u.email === email);
+        if (targetUser) {
+          targetUserId = targetUser.id;
+        }
+      }
+
       // Check if user is already a member
-      const { data: existingMember } = await context.supabase
-        .from("team_members")
-        .select("id")
-        .eq("team_id", teamId)
-        .eq("user_id", context.supabase.auth.user()?.id)
-        .single();
+      let existingMember = null;
+      if (targetUserId) {
+        const { data: member } = await context.supabase
+          .from("team_members")
+          .select("id")
+          .eq("team_id", teamId)
+          .eq("user_id", targetUserId)
+          .single();
+
+        existingMember = member;
+      }
 
       if (existingMember) {
         return NextResponse.json(
@@ -212,12 +300,25 @@ export const POST = withApiAuth(
         .single();
 
       if (inviteError) {
-        console.error("Failed to create invitation:", inviteError);
+        console.error("Failed to create invitation:", {
+          error: inviteError.message,
+          code: inviteError.code,
+          details: inviteError.details,
+          hint: inviteError.hint,
+          teamId,
+          email,
+          role,
+          userId: context.user.id,
+          timestamp: new Date().toISOString(),
+        });
         return NextResponse.json(
           {
             error: "Failed to create invitation",
             code: "DATABASE_ERROR",
-            details: inviteError.message,
+            details:
+              process.env.NODE_ENV === "development"
+                ? inviteError.message
+                : undefined,
           },
           { status: 500 }
         );
@@ -274,11 +375,23 @@ export const POST = withApiAuth(
         201
       );
     } catch (error) {
-      console.error("Failed to send invitation:", error);
+      console.error("Failed to send invitation:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        teamId: "unknown",
+        userId: context.user.id,
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json(
         {
           error: "Internal server error",
           code: "INTERNAL_ERROR",
+          details:
+            process.env.NODE_ENV === "development"
+              ? error instanceof Error
+                ? error.message
+                : String(error)
+              : undefined,
         },
         { status: 500 }
       );

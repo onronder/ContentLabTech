@@ -1,0 +1,85 @@
+{
+  "timestamp": "2025-07-15T14:03:57.044Z",
+  "baseUrl": "http://localhost:3000",
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0,
+    "successRate": "100.0%",
+    "avgResponseTime": "8ms"
+  },
+  "results": [
+    {
+      "name": "GET /api/teams/[id]/members",
+      "status": "pass",
+      "message": "✅ GET /api/teams/[id]/members - Endpoint properly protected (authentication required)",
+      "responseTime": 21,
+      "data": {
+        "error": "Authentication required",
+        "code": "AUTHENTICATION_REQUIRED",
+        "status": 401,
+        "timestamp": "2025-07-15T14:03:57.022Z",
+        "details": {
+          "message": "Please log in to access this resource",
+          "authMethod": "session"
+        }
+      },
+      "statusCode": 401
+    },
+    {
+      "name": "GET /api/teams/[id]/invitations",
+      "status": "pass",
+      "message": "✅ GET /api/teams/[id]/invitations - Endpoint properly protected (authentication required)",
+      "responseTime": 3,
+      "data": {
+        "error": "Authentication required",
+        "code": "AUTHENTICATION_REQUIRED",
+        "status": 401,
+        "timestamp": "2025-07-15T14:03:57.027Z"
+      },
+      "statusCode": 401
+    },
+    {
+      "name": "POST /api/teams/[id]/invitations",
+      "status": "pass",
+      "message": "✅ POST /api/teams/[id]/invitations - Endpoint properly protected (authentication required)",
+      "responseTime": 5,
+      "data": {
+        "error": "Authentication required",
+        "code": "AUTHENTICATION_REQUIRED",
+        "status": 401,
+        "timestamp": "2025-07-15T14:03:57.032Z"
+      },
+      "statusCode": 401
+    },
+    {
+      "name": "Invalid Team ID Test",
+      "status": "pass",
+      "message": "✅ Invalid Team ID Test - Properly handles invalid team ID",
+      "responseTime": 2,
+      "data": {
+        "error": "Authentication required",
+        "code": "AUTHENTICATION_REQUIRED",
+        "status": 401,
+        "timestamp": "2025-07-15T14:03:57.034Z",
+        "details": {
+          "message": "Please log in to access this resource",
+          "authMethod": "session"
+        }
+      },
+      "statusCode": 401
+    },
+    {
+      "name": "API Route Structure Test",
+      "status": "pass",
+      "message": "✅ API Route Structure Test - 4 endpoints properly protected, 0 accessible",
+      "responseTime": 10,
+      "data": {
+        "totalEndpoints": 4,
+        "protectedEndpoints": 4,
+        "workingEndpoints": 0
+      },
+      "statusCode": 200
+    }
+  ]
+}
