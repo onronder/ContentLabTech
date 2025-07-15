@@ -1,0 +1,245 @@
+{
+  "timestamp": "2025-07-15T12:11:42.414Z",
+  "summary": {
+    "totalPassed": 21,
+    "totalFailed": 0,
+    "totalWarnings": 1,
+    "categories": {
+      "environment": {
+        "passed": 6,
+        "failed": 0,
+        "warnings": 1
+      },
+      "supabase": {
+        "passed": 3,
+        "failed": 0,
+        "warnings": 0
+      },
+      "vercel": {
+        "passed": 2,
+        "failed": 0,
+        "warnings": 0
+      },
+      "deployment": {
+        "passed": 10,
+        "failed": 0,
+        "warnings": 0
+      }
+    }
+  },
+  "details": [
+    {
+      "timestamp": "2025-07-15T12:11:41.165Z",
+      "type": "pass",
+      "category": "environment",
+      "message": "NEXT_PUBLIC_SUPABASE_URL is configured",
+      "details": {
+        "category": "Supabase",
+        "length": 40,
+        "prefix": "https://rw..."
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "pass",
+      "category": "environment",
+      "message": "NEXT_PUBLIC_SUPABASE_ANON_KEY is configured",
+      "details": {
+        "category": "Supabase",
+        "length": 208,
+        "prefix": "eyJhbGciOi..."
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "pass",
+      "category": "environment",
+      "message": "SUPABASE_SERVICE_ROLE_KEY is configured",
+      "details": {
+        "category": "Supabase",
+        "length": 219,
+        "prefix": "eyJhbGciOi..."
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "pass",
+      "category": "environment",
+      "message": "RESEND_API_KEY is configured",
+      "details": {
+        "category": "Email",
+        "length": 36,
+        "prefix": "re_9f75PrX..."
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "warn",
+      "category": "environment",
+      "message": "NEXT_PUBLIC_APP_URL not set, using default",
+      "details": {
+        "category": "App",
+        "defaultValue": "http://localhost:3000"
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "info",
+      "category": "environment",
+      "message": "SENTRY_DSN not configured (optional)",
+      "details": {
+        "category": "Monitoring"
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "info",
+      "category": "environment",
+      "message": "ANALYTICS_WRITE_KEY not configured (optional)",
+      "details": {
+        "category": "Analytics"
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "pass",
+      "category": "environment",
+      "message": "OPENAI_API_KEY is configured (optional)",
+      "details": {
+        "category": "AI Services"
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.166Z",
+      "type": "pass",
+      "category": "environment",
+      "message": "Supabase URL format is valid",
+      "details": {
+        "projectId": "rwyaipbxlvrilagkirsq"
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:41.841Z",
+      "type": "pass",
+      "category": "supabase",
+      "message": "Supabase API is accessible",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.408Z",
+      "type": "pass",
+      "category": "supabase",
+      "message": "Database schema is accessible",
+      "details": {
+        "expectedTables": 10
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.408Z",
+      "type": "pass",
+      "category": "supabase",
+      "message": "Service role key format is valid",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.410Z",
+      "type": "pass",
+      "category": "vercel",
+      "message": "vercel.json found and valid",
+      "details": {
+        "hasHeaders": true,
+        "hasRewrites": true,
+        "cleanUrls": false
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.411Z",
+      "type": "pass",
+      "category": "vercel",
+      "message": "Project linked to Vercel",
+      "details": {
+        "projectId": "prj_a5lcNEomaOik7AIrlkYksr2Dyzhb",
+        "orgId": "team_MaPPtgk6C6YFvtuFPhXvOksc"
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.411Z",
+      "type": "info",
+      "category": "vercel",
+      "message": "Next.js build directory exists",
+      "details": {
+        "note": "Run \"npm run build\" to update"
+      }
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.412Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": "Script \"build\" is defined",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.412Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": "Script \"start\" is defined",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": "Script \"dev\" is defined",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": "TypeScript configuration found",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": ".env is properly ignored",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": ".env.local is properly ignored",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": ".vercel is properly ignored",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": "node_modules is properly ignored",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": "PRODUCTION_DEPLOYMENT_GUIDE.md found",
+      "details": null
+    },
+    {
+      "timestamp": "2025-07-15T12:11:42.413Z",
+      "type": "pass",
+      "category": "deployment",
+      "message": "VERCEL_ENV_SETUP.md found",
+      "details": null
+    }
+  ]
+}

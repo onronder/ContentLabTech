@@ -1,0 +1,45 @@
+{
+  "timestamp": "2025-07-15T06:02:19.412Z",
+  "config": {
+    "vercelUrl": "https://contentlab-nexus.vercel.app",
+    "supabaseUrl": "https://rwyaipbxlvrilagkirsq.supabase.co"
+  },
+  "results": {
+    "passed": 0,
+    "failed": 5,
+    "warnings": 9,
+    "details": [
+      {
+        "endpoint": "/api/teams",
+        "method": "GET",
+        "status": 404,
+        "requiresAuth": true
+      },
+      {
+        "endpoint": "/api/projects",
+        "method": "GET",
+        "status": 404,
+        "requiresAuth": true
+      },
+      {
+        "endpoint": "/api/content",
+        "method": "GET",
+        "status": 404,
+        "requiresAuth": true
+      },
+      {
+        "endpoint": "/api/analytics",
+        "method": "GET",
+        "status": 404,
+        "requiresAuth": true
+      },
+      {
+        "endpoint": "/api/teams/test/invitations",
+        "method": "GET",
+        "status": 404,
+        "requiresAuth": true
+      }
+    ]
+  },
+  "successRate": "0.0%"
+}

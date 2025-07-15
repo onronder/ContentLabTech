@@ -5,9 +5,13 @@
 
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { fetch } from "@/lib/utils/fetch";
+import {
+  productionApiClient,
+  type ConnectionTestResult,
+} from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +41,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Loader2,
+  WifiOff,
+  AlertCircle,
 } from "lucide-react";
 
 interface InviteMemberModalProps {
@@ -45,6 +51,8 @@ interface InviteMemberModalProps {
   onMemberInvited: (member: any) => void;
   teamId?: string;
 }
+
+type ConnectionStatus = "testing" | "connected" | "error" | "degraded";
 
 interface InviteForm {
   email: string;
@@ -64,6 +72,106 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const [isInviting, setIsInviting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("testing");
+  const [connectionDetails, setConnectionDetails] =
+    useState<ConnectionTestResult | null>(null);
+
+  // Test API connection when modal opens
+  useEffect(() => {
+    const testConnection = async () => {
+      if (!open) return;
+
+      setConnectionStatus("testing");
+      try {
+        const healthCheck = await productionApiClient.performHealthCheck();
+        setConnectionDetails(healthCheck.checks.database);
+
+        if (healthCheck.overall === "healthy") {
+          setConnectionStatus("connected");
+        } else if (healthCheck.overall === "degraded") {
+          setConnectionStatus("degraded");
+        } else {
+          setConnectionStatus("error");
+        }
+      } catch (error) {
+        console.error("Connection test failed:", error);
+        setConnectionStatus("error");
+        setConnectionDetails({
+          success: false,
+          status: "unhealthy",
+          responseTime: 0,
+          error:
+            error instanceof Error ? error.message : "Connection test failed",
+        });
+      }
+    };
+
+    if (open) {
+      testConnection();
+    }
+  }, [open]);
+
+  // Show connection error in development/staging
+  if (process.env.NODE_ENV !== "production" && connectionStatus === "error") {
+    return (
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2 text-red-600">
+              <WifiOff className="h-5 w-5" />
+              <span>API Connection Error</span>
+            </DialogTitle>
+            <DialogDescription>
+              Cannot connect to backend services. Please check the following:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <h3 className="mb-2 font-medium text-red-800">
+                Connection Issues Detected
+              </h3>
+              <ul className="list-inside list-disc space-y-1 text-sm text-red-600">
+                <li>
+                  Database connection (
+                  {connectionDetails?.error || "Unknown error"})
+                </li>
+                <li>API routes deployment</li>
+                <li>Environment variables configuration</li>
+                <li>Network connectivity</li>
+              </ul>
+            </div>
+
+            {connectionDetails && (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <h4 className="mb-2 font-medium text-gray-800">
+                  Connection Details
+                </h4>
+                <div className="space-y-1 text-xs text-gray-600">
+                  <div>Status: {connectionDetails.status}</div>
+                  <div>Response Time: {connectionDetails.responseTime}ms</div>
+                  {connectionDetails.error && (
+                    <div>Error: {connectionDetails.error}</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
+            <Button onClick={() => setConnectionStatus("testing")}>
+              <Loader2 className="mr-2 h-4 w-4" />
+              Retry Connection
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,32 +196,26 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     setSuccess(null);
 
     try {
-      const response = await fetch("/api/team/members", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          teamId,
-          email: form.email,
-          role: form.role,
-        }),
+      // Use the enhanced API client for better error handling
+      const result = await productionApiClient.sendTeamInvitation(teamId, {
+        email: form.email,
+        role: form.role,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to invite member");
+      if (!result.success) {
+        throw new Error(result.error || "Failed to invite member");
       }
 
-      const data = await response.json();
+      const data = result.data;
 
-      if (data.invitationSent) {
+      if (data && data.invitation) {
         setSuccess(
           `Invitation sent to ${form.email}. They will receive an email with instructions to join the team.`
         );
-      } else if (data.member) {
+        onMemberInvited(data.invitation);
+      } else if (data && "member" in data) {
         setSuccess(`${form.email} has been added to the team successfully!`);
-        onMemberInvited(data.member);
+        onMemberInvited((data as any).member);
       }
 
       // Reset form
@@ -185,10 +287,29 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           <DialogTitle className="flex items-center space-x-2">
             <UserPlus className="h-5 w-5 text-blue-600" />
             <span>Invite Team Member</span>
+            {/* Connection status indicator */}
+            {connectionStatus === "testing" && (
+              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+            )}
+            {connectionStatus === "connected" && (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            )}
+            {connectionStatus === "degraded" && (
+              <AlertCircle className="h-4 w-4 text-yellow-500" />
+            )}
+            {connectionStatus === "error" && (
+              <WifiOff className="h-4 w-4 text-red-500" />
+            )}
           </DialogTitle>
           <DialogDescription>
             Send an invitation to add a new member to your team. They&apos;ll
             receive an email with instructions to join.
+            {connectionStatus === "degraded" && (
+              <div className="mt-2 text-sm text-yellow-600">
+                ⚠️ API connection is degraded. Invitation may be slower than
+                usual.
+              </div>
+            )}
           </DialogDescription>
         </DialogHeader>
 

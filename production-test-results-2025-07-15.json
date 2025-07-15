@@ -1,0 +1,312 @@
+{
+  "timestamp": "2025-07-15T11:51:37.036Z",
+  "config": {
+    "baseUrl": "http://localhost:3001",
+    "supabaseUrl": "https://rwyaipbxlvrilagkirsq.supabase.co",
+    "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3eWFpcGJ4bHZyaWxhZ2tpcnNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA2NzM5ODUsImV4cCI6MjA2NjI0OTk4NX0.lY4dHfWAEzR87TI0Rvdo5_RyQl_-BKCDA38RslNR0NE",
+    "testEmail": "test@example.com",
+    "testTeamId": "test-team-id"
+  },
+  "summary": {
+    "total": 13,
+    "passed": 11,
+    "failed": 2,
+    "skipped": 0,
+    "successRate": "84.6%",
+    "avgResponseTime": "856ms"
+  },
+  "results": [
+    {
+      "name": "System Health Check",
+      "status": "pass",
+      "message": "✅ System Health Check completed successfully",
+      "responseTime": 2622,
+      "data": {
+        "status": "degraded",
+        "checks": {
+          "database": true,
+          "environment": true,
+          "api_routes": false,
+          "email_service": true,
+          "authentication": true,
+          "team_system": true,
+          "user_preferences": false
+        },
+        "details": {
+          "database": {
+            "status": "degraded",
+            "summary": {
+              "total": 6,
+              "healthy": 3,
+              "degraded": 3,
+              "unhealthy": 0
+            },
+            "responseTime": 645
+          },
+          "environment": {
+            "status": "healthy",
+            "configured": 5,
+            "missing": 0,
+            "responseTime": 4
+          },
+          "api_routes": {
+            "total": 4,
+            "accessible": 3,
+            "endpoints": [
+              {
+                "endpoint": "/api/teams",
+                "status": 404,
+                "ok": false,
+                "accessible": false
+              },
+              {
+                "endpoint": "/api/projects",
+                "status": 401,
+                "ok": false,
+                "accessible": true
+              },
+              {
+                "endpoint": "/api/content",
+                "status": 401,
+                "ok": false,
+                "accessible": true
+              },
+              {
+                "endpoint": "/api/analytics",
+                "status": 401,
+                "ok": false,
+                "accessible": true
+              }
+            ],
+            "responseTime": 21
+          },
+          "email_service": {
+            "configured": true,
+            "api_accessible": true,
+            "status": 422,
+            "responseTime": 1189
+          },
+          "authentication": {
+            "endpoints_tested": 2,
+            "working": 2,
+            "auth_enforcement": true,
+            "responseTime": 11
+          },
+          "team_system": {
+            "database_accessible": true,
+            "teams_count": 0,
+            "responseTime": 516
+          },
+          "user_preferences": {
+            "database_accessible": true,
+            "rls_enforced": false,
+            "error": "column user_preferences.id does not exist",
+            "responseTime": 177
+          }
+        },
+        "response_times": {
+          "database": 645,
+          "environment": 4,
+          "api_routes": 21,
+          "email_service": 1189,
+          "authentication": 11,
+          "team_system": 516,
+          "user_preferences": 177
+        },
+        "timestamp": "2025-07-15T11:51:28.519Z",
+        "production_url": "http://localhost:3000"
+      }
+    },
+    {
+      "name": "Database Connectivity",
+      "status": "pass",
+      "message": "✅ Database Connectivity completed successfully",
+      "responseTime": 871,
+      "data": {
+        "status": "degraded",
+        "timestamp": "2025-07-15T11:51:29.392Z",
+        "database": {
+          "connection": {
+            "status": "healthy",
+            "message": "Database connection verified",
+            "responseTime": 175,
+            "details": {
+              "responseTime": "175ms"
+            }
+          },
+          "tables": {
+            "status": "healthy",
+            "message": "All required tables exist",
+            "responseTime": 582,
+            "details": {
+              "tables": [
+                "teams",
+                "team_members",
+                "team_invitations",
+                "user_preferences",
+                "notification_preferences",
+                "user_sessions",
+                "login_history",
+                "projects",
+                "content_items",
+                "analytics_events"
+              ],
+              "count": 10
+            }
+          },
+          "policies": {
+            "status": "degraded",
+            "message": "Some tables may be missing RLS policies: teams, user_preferences, projects",
+            "responseTime": 547,
+            "details": {
+              "withoutRLS": ["teams", "user_preferences", "projects"],
+              "withRLS": []
+            }
+          },
+          "indexes": {
+            "status": "healthy",
+            "message": "Database query performance is good",
+            "responseTime": 564,
+            "details": {
+              "testedTables": ["teams", "projects"],
+              "avgQueryTime": 526
+            }
+          },
+          "migrations": {
+            "status": "degraded",
+            "message": "Cannot verify migration status",
+            "responseTime": 509,
+            "details": {
+              "error": "relation \"public.supabase_migrations.schema_migrations\" does not exist"
+            }
+          },
+          "performance": {
+            "status": "healthy",
+            "message": "All performance tests passed",
+            "responseTime": 563,
+            "details": {
+              "tests": [
+                {
+                  "name": "Simple Select",
+                  "time": "499ms",
+                  "threshold": "500ms"
+                },
+                {
+                  "name": "Count Query",
+                  "time": "512ms",
+                  "threshold": "1000ms"
+                },
+                {
+                  "name": "Join Query",
+                  "time": "563ms",
+                  "threshold": "1500ms"
+                }
+              ],
+              "averageQueryTime": "525ms"
+            }
+          }
+        },
+        "summary": {
+          "total": 6,
+          "healthy": 4,
+          "degraded": 2,
+          "unhealthy": 0
+        }
+      }
+    },
+    {
+      "name": "Environment Configuration",
+      "status": "fail",
+      "message": "❌ Environment Configuration: Environment check failed: 503",
+      "responseTime": 187
+    },
+    {
+      "name": "Authentication System",
+      "status": "pass",
+      "message": "✅ Authentication System completed successfully",
+      "responseTime": 3239,
+      "data": {
+        "message": "Authentication system responsive"
+      }
+    },
+    {
+      "name": "Team System Data Loading",
+      "status": "fail",
+      "message": "❌ Team System Data Loading: Team system error: 500",
+      "responseTime": 108
+    },
+    {
+      "name": "Team Invitation System",
+      "status": "pass",
+      "message": "✅ Team Invitation System completed successfully",
+      "responseTime": 792,
+      "data": {
+        "message": "Invitation system properly protected"
+      }
+    },
+    {
+      "name": "User Profile System",
+      "status": "pass",
+      "message": "✅ User Profile System completed successfully",
+      "responseTime": 262,
+      "data": {
+        "message": "User profile properly protected"
+      }
+    },
+    {
+      "name": "Settings System",
+      "status": "pass",
+      "message": "✅ Settings System completed successfully",
+      "responseTime": 287,
+      "data": {
+        "message": "Settings system properly protected"
+      }
+    },
+    {
+      "name": "Projects System",
+      "status": "pass",
+      "message": "✅ Projects System completed successfully",
+      "responseTime": 242,
+      "data": {
+        "message": "Projects system properly protected"
+      }
+    },
+    {
+      "name": "Content Management System",
+      "status": "pass",
+      "message": "✅ Content Management System completed successfully",
+      "responseTime": 305,
+      "data": {
+        "message": "Content system properly protected"
+      }
+    },
+    {
+      "name": "Analytics System",
+      "status": "pass",
+      "message": "✅ Analytics System completed successfully",
+      "responseTime": 232,
+      "data": {
+        "message": "Analytics system properly protected"
+      }
+    },
+    {
+      "name": "Email Service",
+      "status": "pass",
+      "message": "✅ Email Service completed successfully",
+      "responseTime": 1460,
+      "data": {
+        "message": "Email service API accessible"
+      }
+    },
+    {
+      "name": "Database RLS Enforcement",
+      "status": "pass",
+      "message": "✅ Database RLS Enforcement completed successfully",
+      "responseTime": 526,
+      "data": {
+        "message": "Database accessible (may need RLS review)",
+        "data": []
+      }
+    }
+  ]
+}
