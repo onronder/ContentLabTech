@@ -20,26 +20,16 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth/context";
+import { api } from "@/lib/api/client";
 import {
   Users,
-  Plus,
   Search,
   Shield,
-  Crown,
-  UserCheck,
-  Eye,
   Settings,
   Mail,
-  Calendar,
   Activity,
-  Clock,
   AlertTriangle,
-  CheckCircle,
   UserPlus,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  ExternalLink,
 } from "lucide-react";
 
 // Components
@@ -58,15 +48,26 @@ interface TeamMember {
   lastActive: string;
   joinedAt: string;
   permissions?: Record<string, boolean>;
+  // Backend also provides these fields from the API response
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    avatar?: string;
+    bio?: string;
+  };
+  isOwner?: boolean;
 }
 
 interface TeamInfo {
   id: string;
   name: string;
-  description: string;
-  ownerId: string;
-  settings: Record<string, any>;
-  createdAt: string;
+  description?: string;
+  ownerId?: string;
+  owner_id?: string; // Backend uses snake_case
+  settings?: Record<string, any>;
+  createdAt?: string;
+  created_at?: string; // Backend uses snake_case
 }
 
 interface TeamData {
@@ -108,10 +109,21 @@ export const TeamManager = () => {
 
   // Load team data when team changes
   useEffect(() => {
+    console.log("🔧 TeamManager: useEffect triggered", {
+      currentTeamId: currentTeam?.id,
+      currentTeamName: currentTeam?.name,
+      user: user?.email,
+    });
+
     if (currentTeam?.id) {
       loadTeamData();
+    } else {
+      // Clear data if no team selected
+      setTeamData(null);
+      setError(null);
+      setLoading(false);
     }
-  }, [currentTeam?.id]);
+  }, [currentTeam?.id, user?.id]);
 
   // Debounced search
   useEffect(() => {
@@ -127,26 +139,107 @@ export const TeamManager = () => {
   }, [searchTerm, filters.search]);
 
   const loadTeamData = async () => {
-    if (!currentTeam?.id) return;
+    if (!currentTeam?.id) {
+      console.warn("🔧 TeamManager: No currentTeam.id available", {
+        currentTeam,
+      });
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
-      const params = new URLSearchParams({
-        teamId: currentTeam.id,
+      console.log(
+        "🔧 TeamManager: Loading team data for team:",
+        currentTeam.id
+      );
+
+      // Use authenticated API client with proper parameters
+      const response = await api.get(
+        `/api/team/members?teamId=${currentTeam.id}`
+      );
+
+      console.log("🔧 TeamManager: API response received:", {
+        success: response.success,
+        dataKeys: response.data ? Object.keys(response.data) : [],
+        membersCount: response.data?.members?.length || 0,
       });
 
-      const response = await fetch(`/api/team/members?${params.toString()}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to load team data");
+      if (!response.success) {
+        throw new Error(response.error || "Failed to load team data");
       }
 
-      const data = await response.json();
-      setTeamData(data);
+      // Transform backend response to match frontend expectations
+      const transformedData: TeamData = {
+        members: (response.data.members || []).map((member: any) => ({
+          id: member.id,
+          email: member.user?.email || member.email,
+          fullName:
+            member.user?.name ||
+            member.fullName ||
+            member.user?.email?.split("@")[0] ||
+            "Unknown User",
+          avatar: member.user?.avatar || member.avatar,
+          role: member.role,
+          isOnline: member.isOnline || false,
+          lastActive:
+            member.lastActive || member.joinedAt || new Date().toISOString(),
+          joinedAt:
+            member.joinedAt || member.created_at || new Date().toISOString(),
+          isOwner: member.isOwner || false,
+          user: member.user,
+        })),
+        currentUser: response.data.currentUser
+          ? {
+              id: response.data.currentUser.id,
+              email: response.data.currentUser.email,
+              fullName:
+                response.data.currentUser.fullName ||
+                response.data.currentUser.name ||
+                "You",
+              avatar: response.data.currentUser.avatar,
+              role: response.data.currentUser.role,
+              isOnline: response.data.currentUser.isOnline || true,
+              lastActive:
+                response.data.currentUser.lastActive ||
+                new Date().toISOString(),
+              joinedAt:
+                response.data.currentUser.joinedAt || new Date().toISOString(),
+            }
+          : null,
+        team: response.data.team
+          ? {
+              id: response.data.team.id,
+              name: response.data.team.name,
+              description: response.data.team.description || "",
+              ownerId:
+                response.data.team.owner_id || response.data.team.ownerId || "",
+              settings: response.data.team.settings || {},
+              createdAt:
+                response.data.team.created_at ||
+                response.data.team.createdAt ||
+                new Date().toISOString(),
+            }
+          : null,
+        recentActivity: response.data.recentActivity || [],
+        stats: response.data.stats || {
+          totalMembers: 0,
+          onlineMembers: 0,
+          roles: {},
+        },
+      };
+
+      console.log("🔧 TeamManager: Setting transformed data:", {
+        membersCount: transformedData.members.length,
+        currentUser: transformedData.currentUser?.email,
+        teamName: transformedData.team?.name,
+        stats: transformedData.stats,
+      });
+
+      setTeamData(transformedData);
     } catch (err) {
-      console.error("Failed to load team data:", err);
+      console.error("❌ TeamManager: Failed to load team data:", err);
       setError(err instanceof Error ? err.message : "Failed to load team data");
     } finally {
       setLoading(false);
@@ -239,13 +332,25 @@ export const TeamManager = () => {
     teamData?.currentUser?.role === "owner" ||
     teamData?.currentUser?.role === "admin";
 
+  // Show loading state with team context information
   if (loading && !teamData) {
     return (
       <div className="space-y-8">
         {/* Loading Header */}
         <div className="space-y-4">
-          <div className="h-8 w-1/3 animate-pulse rounded-md bg-gray-200" />
-          <div className="h-4 w-1/2 animate-pulse rounded-md bg-gray-200" />
+          <div className="flex items-center space-x-3">
+            <div className="rounded-lg bg-blue-50 p-2">
+              <Users className="h-6 w-6 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Team</h1>
+              <p className="text-lg text-gray-600">
+                {currentTeam?.name
+                  ? `Loading ${currentTeam.name}...`
+                  : "Loading team data..."}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Loading Stats */}
@@ -270,6 +375,25 @@ export const TeamManager = () => {
               className="h-32 animate-pulse rounded-xl bg-gray-200"
             />
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if no team is selected
+  if (!currentTeam) {
+    return (
+      <div className="space-y-8">
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-8 text-center">
+          <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-orange-100 p-3">
+            <AlertTriangle className="h-6 w-6 text-orange-600" />
+          </div>
+          <h3 className="mb-2 text-lg font-semibold text-orange-900">
+            No team selected
+          </h3>
+          <p className="mb-4 text-orange-700">
+            Please select a team from the sidebar to view team members.
+          </p>
         </div>
       </div>
     );
@@ -409,8 +533,29 @@ export const TeamManager = () => {
                 Failed to load team data
               </h3>
               <p className="mb-4 text-red-700">{error}</p>
+              <div className="space-y-2">
+                <Button onClick={loadTeamData} variant="outline">
+                  Try Again
+                </Button>
+                <div className="text-sm text-gray-600">
+                  Team: {currentTeam?.name || "Unknown"} (
+                  {currentTeam?.id || "No ID"})
+                </div>
+              </div>
+            </div>
+          ) : !teamData ? (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center">
+              <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-gray-100 p-3">
+                <Users className="h-6 w-6 text-gray-600" />
+              </div>
+              <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                No team data available
+              </h3>
+              <p className="mb-4 text-gray-600">
+                Unable to load team information. Please try refreshing the page.
+              </p>
               <Button onClick={loadTeamData} variant="outline">
-                Try Again
+                Refresh
               </Button>
             </div>
           ) : filteredMembers.length === 0 ? (

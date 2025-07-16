@@ -41,10 +41,12 @@ interface TeamSettingsProps {
   team: {
     id: string;
     name: string;
-    description: string;
-    ownerId: string;
-    settings: Record<string, any>;
-    createdAt: string;
+    description?: string;
+    ownerId?: string;
+    owner_id?: string;
+    settings?: Record<string, any>;
+    createdAt?: string;
+    created_at?: string;
   };
   currentUserRole: "owner" | "admin" | "member" | "viewer";
   onTeamUpdated: (team: any) => void;
@@ -60,18 +62,20 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: team.name,
-    description: team.description,
+    description: team.description || "",
     settings: {
-      allowMemberInvites: team.settings["allowMemberInvites"] ?? true,
-      requireApprovalForInvites: team.settings["requireApprovalForInvites"] ?? false,
-      emailNotifications: team.settings["emailNotifications"] ?? true,
-      activityNotifications: team.settings["activityNotifications"] ?? true,
-      publicProfile: team.settings["publicProfile"] ?? false,
-      allowGuestAccess: team.settings["allowGuestAccess"] ?? false,
+      allowMemberInvites: team.settings?.["allowMemberInvites"] ?? true,
+      requireApprovalForInvites:
+        team.settings?.["requireApprovalForInvites"] ?? false,
+      emailNotifications: team.settings?.["emailNotifications"] ?? true,
+      activityNotifications: team.settings?.["activityNotifications"] ?? true,
+      publicProfile: team.settings?.["publicProfile"] ?? false,
+      allowGuestAccess: team.settings?.["allowGuestAccess"] ?? false,
     },
   });
 
-  const canEditTeam = currentUserRole === "owner" || currentUserRole === "admin";
+  const canEditTeam =
+    currentUserRole === "owner" || currentUserRole === "admin";
   const canDeleteTeam = currentUserRole === "owner";
 
   const handleSave = async () => {
@@ -110,14 +114,15 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
   const handleCancel = () => {
     setFormData({
       name: team.name,
-      description: team.description,
+      description: team.description || "",
       settings: {
-        allowMemberInvites: team.settings["allowMemberInvites"] ?? true,
-        requireApprovalForInvites: team.settings["requireApprovalForInvites"] ?? false,
-        emailNotifications: team.settings["emailNotifications"] ?? true,
-        activityNotifications: team.settings["activityNotifications"] ?? true,
-        publicProfile: team.settings["publicProfile"] ?? false,
-        allowGuestAccess: team.settings["allowGuestAccess"] ?? false,
+        allowMemberInvites: team.settings?.["allowMemberInvites"] ?? true,
+        requireApprovalForInvites:
+          team.settings?.["requireApprovalForInvites"] ?? false,
+        emailNotifications: team.settings?.["emailNotifications"] ?? true,
+        activityNotifications: team.settings?.["activityNotifications"] ?? true,
+        publicProfile: team.settings?.["publicProfile"] ?? false,
+        allowGuestAccess: team.settings?.["allowGuestAccess"] ?? false,
       },
     });
     setIsEditing(false);
@@ -163,7 +168,9 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
             <Input
               id="team-name"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, name: e.target.value }))
+              }
               disabled={!isEditing || !canEditTeam}
               placeholder="Enter team name"
             />
@@ -174,7 +181,9 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
             <Textarea
               id="team-description"
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={e =>
+                setFormData(prev => ({ ...prev, description: e.target.value }))
+              }
               disabled={!isEditing || !canEditTeam}
               placeholder="Describe your team's purpose and goals"
               rows={3}
@@ -182,7 +191,12 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
           </div>
 
           <div className="text-sm text-gray-500">
-            <p>Created on {new Date(team.createdAt).toLocaleDateString()}</p>
+            <p>
+              Created on{" "}
+              {new Date(
+                team.createdAt || team.created_at || Date.now()
+              ).toLocaleDateString()}
+            </p>
             <p>Team ID: {team.id}</p>
           </div>
 
@@ -194,7 +208,11 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
                     <Save className="mr-2 h-4 w-4" />
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
-                  <Button variant="outline" onClick={handleCancel} disabled={isSaving}>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={isSaving}
+                  >
                     Cancel
                   </Button>
                 </>
@@ -228,10 +246,10 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
               </div>
               <Switch
                 checked={formData.settings.allowMemberInvites}
-                onCheckedChange={(checked) =>
+                onCheckedChange={checked =>
                   setFormData(prev => ({
                     ...prev,
-                    settings: { ...prev.settings, allowMemberInvites: checked }
+                    settings: { ...prev.settings, allowMemberInvites: checked },
                   }))
                 }
                 disabled={!isEditing || !canEditTeam}
@@ -247,10 +265,13 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
               </div>
               <Switch
                 checked={formData.settings.requireApprovalForInvites}
-                onCheckedChange={(checked) =>
+                onCheckedChange={checked =>
                   setFormData(prev => ({
                     ...prev,
-                    settings: { ...prev.settings, requireApprovalForInvites: checked }
+                    settings: {
+                      ...prev.settings,
+                      requireApprovalForInvites: checked,
+                    },
                   }))
                 }
                 disabled={!isEditing || !canEditTeam}
@@ -266,10 +287,10 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
               </div>
               <Switch
                 checked={formData.settings.allowGuestAccess}
-                onCheckedChange={(checked) =>
+                onCheckedChange={checked =>
                   setFormData(prev => ({
                     ...prev,
-                    settings: { ...prev.settings, allowGuestAccess: checked }
+                    settings: { ...prev.settings, allowGuestAccess: checked },
                   }))
                 }
                 disabled={!isEditing || !canEditTeam}
@@ -298,10 +319,10 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
               </div>
               <Switch
                 checked={formData.settings.emailNotifications}
-                onCheckedChange={(checked) =>
+                onCheckedChange={checked =>
                   setFormData(prev => ({
                     ...prev,
-                    settings: { ...prev.settings, emailNotifications: checked }
+                    settings: { ...prev.settings, emailNotifications: checked },
                   }))
                 }
                 disabled={!isEditing || !canEditTeam}
@@ -317,10 +338,13 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
               </div>
               <Switch
                 checked={formData.settings.activityNotifications}
-                onCheckedChange={(checked) =>
+                onCheckedChange={checked =>
                   setFormData(prev => ({
                     ...prev,
-                    settings: { ...prev.settings, activityNotifications: checked }
+                    settings: {
+                      ...prev.settings,
+                      activityNotifications: checked,
+                    },
                   }))
                 }
                 disabled={!isEditing || !canEditTeam}
@@ -349,10 +373,10 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
               </div>
               <Switch
                 checked={formData.settings.publicProfile}
-                onCheckedChange={(checked) =>
+                onCheckedChange={checked =>
                   setFormData(prev => ({
                     ...prev,
-                    settings: { ...prev.settings, publicProfile: checked }
+                    settings: { ...prev.settings, publicProfile: checked },
                   }))
                 }
                 disabled={!isEditing || !canEditTeam}
@@ -374,11 +398,11 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
           <CardContent className="space-y-4">
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <h4 className="font-semibold text-red-900">Delete Team</h4>
-              <p className="text-sm text-red-700 mt-1">
-                Permanently delete this team and all associated projects, content, and data. 
-                This action cannot be undone.
+              <p className="mt-1 text-sm text-red-700">
+                Permanently delete this team and all associated projects,
+                content, and data. This action cannot be undone.
               </p>
-              
+
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" className="mt-4">
@@ -393,9 +417,10 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
                       <span>Delete Team</span>
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Are you absolutely sure you want to delete <strong>{team.name}</strong>? 
-                      This will permanently delete:
-                      <ul className="list-disc list-inside mt-2 space-y-1">
+                      Are you absolutely sure you want to delete{" "}
+                      <strong>{team.name}</strong>? This will permanently
+                      delete:
+                      <ul className="mt-2 list-inside list-disc space-y-1">
                         <li>All team projects and content</li>
                         <li>Team member associations</li>
                         <li>Analytics and performance data</li>

@@ -62,6 +62,14 @@ interface TeamMemberCardProps {
     lastActive: string;
     joinedAt: string;
     permissions?: Record<string, boolean>;
+    user?: {
+      id: string;
+      name: string;
+      email: string;
+      avatar?: string;
+      bio?: string;
+    };
+    isOwner?: boolean;
   };
   currentUserRole: "owner" | "admin" | "member" | "viewer";
   canManage: boolean;

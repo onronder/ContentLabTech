@@ -239,7 +239,7 @@ export const POST = withApiAuth(
         await context.supabase.auth.admin.listUsers();
 
       if (!usersError && users) {
-        const targetUser = users.users.find(u => u.email === email);
+        const targetUser = users.users.find((u: any) => u.email === email);
         if (targetUser) {
           targetUserId = targetUser.id;
         }
