@@ -7,6 +7,7 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
+import { authenticatedApi } from "@/lib/utils/fetch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -84,16 +85,10 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
     setIsSaving(true);
 
     try {
-      const response = await fetch(`/api/team/${team.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          description: formData.description,
-          settings: formData.settings,
-        }),
+      const response = await authenticatedApi.patch(`/api/team/${team.id}`, {
+        name: formData.name,
+        description: formData.description,
+        settings: formData.settings,
       });
 
       if (!response.ok) {
@@ -134,9 +129,7 @@ export const TeamSettings: React.FC<TeamSettingsProps> = ({
     setIsDeleting(true);
 
     try {
-      const response = await fetch(`/api/team/${team.id}`, {
-        method: "DELETE",
-      });
+      const response = await authenticatedApi.delete(`/api/team/${team.id}`);
 
       if (!response.ok) {
         throw new Error("Failed to delete team");

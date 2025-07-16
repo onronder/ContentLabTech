@@ -13,6 +13,7 @@ let globalApiCallCounter = 0;
  * Production-grade fetch wrapper that automatically handles URL resolution
  * Converts relative API URLs to absolute URLs for Vercel deployment
  * Maintains full compatibility with standard fetch API
+ * CRITICAL: Always includes authentication cookies for API calls
  */
 export const apiFetch = async (
   input: RequestInfo | URL,
@@ -70,9 +71,20 @@ export const apiFetch = async (
     }
   }
 
+  // CRITICAL: Always include authentication cookies for API calls
+  const enhancedInit: RequestInit = {
+    ...init,
+    // Force credentials: "include" for all API calls to ensure cookies are sent
+    credentials: isApiCall ? "include" : init?.credentials || "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      ...init?.headers,
+    },
+  };
+
   try {
-    // Execute fetch with resolved URL
-    const response = await fetch(resolvedUrl, init);
+    // Execute fetch with resolved URL and enhanced options
+    const response = await fetch(resolvedUrl, enhancedInit);
 
     // Log response status for API calls in debug mode
     if (
@@ -85,6 +97,7 @@ export const apiFetch = async (
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
+        credentials: enhancedInit.credentials,
       });
     }
 
@@ -101,6 +114,95 @@ export const apiFetch = async (
     }
     throw error;
   }
+};
+
+/**
+ * Authenticated API wrapper that handles authentication errors gracefully
+ * Provides comprehensive error handling for authentication failures
+ */
+export const authenticatedFetch = async (
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> => {
+  // Ensure this is treated as an API call
+  const apiUrl = url.startsWith("/api/")
+    ? url
+    : `/api${url.startsWith("/") ? "" : "/"}${url}`;
+
+  try {
+    const response = await apiFetch(apiUrl, options);
+
+    // Handle authentication failures
+    if (response.status === 401) {
+      console.error("🔐 Authentication Error:", {
+        url: apiUrl,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+
+      // Try to get response body for more details
+      try {
+        const errorData = await response.clone().json();
+        console.error("🔐 Authentication Error Details:", errorData);
+      } catch (parseError) {
+        console.warn("Could not parse authentication error response");
+      }
+
+      // Throw a descriptive error
+      throw new Error("Authentication required - please log in");
+    }
+
+    return response;
+  } catch (error) {
+    // Re-throw authentication errors
+    if (
+      error instanceof Error &&
+      error.message.includes("Authentication required")
+    ) {
+      throw error;
+    }
+
+    // Log and re-throw other errors
+    console.error("❌ Authenticated Fetch Error:", {
+      url: apiUrl,
+      error: error instanceof Error ? error.message : error,
+    });
+
+    throw error;
+  }
+};
+
+/**
+ * Convenience methods for authenticated API calls
+ */
+export const authenticatedApi = {
+  get: async (url: string, options: RequestInit = {}) =>
+    authenticatedFetch(url, { ...options, method: "GET" }),
+
+  post: async (url: string, data?: any, options: RequestInit = {}) =>
+    authenticatedFetch(url, {
+      ...options,
+      method: "POST",
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+
+  put: async (url: string, data?: any, options: RequestInit = {}) =>
+    authenticatedFetch(url, {
+      ...options,
+      method: "PUT",
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+
+  patch: async (url: string, data?: any, options: RequestInit = {}) =>
+    authenticatedFetch(url, {
+      ...options,
+      method: "PATCH",
+      body: data ? JSON.stringify(data) : undefined,
+    }),
+
+  delete: async (url: string, options: RequestInit = {}) =>
+    authenticatedFetch(url, { ...options, method: "DELETE" }),
 };
 
 // Type-safe fetch replacement that maintains standard fetch signature

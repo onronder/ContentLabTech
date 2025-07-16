@@ -7,7 +7,7 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { fetch } from "@/lib/utils/fetch";
+import { authenticatedApi } from "@/lib/utils/fetch";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -149,16 +149,10 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
     setIsUpdatingRole(true);
 
     try {
-      const response = await fetch("/api/team/members", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          teamId: teamId,
-          userId: getUserId(),
-          role: newRole,
-        }),
+      const response = await authenticatedApi.patch("/api/team/members", {
+        teamId: teamId,
+        userId: getUserId(),
+        role: newRole,
       });
 
       if (!response.ok) {
@@ -180,11 +174,8 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
     if (!canRemoveMember()) return;
 
     try {
-      const response = await fetch(
-        `/api/team/members?teamId=${teamId}&userId=${getUserId()}`,
-        {
-          method: "DELETE",
-        }
+      const response = await authenticatedApi.delete(
+        `/api/team/members?teamId=${teamId}&userId=${getUserId()}`
       );
 
       if (!response.ok) {

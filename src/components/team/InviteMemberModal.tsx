@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { fetch } from "@/lib/utils/fetch";
+import { authenticatedApi } from "@/lib/utils/fetch";
 import {
   productionApiClient,
   type ConnectionTestResult,
