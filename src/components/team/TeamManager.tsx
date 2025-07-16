@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth/context";
 import { api } from "@/lib/api/client";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Search,
@@ -98,7 +99,8 @@ interface TeamFilters {
 type ViewMode = "members" | "activity" | "settings";
 
 export const TeamManager = () => {
-  const { currentTeam, user } = useAuth();
+  const { currentTeam, user, signOut } = useAuth();
+  const router = useRouter();
   const [teamData, setTeamData] = useState<TeamData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -240,6 +242,21 @@ export const TeamManager = () => {
       setTeamData(transformedData);
     } catch (err) {
       console.error("❌ TeamManager: Failed to load team data:", err);
+
+      // Handle authentication failures
+      if (
+        err instanceof Error &&
+        err.message.includes("Authentication required")
+      ) {
+        console.warn(
+          "🔐 TeamManager: Authentication failure - redirecting to login"
+        );
+        signOut();
+        router.push("/auth/login");
+        return;
+      }
+
+      // Handle other errors
       setError(err instanceof Error ? err.message : "Failed to load team data");
     } finally {
       setLoading(false);
