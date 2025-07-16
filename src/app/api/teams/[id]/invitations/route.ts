@@ -98,7 +98,7 @@ export const GET = withApiAuth(
 
       // Get inviter information for each invitation
       const inviterIds =
-        invitations?.map(inv => inv.invited_by).filter(Boolean) || [];
+        invitations?.map((inv: any) => inv.invited_by).filter(Boolean) || [];
       let inviterProfiles: any[] = [];
 
       if (inviterIds.length > 0) {
@@ -107,7 +107,7 @@ export const GET = withApiAuth(
           await context.supabase.auth.admin.listUsers();
 
         if (!usersError && users) {
-          inviterProfiles = users.users.filter(user =>
+          inviterProfiles = users.users.filter((user: any) =>
             inviterIds.includes(user.id)
           );
         }
@@ -115,7 +115,7 @@ export const GET = withApiAuth(
 
       // Format invitations with inviter information
       const formattedInvitations =
-        invitations?.map(invitation => {
+        invitations?.map((invitation: any) => {
           const inviterProfile = inviterProfiles.find(
             u => u.id === invitation.invited_by
           );
