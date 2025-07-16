@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
 
     const { data: teamMembers, error: membersError } = await supabase
       .from("team_members")
-      .select("id, user_id, role, created_at")
+      .select("team_id, user_id, role, created_at")
       .eq("team_id", targetTeamId);
 
     console.log(`🔍 [${requestId}] Team members query result:`, {
@@ -235,7 +235,7 @@ export async function GET(request: NextRequest) {
         : false;
 
       return {
-        id: member.user_id,
+        id: `${member.team_id}-${member.user_id}`, // Synthetic ID from composite key
         email:
           userProfile?.email ||
           `user_${member.user_id.substring(0, 8)}@team.local`,
@@ -541,13 +541,24 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const teamId = searchParams.get("teamId");
-    const userId = searchParams.get("userId");
+    let teamId: string | null = searchParams.get("teamId");
+    let userId: string | null = searchParams.get("userId");
+
+    // Handle synthetic ID format (team_id-user_id)
+    const memberId = searchParams.get("memberId");
+    if (memberId && memberId.includes("-")) {
+      const parts = memberId.split("-");
+      if (parts.length === 2 && parts[0] && parts[1]) {
+        teamId = parts[0];
+        userId = parts[1];
+      }
+    }
 
     if (!teamId || !userId) {
       return NextResponse.json(
         {
-          error: "Team ID and user ID are required",
+          error:
+            "Team ID and user ID are required (use teamId+userId params or memberId with format team_id-user_id)",
           code: "MISSING_PARAMS",
           requestId,
         },

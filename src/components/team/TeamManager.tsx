@@ -573,6 +573,7 @@ export const TeamManager = () => {
                   canManage={canManageMembers}
                   onUpdate={handleMemberUpdated}
                   onRemove={handleMemberRemoved}
+                  teamId={currentTeam?.id || ""}
                 />
               ))}
             </div>

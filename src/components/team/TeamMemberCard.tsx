@@ -75,6 +75,7 @@ interface TeamMemberCardProps {
   canManage: boolean;
   onUpdate: (member: any) => void;
   onRemove: (memberId: string) => void;
+  teamId: string; // Add teamId prop for operations
 }
 
 export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
@@ -83,10 +84,20 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
   canManage,
   onUpdate,
   onRemove,
+  teamId,
 }) => {
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [showRoleSelect, setShowRoleSelect] = useState(false);
+
+  // Parse synthetic ID to get user ID
+  const getUserId = () => {
+    if (member.id.includes("-")) {
+      const parts = member.id.split("-");
+      return parts.length === 2 ? parts[1] : member.id;
+    }
+    return member.id;
+  };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -144,8 +155,8 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          teamId: member.id, // This will be passed from parent component
-          userId: member.id,
+          teamId: teamId,
+          userId: getUserId(),
           role: newRole,
         }),
       });
@@ -170,7 +181,7 @@ export const TeamMemberCard: React.FC<TeamMemberCardProps> = ({
 
     try {
       const response = await fetch(
-        `/api/team/members?teamId=${member.id}&userId=${member.id}`,
+        `/api/team/members?teamId=${teamId}&userId=${getUserId()}`,
         {
           method: "DELETE",
         }
