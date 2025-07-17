@@ -12,6 +12,8 @@ import {
   createErrorResponse,
 } from "@/lib/auth/session";
 import { competitiveCircuitBreaker } from "@/lib/competitive/circuit-breaker";
+
+const supabase = getSupabaseAdmin();
 import type {
   Competitor,
   CompetitorMetadata,
