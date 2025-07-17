@@ -36,6 +36,11 @@ export async function GET(_request: NextRequest) {
     // Define all external services to check
     const servicesToCheck = [
       {
+        name: "SerpAPI",
+        check: checkSerpAPI,
+        required: true,
+      },
+      {
         name: "OpenAI",
         check: checkOpenAI,
         required: false,
@@ -268,6 +273,91 @@ async function checkGoogleAnalytics(): Promise<ExternalServiceCheck> {
       .getMetrics().state,
     lastChecked: new Date().toISOString(),
   };
+}
+
+async function checkSerpAPI(): Promise<ExternalServiceCheck> {
+  const apiKey = process.env["SERPAPI_API_KEY"];
+
+  if (!apiKey) {
+    return {
+      name: "SerpAPI",
+      status: "not_configured",
+      error: "SERPAPI_API_KEY not configured",
+      lastChecked: new Date().toISOString(),
+    };
+  }
+
+  const startTime = Date.now();
+
+  try {
+    // Test SerpAPI with a lightweight query
+    const testUrl = `https://serpapi.com/search?engine=google&q=test&api_key=${apiKey}&num=1`;
+    const result = await timeoutFetch(testUrl, {
+      timeout: 15000, // SerpAPI can be slower than other services
+      circuitBreaker: "serpapi-health",
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (!result.success) {
+      return {
+        name: "SerpAPI",
+        status: "unhealthy",
+        responseTime,
+        error: result.error ? result.error.message : "API request failed",
+        circuitBreakerState: circuitBreakerManager
+          .getCircuitBreaker("serpapi-health")
+          .getMetrics().state,
+        lastChecked: new Date().toISOString(),
+      };
+    }
+
+    // Check response for rate limiting or quota issues
+    const data = result.data;
+    if (data && typeof data === "object" && "error" in data) {
+      return {
+        name: "SerpAPI",
+        status: "unhealthy",
+        responseTime,
+        error: `API Error: ${data.error}`,
+        circuitBreakerState: circuitBreakerManager
+          .getCircuitBreaker("serpapi-health")
+          .getMetrics().state,
+        lastChecked: new Date().toISOString(),
+      };
+    }
+
+    // Determine status based on response time and data quality
+    let status: "healthy" | "degraded" | "unhealthy";
+    if (responseTime > 10000) {
+      status = "degraded"; // Very slow but working
+    } else if (responseTime > 5000) {
+      status = "degraded"; // Slow but acceptable
+    } else {
+      status = "healthy";
+    }
+
+    return {
+      name: "SerpAPI",
+      status,
+      responseTime,
+      circuitBreakerState: circuitBreakerManager
+        .getCircuitBreaker("serpapi-health")
+        .getMetrics().state,
+      lastChecked: new Date().toISOString(),
+    };
+  } catch (error) {
+    return {
+      name: "SerpAPI",
+      status: "unhealthy",
+      responseTime: Date.now() - startTime,
+      error: error instanceof Error ? error.message : "Unknown error",
+      circuitBreakerState: circuitBreakerManager
+        .getCircuitBreaker("serpapi-health")
+        .getMetrics().state,
+      lastChecked: new Date().toISOString(),
+    };
+  }
 }
 
 async function checkSupabase(): Promise<ExternalServiceCheck> {

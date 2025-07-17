@@ -57,10 +57,29 @@ TEST_SITE_URL=https://your-domain.vercel.app
 SUPABASE_URL=https://your-project-id.supabase.co
 ```
 
-### Optional: External AI Services
+### Critical: SerpAPI Configuration (REQUIRED for Search Functionality)
 
 ```
-SERPAPI_API_KEY=your_serpapi_key
+SERPAPI_API_KEY=your_serpapi_key_here
+```
+
+**Important**: SerpAPI is critical for search functionality. The application monitors SerpAPI error rates and will display warnings if the error rate exceeds 5%. Current target is to keep error rate below 2%.
+
+### Optional: BrightData Proxy (Enhanced Reliability)
+
+```
+BRIGHTDATA_CUSTOMER_ID=your_brightdata_customer_id
+BRIGHTDATA_ZONE=your_brightdata_zone
+BRIGHTDATA_PASSWORD=your_brightdata_password
+BRIGHTDATA_PROXY_HOST=brd.superproxy.io
+BRIGHTDATA_PROXY_PORT=33335
+```
+
+**Note**: BrightData proxy provides fallback support for SerpAPI, reducing error rates and improving reliability.
+
+### Optional: Additional AI Services
+
+```
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_AI_API_KEY=your_google_ai_api_key
@@ -90,12 +109,14 @@ API_RATE_LIMIT_WINDOW=3600
 
 ## Notes
 
-1. **Required variables**: The build will fail without Supabase and Resend API keys
+1. **Required variables**: The build will fail without Supabase, Resend API keys, and SerpAPI key
 2. **Security**: Never expose secret keys in client-side code
 3. **Domains**: Update `NEXT_PUBLIC_APP_URL` and `NEXTAUTH_URL` to your actual domain
 4. **Webhooks**: Set up webhook endpoints after deployment for email automation
 5. **Google Service Account**: Create a service account in Google Cloud Console with Search Console API access. Download the JSON key and paste it as a single-line string in `GOOGLE_SERVICE_ACCOUNT_KEY`
 6. **Supabase Edge Functions**: The `SUPABASE_URL` variable is required for server-side operations and is different from the public URL
+7. **SerpAPI Monitoring**: The application includes comprehensive SerpAPI monitoring with error rate tracking. Monitor `/api/health/external/serpapi` and `/api/monitoring?type=metrics&service=serpapi` for real-time status
+8. **Error Rate Thresholds**: SerpAPI error rate should stay below 5% (warning) and ideally below 2% (target). Current deployment showing 9.46% error rate needs immediate attention.
 
 ## Webhook Configuration
 

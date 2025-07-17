@@ -8,6 +8,7 @@ import { serviceMonitor } from "@/lib/monitoring/service-monitor";
 import { serviceDegradationManager } from "@/lib/resilience/service-degradation";
 import { circuitBreakerManager } from "@/lib/resilience/circuit-breaker";
 import { retryManager } from "@/lib/resilience/retry-manager";
+import { enhancedSerpApiService } from "@/lib/serpapi-enhanced";
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,20 +36,54 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case "overview":
+        // Get SerpAPI specific metrics for overview
+        const serpApiMetrics = enhancedSerpApiService.getMetrics();
+        const serpApiHealth = await enhancedSerpApiService.healthCheck();
+        const healthSummary = serviceDegradationManager.getHealthSummary();
+
+        // Determine overall system status including SerpAPI
+        let overallStatus = "healthy";
+        if (serpApiMetrics.errorRate > 10) {
+          overallStatus = "unhealthy";
+        } else if (
+          serpApiMetrics.errorRate > 5 ||
+          serpApiHealth.status === "degraded"
+        ) {
+          overallStatus = "degraded";
+        }
+
         return NextResponse.json({
           timestamp: new Date().toISOString(),
-          status: "healthy",
-          services: serviceDegradationManager.getHealthSummary(),
+          status: overallStatus,
+          services: {
+            ...healthSummary,
+            serpapi_enhanced: {
+              status: serpApiHealth.status,
+              errorRate: serpApiMetrics.errorRate,
+              responseTime: serpApiMetrics.averageResponseTime,
+              circuitBreakerState: serpApiMetrics.circuitBreakerMetrics.state,
+            },
+          },
           activeAlerts: serviceMonitor.getActiveAlerts(),
-          systemMetrics: serviceMonitor.getSystemMetrics({ start: startTime, end: endTime }).slice(-1)[0] || null,
+          systemMetrics:
+            serviceMonitor
+              .getSystemMetrics({ start: startTime, end: endTime })
+              .slice(-1)[0] || null,
           circuitBreakers: circuitBreakerManager.getAllCircuitBreakers(),
+          serpApiStatus: {
+            errorRate: serpApiMetrics.errorRate,
+            threshold: 5.0,
+            exceedsThreshold: serpApiMetrics.errorRate > 5.0,
+            recommendations: serpApiHealth.recommendations,
+          },
         });
 
       case "alerts":
-        const alerts = searchParams.get("active") === "true" 
-          ? serviceMonitor.getActiveAlerts()
-          : serviceMonitor.getAllAlerts();
-        
+        const alerts =
+          searchParams.get("active") === "true"
+            ? serviceMonitor.getActiveAlerts()
+            : serviceMonitor.getAllAlerts();
+
         return NextResponse.json({
           alerts: alerts.slice(0, 100), // Limit to 100 most recent
           total: alerts.length,
@@ -57,25 +92,76 @@ export async function GET(request: NextRequest) {
 
       case "metrics":
         if (service) {
+          // Special handling for SerpAPI metrics
+          if (service === "serpapi") {
+            const serpApiMetrics = enhancedSerpApiService.getMetrics();
+            const serpApiHealth = await enhancedSerpApiService.healthCheck();
+
+            return NextResponse.json({
+              service,
+              metrics: serviceMonitor.getServiceMetrics(service, {
+                start: startTime,
+                end: endTime,
+              }),
+              retryConfig: retryManager.getRetryStats(service),
+              enhanced: {
+                serpapi: {
+                  metrics: serpApiMetrics,
+                  health: serpApiHealth,
+                  errorRateThreshold: 5.0, // 5% threshold
+                  currentErrorRate: serpApiMetrics.errorRate,
+                  exceedsThreshold: serpApiMetrics.errorRate > 5.0,
+                },
+              },
+            });
+          }
+
           return NextResponse.json({
             service,
-            metrics: serviceMonitor.getServiceMetrics(service, { start: startTime, end: endTime }),
+            metrics: serviceMonitor.getServiceMetrics(service, {
+              start: startTime,
+              end: endTime,
+            }),
             retryConfig: retryManager.getRetryStats(service),
           });
         } else {
+          // Include SerpAPI enhanced metrics in system overview
+          const serpApiMetrics = enhancedSerpApiService.getMetrics();
+          const serpApiHealth = await enhancedSerpApiService.healthCheck();
+
           return NextResponse.json({
-            systemMetrics: serviceMonitor.getSystemMetrics({ start: startTime, end: endTime }),
-            services: ["openai", "serpapi", "supabase", "redis"].map(serviceName => ({
-              name: serviceName,
-              metrics: serviceMonitor.getServiceMetrics(serviceName, { start: startTime, end: endTime }).slice(-10), // Last 10 data points
-            })),
+            systemMetrics: serviceMonitor.getSystemMetrics({
+              start: startTime,
+              end: endTime,
+            }),
+            services: ["openai", "serpapi", "supabase", "redis"].map(
+              serviceName => ({
+                name: serviceName,
+                metrics: serviceMonitor
+                  .getServiceMetrics(serviceName, {
+                    start: startTime,
+                    end: endTime,
+                  })
+                  .slice(-10), // Last 10 data points
+              })
+            ),
+            enhanced: {
+              serpapi: {
+                metrics: serpApiMetrics,
+                health: serpApiHealth,
+                errorRateAlert: serpApiMetrics.errorRate > 5.0,
+                criticalAlert: serpApiMetrics.errorRate > 10.0,
+              },
+            },
           });
         }
 
       case "health":
         const healthSummary = serviceDegradationManager.getHealthSummary();
-        const allHealthy = Object.values(healthSummary).every(s => s.status === "healthy");
-        
+        const allHealthy = Object.values(healthSummary).every(
+          s => s.status === "healthy"
+        );
+
         return NextResponse.json({
           status: allHealthy ? "healthy" : "degraded",
           timestamp: new Date().toISOString(),
@@ -94,7 +180,7 @@ export async function GET(request: NextRequest) {
           retryConfigs: Object.fromEntries(
             services.map(serviceName => [
               serviceName,
-              retryManager.getRetryStats(serviceName)
+              retryManager.getRetryStats(serviceName),
             ])
           ),
         });
@@ -108,9 +194,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error in monitoring endpoint:", error);
     return NextResponse.json(
-      { 
+      {
         error: "Internal server error",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       { status: 500 }
     );
@@ -126,8 +212,11 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case "acknowledge-alert":
         const { alertId, acknowledgedBy } = body;
-        const acknowledged = serviceMonitor.acknowledgeAlert(alertId, acknowledgedBy);
-        
+        const acknowledged = serviceMonitor.acknowledgeAlert(
+          alertId,
+          acknowledgedBy
+        );
+
         return NextResponse.json({
           success: acknowledged,
           message: acknowledged ? "Alert acknowledged" : "Alert not found",
@@ -135,8 +224,11 @@ export async function POST(request: NextRequest) {
 
       case "resolve-alert":
         const { alertId: resolveAlertId, resolvedBy } = body;
-        const resolved = serviceMonitor.resolveAlert(resolveAlertId, resolvedBy);
-        
+        const resolved = serviceMonitor.resolveAlert(
+          resolveAlertId,
+          resolvedBy
+        );
+
         return NextResponse.json({
           success: resolved,
           message: resolved ? "Alert resolved" : "Alert not found",
@@ -158,17 +250,14 @@ export async function POST(request: NextRequest) {
         });
 
       default:
-        return NextResponse.json(
-          { error: "Invalid action" },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
     console.error("Error in monitoring POST endpoint:", error);
     return NextResponse.json(
-      { 
+      {
         error: "Internal server error",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       },
       { status: 500 }
     );
