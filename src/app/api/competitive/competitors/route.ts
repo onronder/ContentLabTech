@@ -4,19 +4,20 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabase/server";
 import { z } from "zod";
+import {
+  getCurrentUser,
+  validateProjectAccess,
+  createErrorResponse,
+} from "@/lib/auth/session";
+import { competitiveCircuitBreaker } from "@/lib/competitive/circuit-breaker";
 import type {
   Competitor,
   CompetitorMetadata,
   CompetitorListResponse,
   CompetitiveIntelligenceResponse,
 } from "@/lib/competitive/types";
-
-const supabase = createClient(
-  process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-  process.env["SUPABASE_SERVICE_ROLE_KEY"]!
-);
 
 // Validation schemas
 const createCompetitorSchema = z.object({

@@ -8,6 +8,7 @@ import { CompetitiveExecutiveDashboard } from "@/components/competitive/Competit
 import { CompetitiveAnalyticsCharts } from "@/components/competitive/CompetitiveAnalyticsCharts";
 import { CompetitorManagement } from "@/components/competitive/CompetitorManagement";
 import { CompetitiveMonitoringDashboard } from "@/components/competitive/CompetitiveMonitoringDashboard";
+import { CompetitiveErrorBoundary } from "@/components/competitive/CompetitiveErrorBoundary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -38,46 +39,57 @@ export default function CompetitivePage() {
   const projectId = "default-project";
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <Suspense fallback={<DashboardSkeleton />}>
-        <Tabs defaultValue="executive" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="executive">Executive Dashboard</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics & Charts</TabsTrigger>
-            <TabsTrigger value="competitors">Competitors</TabsTrigger>
-            <TabsTrigger value="monitoring">Real-time Monitoring</TabsTrigger>
-          </TabsList>
+    <CompetitiveErrorBoundary>
+      <div className="container mx-auto px-4 py-8">
+        <Suspense fallback={<DashboardSkeleton />}>
+          <Tabs defaultValue="executive" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="executive">Executive Dashboard</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics & Charts</TabsTrigger>
+              <TabsTrigger value="competitors">Competitors</TabsTrigger>
+              <TabsTrigger value="monitoring">Real-time Monitoring</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="executive" className="space-y-6">
-            <CompetitiveExecutiveDashboard projectId={projectId} />
-          </TabsContent>
+            <TabsContent value="executive" className="space-y-6">
+              <CompetitiveErrorBoundary>
+                <CompetitiveExecutiveDashboard projectId={projectId} />
+              </CompetitiveErrorBoundary>
+            </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-6">
-            <div>
-              <h2 className="mb-4 text-2xl font-bold">Competitive Analytics</h2>
-              <p className="text-muted-foreground mb-6">
-                Detailed competitive intelligence charts and visualizations
-              </p>
-              {/* CompetitiveAnalyticsCharts will be populated with real data from the hook */}
-              <Suspense fallback={<DashboardSkeleton />}>
-                <CompetitiveAnalyticsCharts analysisResults={[]} />
-              </Suspense>
-            </div>
-          </TabsContent>
+            <TabsContent value="analytics" className="space-y-6">
+              <div>
+                <h2 className="mb-4 text-2xl font-bold">
+                  Competitive Analytics
+                </h2>
+                <p className="text-muted-foreground mb-6">
+                  Detailed competitive intelligence charts and visualizations
+                </p>
+                <CompetitiveErrorBoundary>
+                  <Suspense fallback={<DashboardSkeleton />}>
+                    <CompetitiveAnalyticsCharts analysisResults={[]} />
+                  </Suspense>
+                </CompetitiveErrorBoundary>
+              </div>
+            </TabsContent>
 
-          <TabsContent value="competitors" className="space-y-6">
-            <Suspense fallback={<DashboardSkeleton />}>
-              <CompetitorManagement projectId={projectId} />
-            </Suspense>
-          </TabsContent>
+            <TabsContent value="competitors" className="space-y-6">
+              <CompetitiveErrorBoundary>
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <CompetitorManagement projectId={projectId} />
+                </Suspense>
+              </CompetitiveErrorBoundary>
+            </TabsContent>
 
-          <TabsContent value="monitoring" className="space-y-6">
-            <Suspense fallback={<DashboardSkeleton />}>
-              <CompetitiveMonitoringDashboard projectId={projectId} />
-            </Suspense>
-          </TabsContent>
-        </Tabs>
-      </Suspense>
-    </div>
+            <TabsContent value="monitoring" className="space-y-6">
+              <CompetitiveErrorBoundary>
+                <Suspense fallback={<DashboardSkeleton />}>
+                  <CompetitiveMonitoringDashboard projectId={projectId} />
+                </Suspense>
+              </CompetitiveErrorBoundary>
+            </TabsContent>
+          </Tabs>
+        </Suspense>
+      </div>
+    </CompetitiveErrorBoundary>
   );
 }
