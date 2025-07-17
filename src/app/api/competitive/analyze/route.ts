@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  getCurrentUser,
-  createClient,
-  validateProjectAccess,
-  createErrorResponse,
-} from "@/lib/auth/session";
+  authenticatedApiHandler,
+  createApiErrorResponse,
+  createApiSuccessResponse,
+} from "@/lib/auth/api-handler";
 
 interface CompetitiveAnalysisRequest {
   projectId: string;
@@ -43,406 +42,397 @@ interface AnalysisResult {
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    // Authenticate user
-    const user = await getCurrentUser();
-    if (!user) {
-      return createErrorResponse("Authentication required", 401);
-    }
+  return authenticatedApiHandler(request, async (user, team) => {
+    try {
+      // Parse request body
+      const body: CompetitiveAnalysisRequest = await request.json();
+      const { projectId, action, params } = body;
 
-    // Parse request body
-    const body: CompetitiveAnalysisRequest = await request.json();
-    const { projectId, action, params } = body;
+      if (!projectId || !action) {
+        return createApiErrorResponse(
+          "Project ID and action are required",
+          400
+        );
+      }
 
-    if (!projectId || !action) {
-      return createErrorResponse("Project ID and action are required", 400);
-    }
+      // Project access is validated through team membership in authenticatedApiHandler
+      const { createClient } = await import("@/lib/supabase/server-auth");
+      const supabase = await createClient();
 
-    // Validate project access
-    const hasAccess = await validateProjectAccess(projectId, "member");
-    if (!hasAccess) {
-      return createErrorResponse("Insufficient permissions", 403);
-    }
+      let result;
 
-    const supabase = await createClient();
+      switch (action) {
+        case "analyze": {
+          if (!params.competitorUrls?.length && !params.competitorId) {
+            return createApiErrorResponse(
+              "Competitor URLs or competitor ID required for analysis",
+              400
+            );
+          }
 
-    let result;
+          let competitorUrls = params.competitorUrls || [];
 
-    switch (action) {
-      case "analyze": {
-        if (!params.competitorUrls?.length && !params.competitorId) {
-          return createErrorResponse(
-            "Competitor URLs or competitor ID required for analysis",
-            400
-          );
-        }
+          // If competitorId provided, get the competitor URL
+          if (params.competitorId) {
+            const { data: competitor } = await supabase
+              .from("competitors")
+              .select("competitor_url")
+              .eq("id", params.competitorId)
+              .eq("project_id", projectId)
+              .single();
 
-        let competitorUrls = params.competitorUrls || [];
+            if (competitor) {
+              competitorUrls = [competitor.competitor_url];
+            } else {
+              return createApiErrorResponse("Competitor not found", 404);
+            }
+          }
 
-        // If competitorId provided, get the competitor URL
-        if (params.competitorId) {
-          const { data: competitor } = await supabase
-            .from("competitors")
-            .select("competitor_url")
-            .eq("id", params.competitorId)
-            .eq("project_id", projectId)
+          // Get project keywords for analysis
+          const { data: project } = await supabase
+            .from("projects")
+            .select("target_keywords")
+            .eq("id", projectId)
             .single();
 
-          if (competitor) {
-            competitorUrls = [competitor.competitor_url];
-          } else {
-            return createErrorResponse("Competitor not found", 404);
-          }
-        }
+          const keywords = params.keywords || project?.target_keywords || [];
 
-        // Get project keywords for analysis
-        const { data: project } = await supabase
-          .from("projects")
-          .select("target_keywords")
-          .eq("id", projectId)
-          .single();
-
-        const keywords = params.keywords || project?.target_keywords || [];
-
-        // Call the competitor monitoring Edge Function
-        const { data: analysis, error: analysisError } =
-          await supabase.functions.invoke("competitor-monitoring", {
-            body: {
-              action: "analyze_competitors",
-              projectId,
-              competitorUrls,
-              keywords,
-              analysisType: params.analysisType || "comprehensive",
-              options: {
-                includeContentGaps: params.includeContentGaps !== false,
-                includeTechnicalSeo: params.includeTechnicalSeo !== false,
-              },
-            },
-          });
-
-        if (analysisError) {
-          console.error("Competitive analysis error:", analysisError);
-          return createErrorResponse("Failed to analyze competitors", 500);
-        }
-
-        // Store analysis results
-        if (analysis?.result) {
-          await Promise.all(
-            competitorUrls.map(async url => {
-              // Update or create competitor record
-              await supabase.from("competitors").upsert(
-                {
-                  project_id: projectId,
-                  competitor_url: url,
-                  competitor_name: extractDomainName(url),
-                  is_active: true,
-                  added_by: user.id,
-                  last_analyzed: new Date().toISOString(),
+          // Call the competitor monitoring Edge Function
+          const { data: analysis, error: analysisError } =
+            await supabase.functions.invoke("competitor-monitoring", {
+              body: {
+                action: "analyze_competitors",
+                projectId,
+                competitorUrls,
+                keywords,
+                analysisType: params.analysisType || "comprehensive",
+                options: {
+                  includeContentGaps: params.includeContentGaps !== false,
+                  includeTechnicalSeo: params.includeTechnicalSeo !== false,
                 },
-                {
-                  onConflict: "project_id,competitor_url",
+              },
+            });
+
+          if (analysisError) {
+            console.error("Competitive analysis error:", analysisError);
+            return createApiErrorResponse("Failed to analyze competitors", 500);
+          }
+
+          // Store analysis results
+          if (analysis?.result) {
+            await Promise.all(
+              competitorUrls.map(async url => {
+                // Update or create competitor record
+                await supabase.from("competitors").upsert(
+                  {
+                    project_id: projectId,
+                    competitor_url: url,
+                    competitor_name: extractDomainName(url),
+                    is_active: true,
+                    added_by: user.id,
+                    last_analyzed: new Date().toISOString(),
+                  },
+                  {
+                    onConflict: "project_id,competitor_url",
+                  }
+                );
+
+                // Store analysis result
+                const competitorAnalysis = (
+                  analysis as AnalysisResult
+                ).result.competitors?.find(
+                  (c: CompetitorAnalysisResult) => c.url === url
+                );
+
+                if (competitorAnalysis) {
+                  await supabase.from("competitor_analytics").insert({
+                    project_id: projectId,
+                    competitor_url: url,
+                    analysis_date: new Date().toISOString().split("T")[0],
+                    ranking_data: competitorAnalysis.rankings || {},
+                    traffic_data: competitorAnalysis.traffic || {},
+                    content_data: competitorAnalysis.content || {},
+                    technical_data: competitorAnalysis.technical || {},
+                    keyword_data: competitorAnalysis.keywords || {},
+                  });
                 }
-              );
+              })
+            );
 
-              // Store analysis result
-              const competitorAnalysis = (
-                analysis as AnalysisResult
-              ).result.competitors?.find(
-                (c: CompetitorAnalysisResult) => c.url === url
-              );
+            // Log competitive analysis
+            await supabase.from("user_events").insert({
+              user_id: user.id,
+              event_type: "competitive_analysis_performed",
+              event_data: {
+                project_id: projectId,
+                competitor_count: competitorUrls.length,
+                analysis_type: params.analysisType,
+                keywords_analyzed: keywords.length,
+              },
+            });
+          }
 
-              if (competitorAnalysis) {
-                await supabase.from("competitor_analytics").insert({
-                  project_id: projectId,
-                  competitor_url: url,
-                  analysis_date: new Date().toISOString().split("T")[0],
-                  ranking_data: competitorAnalysis.rankings || {},
-                  traffic_data: competitorAnalysis.traffic || {},
-                  content_data: competitorAnalysis.content || {},
-                  technical_data: competitorAnalysis.technical || {},
-                  keyword_data: competitorAnalysis.keywords || {},
-                });
-              }
-            })
-          );
+          result = analysis?.result;
+          break;
+        }
 
-          // Log competitive analysis
-          await supabase.from("user_events").insert({
-            user_id: user.id,
-            event_type: "competitive_analysis_performed",
-            event_data: {
-              project_id: projectId,
-              competitor_count: competitorUrls.length,
-              analysis_type: params.analysisType,
-              keywords_analyzed: keywords.length,
-            },
+        case "monitor": {
+          // Set up competitive monitoring
+          const { data: competitors } = await supabase
+            .from("competitors")
+            .select("*")
+            .eq("project_id", projectId)
+            .eq("is_active", true);
+
+          if (!competitors?.length) {
+            return createApiErrorResponse(
+              "No active competitors found for monitoring",
+              400
+            );
+          }
+
+          // Call monitoring setup
+          const { data: monitoringSetup, error: monitoringError } =
+            await supabase.functions.invoke("competitor-monitoring", {
+              body: {
+                action: "setup_monitoring",
+                projectId,
+                competitors: competitors.map(c => ({
+                  id: c.id,
+                  url: c.competitor_url,
+                  name: c.competitor_name,
+                })),
+                frequency: params.monitoringFrequency || "weekly",
+                keywords: params.keywords || [],
+              },
+            });
+
+          if (monitoringError) {
+            console.error("Monitoring setup error:", monitoringError);
+            return createApiErrorResponse(
+              "Failed to setup competitive monitoring",
+              500
+            );
+          }
+
+          result = monitoringSetup?.result;
+          break;
+        }
+
+        case "compare": {
+          if (
+            !params.competitorUrls?.length ||
+            params.competitorUrls.length < 2
+          ) {
+            return createApiErrorResponse(
+              "At least 2 competitor URLs required for comparison",
+              400
+            );
+          }
+
+          // Get recent analytics for comparison
+          const { data: competitorAnalytics } = await supabase
+            .from("competitor_analytics")
+            .select("*")
+            .eq("project_id", projectId)
+            .in("competitor_url", params.competitorUrls)
+            .gte(
+              "analysis_date",
+              new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                .toISOString()
+                .split("T")[0]
+            )
+            .order("analysis_date", { ascending: false });
+
+          // Group by competitor
+          const competitorComparison = params.competitorUrls.map(url => {
+            const analytics =
+              competitorAnalytics?.filter(a => a.competitor_url === url) || [];
+            const latestAnalytics = analytics[0];
+
+            return {
+              url,
+              name: extractDomainName(url),
+              latestData: latestAnalytics,
+              analytics: analytics.slice(0, 10), // Last 10 data points
+              summary: calculateCompetitorSummary(analytics),
+            };
           });
-        }
 
-        result = analysis?.result;
-        break;
-      }
-
-      case "monitor": {
-        // Set up competitive monitoring
-        const { data: competitors } = await supabase
-          .from("competitors")
-          .select("*")
-          .eq("project_id", projectId)
-          .eq("is_active", true);
-
-        if (!competitors?.length) {
-          return createErrorResponse(
-            "No active competitors found for monitoring",
-            400
-          );
-        }
-
-        // Call monitoring setup
-        const { data: monitoringSetup, error: monitoringError } =
-          await supabase.functions.invoke("competitor-monitoring", {
-            body: {
-              action: "setup_monitoring",
-              projectId,
-              competitors: competitors.map(c => ({
-                id: c.id,
-                url: c.competitor_url,
-                name: c.competitor_name,
-              })),
-              frequency: params.monitoringFrequency || "weekly",
-              keywords: params.keywords || [],
-            },
-          });
-
-        if (monitoringError) {
-          console.error("Monitoring setup error:", monitoringError);
-          return createErrorResponse(
-            "Failed to setup competitive monitoring",
-            500
-          );
-        }
-
-        result = monitoringSetup?.result;
-        break;
-      }
-
-      case "compare": {
-        if (
-          !params.competitorUrls?.length ||
-          params.competitorUrls.length < 2
-        ) {
-          return createErrorResponse(
-            "At least 2 competitor URLs required for comparison",
-            400
-          );
-        }
-
-        // Get recent analytics for comparison
-        const { data: competitorAnalytics } = await supabase
-          .from("competitor_analytics")
-          .select("*")
-          .eq("project_id", projectId)
-          .in("competitor_url", params.competitorUrls)
-          .gte(
-            "analysis_date",
-            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-              .toISOString()
-              .split("T")[0]
-          )
-          .order("analysis_date", { ascending: false });
-
-        // Group by competitor
-        const competitorComparison = params.competitorUrls.map(url => {
-          const analytics =
-            competitorAnalytics?.filter(a => a.competitor_url === url) || [];
-          const latestAnalytics = analytics[0];
-
-          return {
-            url,
-            name: extractDomainName(url),
-            latestData: latestAnalytics,
-            analytics: analytics.slice(0, 10), // Last 10 data points
-            summary: calculateCompetitorSummary(analytics),
+          result = {
+            comparison: competitorComparison,
+            timeframe: 30,
+            analysisCount: competitorAnalytics?.length || 0,
           };
-        });
 
-        result = {
-          comparison: competitorComparison,
-          timeframe: 30,
-          analysisCount: competitorAnalytics?.length || 0,
-        };
-
-        break;
-      }
-
-      case "keywords": {
-        // Keyword gap analysis
-        const { data: keywordGaps, error: keywordError } =
-          await supabase.functions.invoke("competitor-monitoring", {
-            body: {
-              action: "keyword_gap_analysis",
-              projectId,
-              competitorUrls: params.competitorUrls || [],
-              targetKeywords: params.keywords || [],
-            },
-          });
-
-        if (keywordError) {
-          console.error("Keyword gap analysis error:", keywordError);
-          return createErrorResponse(
-            "Failed to perform keyword gap analysis",
-            500
-          );
+          break;
         }
 
-        // Store keyword opportunities
-        if (keywordGaps?.result?.opportunities) {
-          const opportunities = keywordGaps.result.opportunities.map(
-            (opp: Record<string, unknown>) => ({
-              project_id: projectId,
-              keyword: opp["keyword"],
-              search_volume: opp["searchVolume"] || 0,
-              keyword_difficulty: opp["difficulty"] || 0,
-              competition_level: opp["competition"] || "medium",
-              opportunity_score: opp["opportunityScore"] || 0,
-              current_ranking: opp["currentRanking"] || null,
-              competitor_rankings: opp["competitorRankings"] || {},
-              identified_by: user.id,
-            })
-          );
+        case "keywords": {
+          // Keyword gap analysis
+          const { data: keywordGaps, error: keywordError } =
+            await supabase.functions.invoke("competitor-monitoring", {
+              body: {
+                action: "keyword_gap_analysis",
+                projectId,
+                competitorUrls: params.competitorUrls || [],
+                targetKeywords: params.keywords || [],
+              },
+            });
 
-          await supabase.from("keyword_opportunities").upsert(opportunities, {
-            onConflict: "project_id,keyword",
-          });
+          if (keywordError) {
+            console.error("Keyword gap analysis error:", keywordError);
+            return createApiErrorResponse(
+              "Failed to perform keyword gap analysis",
+              500
+            );
+          }
+
+          // Store keyword opportunities
+          if (keywordGaps?.result?.opportunities) {
+            const opportunities = keywordGaps.result.opportunities.map(
+              (opp: Record<string, unknown>) => ({
+                project_id: projectId,
+                keyword: opp["keyword"],
+                search_volume: opp["searchVolume"] || 0,
+                keyword_difficulty: opp["difficulty"] || 0,
+                competition_level: opp["competition"] || "medium",
+                opportunity_score: opp["opportunityScore"] || 0,
+                current_ranking: opp["currentRanking"] || null,
+                competitor_rankings: opp["competitorRankings"] || {},
+                identified_by: user.id,
+              })
+            );
+
+            await supabase.from("keyword_opportunities").upsert(opportunities, {
+              onConflict: "project_id,keyword",
+            });
+          }
+
+          result = keywordGaps?.result;
+          break;
         }
 
-        result = keywordGaps?.result;
-        break;
+        default:
+          return createApiErrorResponse("Invalid action specified", 400);
       }
 
-      default:
-        return createErrorResponse("Invalid action specified", 400);
+      return NextResponse.json({
+        success: true,
+        action,
+        projectId,
+        result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("API error:", error);
+      return createApiErrorResponse("Internal server error", 500);
     }
-
-    return NextResponse.json({
-      success: true,
-      action,
-      projectId,
-      result,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("API error:", error);
-    return createErrorResponse("Internal server error", 500);
-  }
+  });
 }
 
 export async function GET(request: NextRequest) {
-  try {
-    // Authenticate user
-    const user = await getCurrentUser();
-    if (!user) {
-      return createErrorResponse("Authentication required", 401);
+  return authenticatedApiHandler(request, async (user, team) => {
+    try {
+      // Parse query parameters
+      const { searchParams } = new URL(request.url);
+      const projectId = searchParams.get("projectId");
+      const competitorUrl = searchParams.get("competitorUrl");
+      const timeframe = parseInt(searchParams.get("timeframe") || "30");
+      // const analysisType = searchParams.get('analysisType'); // Unused for now
+
+      if (!projectId) {
+        return createApiErrorResponse("Project ID is required", 400);
+      }
+
+      // Project access is validated through team membership in authenticatedApiHandler
+      const { createClient } = await import("@/lib/supabase/server-auth");
+      const supabase = await createClient();
+
+      // Get competitors
+      let query = supabase
+        .from("competitors")
+        .select("*")
+        .eq("project_id", projectId)
+        .eq("is_active", true);
+
+      if (competitorUrl) {
+        query = query.eq("competitor_url", competitorUrl);
+      }
+
+      const { data: competitors, error: competitorError } = await query;
+
+      if (competitorError) {
+        console.error("Error fetching competitors:", competitorError);
+        return createApiErrorResponse("Failed to fetch competitors", 500);
+      }
+
+      // Get recent analytics
+      const startDate = new Date(Date.now() - timeframe * 24 * 60 * 60 * 1000);
+      const competitorUrls = competitors?.map(c => c.competitor_url) || [];
+
+      let analyticsQuery = supabase
+        .from("competitor_analytics")
+        .select("*")
+        .eq("project_id", projectId)
+        .gte("analysis_date", startDate.toISOString().split("T")[0])
+        .order("analysis_date", { ascending: false });
+
+      if (competitorUrls.length > 0) {
+        analyticsQuery = analyticsQuery.in("competitor_url", competitorUrls);
+      }
+
+      const { data: analytics, error: analyticsError } = await analyticsQuery;
+
+      if (analyticsError) {
+        console.error("Error fetching analytics:", analyticsError);
+        return createApiErrorResponse(
+          "Failed to fetch competitive analytics",
+          500
+        );
+      }
+
+      // Get keyword opportunities
+      const { data: keywordOpportunities } = await supabase
+        .from("keyword_opportunities")
+        .select("*")
+        .eq("project_id", projectId)
+        .order("opportunity_score", { ascending: false })
+        .limit(20);
+
+      // Process and group data
+      const competitorData =
+        competitors?.map(competitor => {
+          const competitorAnalytics =
+            analytics?.filter(
+              a => a.competitor_url === competitor.competitor_url
+            ) || [];
+          return {
+            ...competitor,
+            analytics: competitorAnalytics,
+            latestAnalysis: competitorAnalytics[0] || null,
+            summary: calculateCompetitorSummary(competitorAnalytics),
+          };
+        }) || [];
+
+      return NextResponse.json({
+        competitors: competitorData,
+        keywordOpportunities: keywordOpportunities || [],
+        summary: {
+          totalCompetitors: competitors?.length || 0,
+          activeMonitoring:
+            competitors?.filter(c => c.last_analyzed).length || 0,
+          keywordOpportunities: keywordOpportunities?.length || 0,
+          lastUpdated: analytics?.[0]?.analysis_date || null,
+        },
+        timeframe,
+        projectId,
+      });
+    } catch (error) {
+      console.error("API error:", error);
+      return createApiErrorResponse("Internal server error", 500);
     }
-
-    // Parse query parameters
-    const { searchParams } = new URL(request.url);
-    const projectId = searchParams.get("projectId");
-    const competitorUrl = searchParams.get("competitorUrl");
-    const timeframe = parseInt(searchParams.get("timeframe") || "30");
-    // const analysisType = searchParams.get('analysisType'); // Unused for now
-
-    if (!projectId) {
-      return createErrorResponse("Project ID is required", 400);
-    }
-
-    // Validate project access
-    const hasAccess = await validateProjectAccess(projectId, "viewer");
-    if (!hasAccess) {
-      return createErrorResponse("Insufficient permissions", 403);
-    }
-
-    const supabase = await createClient();
-
-    // Get competitors
-    let query = supabase
-      .from("competitors")
-      .select("*")
-      .eq("project_id", projectId)
-      .eq("is_active", true);
-
-    if (competitorUrl) {
-      query = query.eq("competitor_url", competitorUrl);
-    }
-
-    const { data: competitors, error: competitorError } = await query;
-
-    if (competitorError) {
-      console.error("Error fetching competitors:", competitorError);
-      return createErrorResponse("Failed to fetch competitors", 500);
-    }
-
-    // Get recent analytics
-    const startDate = new Date(Date.now() - timeframe * 24 * 60 * 60 * 1000);
-    const competitorUrls = competitors?.map(c => c.competitor_url) || [];
-
-    let analyticsQuery = supabase
-      .from("competitor_analytics")
-      .select("*")
-      .eq("project_id", projectId)
-      .gte("analysis_date", startDate.toISOString().split("T")[0])
-      .order("analysis_date", { ascending: false });
-
-    if (competitorUrls.length > 0) {
-      analyticsQuery = analyticsQuery.in("competitor_url", competitorUrls);
-    }
-
-    const { data: analytics, error: analyticsError } = await analyticsQuery;
-
-    if (analyticsError) {
-      console.error("Error fetching analytics:", analyticsError);
-      return createErrorResponse("Failed to fetch competitive analytics", 500);
-    }
-
-    // Get keyword opportunities
-    const { data: keywordOpportunities } = await supabase
-      .from("keyword_opportunities")
-      .select("*")
-      .eq("project_id", projectId)
-      .order("opportunity_score", { ascending: false })
-      .limit(20);
-
-    // Process and group data
-    const competitorData =
-      competitors?.map(competitor => {
-        const competitorAnalytics =
-          analytics?.filter(
-            a => a.competitor_url === competitor.competitor_url
-          ) || [];
-        return {
-          ...competitor,
-          analytics: competitorAnalytics,
-          latestAnalysis: competitorAnalytics[0] || null,
-          summary: calculateCompetitorSummary(competitorAnalytics),
-        };
-      }) || [];
-
-    return NextResponse.json({
-      competitors: competitorData,
-      keywordOpportunities: keywordOpportunities || [],
-      summary: {
-        totalCompetitors: competitors?.length || 0,
-        activeMonitoring: competitors?.filter(c => c.last_analyzed).length || 0,
-        keywordOpportunities: keywordOpportunities?.length || 0,
-        lastUpdated: analytics?.[0]?.analysis_date || null,
-      },
-      timeframe,
-      projectId,
-    });
-  } catch (error) {
-    console.error("API error:", error);
-    return createErrorResponse("Internal server error", 500);
-  }
+  });
 }
 
 // Helper functions
