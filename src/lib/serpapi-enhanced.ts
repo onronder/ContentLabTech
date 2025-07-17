@@ -163,13 +163,8 @@ class EnhancedSerpApiService {
       ...config,
     };
 
-    // Initialize circuit breaker with custom config
-    circuitBreakerManager.createCircuitBreaker(
-      "serpapi-enhanced",
-      this.config.circuitBreaker.failureThreshold,
-      this.config.circuitBreaker.resetTimeout,
-      this.config.circuitBreaker.monitoringPeriod
-    );
+    // Initialize circuit breaker - it will be created when first accessed
+    // The circuit breaker manager will create it automatically when getCircuitBreaker is called
   }
 
   /**
@@ -393,9 +388,7 @@ class EnhancedSerpApiService {
   /**
    * Parse organic search results with error handling
    */
-  private parseOrganicResults(
-    results: any[]
-  ): SerpApiResponse["data"]["organicResults"] {
+  private parseOrganicResults(results: any[]): any {
     return results.map((result, index) => ({
       position: result.position || index + 1,
       title: result.title || "",
@@ -413,9 +406,7 @@ class EnhancedSerpApiService {
   /**
    * Parse featured snippet with type validation
    */
-  private parseFeaturedSnippet(
-    answerBox: any
-  ): SerpApiResponse["data"]["featuredSnippet"] {
+  private parseFeaturedSnippet(answerBox: any): any {
     if (!answerBox) return undefined;
 
     const validTypes = ["paragraph", "list", "table", "video"];
@@ -435,9 +426,7 @@ class EnhancedSerpApiService {
   /**
    * Parse People Also Ask questions
    */
-  private parsePeopleAlsoAsk(
-    questions: any[]
-  ): SerpApiResponse["data"]["peopleAlsoAsk"] {
+  private parsePeopleAlsoAsk(questions: any[]): any {
     return questions.map(q => ({
       question: q.question || "",
       snippet: q.snippet || "",
@@ -449,9 +438,7 @@ class EnhancedSerpApiService {
   /**
    * Parse related searches
    */
-  private parseRelatedSearches(
-    searches: any[]
-  ): SerpApiResponse["data"]["relatedSearches"] {
+  private parseRelatedSearches(searches: any[]): any {
     return searches.map(s => ({
       query: s.query || "",
     }));
@@ -765,7 +752,9 @@ class EnhancedSerpApiService {
     this.metrics.circuitBreakerMetrics = {
       state: cbMetrics.state,
       failureCount: cbMetrics.failureCount,
-      lastFailureTime: cbMetrics.lastFailureTime?.toISOString(),
+      lastFailureTime: cbMetrics.lastFailureTime
+        ? new Date(cbMetrics.lastFailureTime).toISOString()
+        : undefined,
     };
   }
 
@@ -875,5 +864,4 @@ export const enhancedSerpApiService = new EnhancedSerpApiService({
   },
 });
 
-// Export types
-export type { SerpApiConfig, SerpApiRequest, SerpApiResponse, SerpApiMetrics };
+// Types are already exported as interfaces above

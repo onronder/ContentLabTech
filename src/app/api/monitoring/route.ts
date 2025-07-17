@@ -9,6 +9,7 @@ import { serviceDegradationManager } from "@/lib/resilience/service-degradation"
 import { circuitBreakerManager } from "@/lib/resilience/circuit-breaker";
 import { retryManager } from "@/lib/resilience/retry-manager";
 import { enhancedSerpApiService } from "@/lib/serpapi-enhanced";
+import { enhancedOpenAIService } from "@/lib/openai-enhanced";
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,18 +37,22 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case "overview":
-        // Get SerpAPI specific metrics for overview
+        // Get enhanced service metrics for overview
         const serpApiMetrics = enhancedSerpApiService.getMetrics();
         const serpApiHealth = await enhancedSerpApiService.healthCheck();
+        const openaiMetrics = enhancedOpenAIService.getMetrics();
+        const openaiHealth = await enhancedOpenAIService.healthCheck();
         const healthSummary = serviceDegradationManager.getHealthSummary();
 
-        // Determine overall system status including SerpAPI
+        // Determine overall system status including both SerpAPI and OpenAI
         let overallStatus = "healthy";
-        if (serpApiMetrics.errorRate > 10) {
+        if (serpApiMetrics.errorRate > 10 || openaiMetrics.errorRate > 10) {
           overallStatus = "unhealthy";
         } else if (
           serpApiMetrics.errorRate > 5 ||
-          serpApiHealth.status === "degraded"
+          openaiMetrics.errorRate > 5 ||
+          serpApiHealth.status === "degraded" ||
+          openaiHealth.status === "degraded"
         ) {
           overallStatus = "degraded";
         }
@@ -63,6 +68,13 @@ export async function GET(request: NextRequest) {
               responseTime: serpApiMetrics.averageResponseTime,
               circuitBreakerState: serpApiMetrics.circuitBreakerMetrics.state,
             },
+            openai_enhanced: {
+              status: openaiHealth.status,
+              errorRate: openaiMetrics.errorRate,
+              responseTime: openaiMetrics.averageResponseTime,
+              circuitBreakerState: openaiMetrics.circuitBreakerMetrics.state,
+              tokenUsage: openaiMetrics.tokenUsage,
+            },
           },
           activeAlerts: serviceMonitor.getActiveAlerts(),
           systemMetrics:
@@ -75,6 +87,18 @@ export async function GET(request: NextRequest) {
             threshold: 5.0,
             exceedsThreshold: serpApiMetrics.errorRate > 5.0,
             recommendations: serpApiHealth.recommendations,
+          },
+          openaiStatus: {
+            errorRate: openaiMetrics.errorRate,
+            threshold: 5.0,
+            exceedsThreshold: openaiMetrics.errorRate > 5.0,
+            recommendations: openaiHealth.recommendations,
+            costTracking: {
+              totalCost: openaiMetrics.tokenUsage.estimatedCost,
+              averageTokensPerRequest:
+                openaiMetrics.tokenUsage.averageTokensPerRequest,
+              totalTokens: openaiMetrics.tokenUsage.totalTokens,
+            },
           },
         });
 
@@ -116,6 +140,39 @@ export async function GET(request: NextRequest) {
             });
           }
 
+          // Special handling for OpenAI metrics
+          if (service === "openai") {
+            const openaiMetrics = enhancedOpenAIService.getMetrics();
+            const openaiHealth = await enhancedOpenAIService.healthCheck();
+
+            return NextResponse.json({
+              service,
+              metrics: serviceMonitor.getServiceMetrics(service, {
+                start: startTime,
+                end: endTime,
+              }),
+              retryConfig: retryManager.getRetryStats(service),
+              enhanced: {
+                openai: {
+                  metrics: openaiMetrics,
+                  health: openaiHealth,
+                  errorRateThreshold: 5.0, // 5% threshold
+                  currentErrorRate: openaiMetrics.errorRate,
+                  exceedsThreshold: openaiMetrics.errorRate > 5.0,
+                  costAnalysis: {
+                    totalCost: openaiMetrics.tokenUsage.estimatedCost,
+                    averageCostPerRequest:
+                      openaiMetrics.tokenUsage.estimatedCost /
+                      (openaiMetrics.successfulRequests || 1),
+                    tokenEfficiency:
+                      openaiMetrics.tokenUsage.averageTokensPerRequest,
+                    modelUsage: openaiMetrics.modelUsage,
+                  },
+                },
+              },
+            });
+          }
+
           return NextResponse.json({
             service,
             metrics: serviceMonitor.getServiceMetrics(service, {
@@ -125,9 +182,11 @@ export async function GET(request: NextRequest) {
             retryConfig: retryManager.getRetryStats(service),
           });
         } else {
-          // Include SerpAPI enhanced metrics in system overview
+          // Include both SerpAPI and OpenAI enhanced metrics in system overview
           const serpApiMetrics = enhancedSerpApiService.getMetrics();
           const serpApiHealth = await enhancedSerpApiService.healthCheck();
+          const openaiMetrics = enhancedOpenAIService.getMetrics();
+          const openaiHealth = await enhancedOpenAIService.healthCheck();
 
           return NextResponse.json({
             systemMetrics: serviceMonitor.getSystemMetrics({
@@ -152,20 +211,28 @@ export async function GET(request: NextRequest) {
                 errorRateAlert: serpApiMetrics.errorRate > 5.0,
                 criticalAlert: serpApiMetrics.errorRate > 10.0,
               },
+              openai: {
+                metrics: openaiMetrics,
+                health: openaiHealth,
+                errorRateAlert: openaiMetrics.errorRate > 5.0,
+                criticalAlert: openaiMetrics.errorRate > 10.0,
+                costAlert: openaiMetrics.tokenUsage.estimatedCost > 50.0,
+              },
             },
           });
         }
 
       case "health":
-        const healthSummary = serviceDegradationManager.getHealthSummary();
-        const allHealthy = Object.values(healthSummary).every(
+        const healthSummaryForHealth =
+          serviceDegradationManager.getHealthSummary();
+        const allHealthy = Object.values(healthSummaryForHealth).every(
           s => s.status === "healthy"
         );
 
         return NextResponse.json({
           status: allHealthy ? "healthy" : "degraded",
           timestamp: new Date().toISOString(),
-          services: healthSummary,
+          services: healthSummaryForHealth,
           uptime: Date.now() - serviceMonitor["startTime"], // Access private property for demo
         });
 

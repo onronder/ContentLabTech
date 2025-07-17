@@ -43,7 +43,7 @@ export async function GET(_request: NextRequest) {
       {
         name: "OpenAI",
         check: checkOpenAI,
-        required: false,
+        required: true,
       },
       {
         name: "BrightData",
@@ -175,36 +175,106 @@ async function checkOpenAI(): Promise<ExternalServiceCheck> {
   const startTime = Date.now();
 
   try {
-    // Simple API call to check connectivity
-    const result = await timeoutFetch("https://api.openai.com/v1/models", {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      timeout: 10000,
-      circuitBreaker: "openai",
-    });
+    // Test with a lightweight completion request
+    const testPayload = {
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: "Hello" }],
+      max_tokens: 5,
+    };
+
+    const result = await timeoutFetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(testPayload),
+        timeout: 15000,
+        circuitBreaker: "openai-health",
+      }
+    );
 
     const responseTime = Date.now() - startTime;
 
     if (!result.success) {
+      // Check for specific error types
+      let errorMessage = result.error
+        ? result.error.message
+        : "API request failed";
+      let status: "unhealthy" | "degraded" = "unhealthy";
+
+      if (result.error && typeof result.error === "object") {
+        const error = result.error as any;
+        if (error.status === 429) {
+          errorMessage = "Rate limit exceeded";
+          status = "degraded"; // Rate limiting is degraded, not completely unhealthy
+        } else if (error.status === 401) {
+          errorMessage = "Invalid API key";
+        } else if (error.status === 402) {
+          errorMessage = "Quota exceeded";
+        } else if (error.status >= 500) {
+          errorMessage = "OpenAI server error";
+          status = "degraded"; // Server errors might be temporary
+        }
+      }
+
       return {
         name: "OpenAI",
-        status: "unhealthy",
+        status,
         responseTime,
-        error: result.error ? result.error.message : "Unknown error",
+        error: errorMessage,
         circuitBreakerState: circuitBreakerManager
-          .getCircuitBreaker("openai")
+          .getCircuitBreaker("openai-health")
           .getMetrics().state,
         lastChecked: new Date().toISOString(),
       };
     }
 
+    // Check response data
+    const data = result.data;
+    if (data && typeof data === "object" && "error" in data) {
+      return {
+        name: "OpenAI",
+        status: "unhealthy",
+        responseTime,
+        error: `API Error: ${data.error}`,
+        circuitBreakerState: circuitBreakerManager
+          .getCircuitBreaker("openai-health")
+          .getMetrics().state,
+        lastChecked: new Date().toISOString(),
+      };
+    }
+
+    // Determine status based on response time and data quality
+    let status: "healthy" | "degraded" | "unhealthy";
+    if (responseTime > 30000) {
+      status = "unhealthy"; // Very slow
+    } else if (responseTime > 15000) {
+      status = "degraded"; // Slow but working
+    } else {
+      status = "healthy";
+    }
+
+    // Check if we got a valid completion response
+    if (
+      data &&
+      typeof data === "object" &&
+      "choices" in data &&
+      Array.isArray(data.choices) &&
+      data.choices.length > 0
+    ) {
+      // Valid response structure
+      status = status === "unhealthy" ? "degraded" : status; // Upgrade status if we got valid data
+    }
+
     return {
       name: "OpenAI",
-      status: responseTime > 5000 ? "degraded" : "healthy",
+      status,
       responseTime,
       circuitBreakerState: circuitBreakerManager
-        .getCircuitBreaker("openai")
+        .getCircuitBreaker("openai-health")
         .getMetrics().state,
       lastChecked: new Date().toISOString(),
     };
@@ -215,7 +285,7 @@ async function checkOpenAI(): Promise<ExternalServiceCheck> {
       responseTime: Date.now() - startTime,
       error: error instanceof Error ? error.message : "Unknown error",
       circuitBreakerState: circuitBreakerManager
-        .getCircuitBreaker("openai")
+        .getCircuitBreaker("openai-health")
         .getMetrics().state,
       lastChecked: new Date().toISOString(),
     };

@@ -112,10 +112,10 @@ export async function GET(_request: NextRequest) {
           responseTime: mainResponseTime,
           api_key_configured: true,
           test_search_successful: isHealthy,
-        };
+        } as any;
 
         if (!isHealthy) {
-          services.serpapi_main.error =
+          (services.serpapi_main as any).error =
             "Health check failed - API may be down or rate limited";
           recommendations.push(
             "Main SerpAPI service is failing - check API key validity and rate limits"
@@ -127,7 +127,7 @@ export async function GET(_request: NextRequest) {
           error: error instanceof Error ? error.message : "Unknown error",
           api_key_configured: true,
           test_search_successful: false,
-        };
+        } as any;
         recommendations.push(
           "Main SerpAPI service threw an exception - check network connectivity and API configuration"
         );
@@ -150,10 +150,10 @@ export async function GET(_request: NextRequest) {
           responseTime: altResponseTime,
           api_key_configured: true,
           queue_status: "operational", // Assume operational if no errors
-        };
+        } as any;
 
         if (altHealth.status === "unhealthy") {
-          services.serpapi_alternative.error =
+          (services.serpapi_alternative as any).error =
             altHealth.error || "Alternative service unhealthy";
           recommendations.push(
             "Alternative SerpAPI service is unhealthy - this reduces system resilience"
@@ -165,7 +165,7 @@ export async function GET(_request: NextRequest) {
           error: error instanceof Error ? error.message : "Unknown error",
           api_key_configured: true,
           queue_status: "error",
-        };
+        } as any;
         recommendations.push(
           "Alternative SerpAPI service failed - check service configuration and queue management"
         );
@@ -184,10 +184,10 @@ export async function GET(_request: NextRequest) {
           responseTime: proxyResponseTime,
           proxy_configured: true,
           fallback_available: !!serpApiKey,
-        };
+        } as any;
 
         if (proxyHealth.status === "unhealthy") {
-          services.brightdata_proxy.error =
+          (services.brightdata_proxy as any).error =
             proxyHealth.error || "Proxy service unhealthy";
           recommendations.push(
             "BrightData proxy service is unhealthy - this may impact search reliability"
@@ -208,7 +208,7 @@ export async function GET(_request: NextRequest) {
           error: error instanceof Error ? error.message : "Unknown error",
           proxy_configured: true,
           fallback_available: !!serpApiKey,
-        };
+        } as any;
         recommendations.push(
           "BrightData proxy service threw an exception - check proxy configuration and credentials"
         );
@@ -232,7 +232,7 @@ export async function GET(_request: NextRequest) {
 
     // Calculate error rate estimation
     const failureCount = Object.values(services).filter(
-      s => s.status === "unhealthy"
+      (s: any) => s.status === "unhealthy"
     ).length;
     const totalServices = Object.values(services).length;
     const estimatedErrorRate = (failureCount / totalServices) * 100;
@@ -246,17 +246,17 @@ export async function GET(_request: NextRequest) {
         "No SerpAPI services are configured - application cannot perform search operations"
       );
     } else if (
-      services.serpapi_main.status === "healthy" &&
-      services.brightdata_proxy.status !== "unhealthy"
+      (services.serpapi_main as any).status === "healthy" &&
+      (services.brightdata_proxy as any).status !== "unhealthy"
     ) {
       overallStatus = "healthy";
     } else if (
-      services.serpapi_main.status === "degraded" ||
-      (services.serpapi_main.status === "unhealthy" &&
-        services.brightdata_proxy.status === "healthy")
+      (services.serpapi_main as any).status === "degraded" ||
+      ((services.serpapi_main as any).status === "unhealthy" &&
+        (services.brightdata_proxy as any).status === "healthy")
     ) {
       overallStatus = "degraded";
-      if (services.serpapi_main.status === "unhealthy") {
+      if ((services.serpapi_main as any).status === "unhealthy") {
         recommendations.push(
           "Main SerpAPI service is down but BrightData proxy is available as fallback"
         );
@@ -284,9 +284,9 @@ export async function GET(_request: NextRequest) {
     // Performance recommendations
     const avgResponseTime =
       Object.values(services)
-        .filter(s => s.responseTime)
-        .reduce((sum, s) => sum + (s.responseTime || 0), 0) /
-      Object.values(services).filter(s => s.responseTime).length;
+        .filter((s: any) => s.responseTime)
+        .reduce((sum, s: any) => sum + (s.responseTime || 0), 0) /
+      Object.values(services).filter((s: any) => s.responseTime).length;
 
     if (avgResponseTime > 10000) {
       recommendations.push(

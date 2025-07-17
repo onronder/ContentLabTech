@@ -7,7 +7,7 @@ import { z } from "zod";
 
 // Configuration schema
 const serpApiConfigSchema = z.object({
-  apiKey: z.string(),
+  apiKey: z.string().optional().default("not_configured"),
   baseUrl: z.string().url().default("https://serpapi.com/search"),
   timeout: z.number().default(30000),
   retryAttempts: z.number().default(3),
@@ -696,7 +696,9 @@ export class SerpApiService {
 }
 
 // Export singleton instance
-export const serpApiService = new SerpApiService({});
+export const serpApiService = new SerpApiService({
+  apiKey: process.env["SERPAPI_API_KEY"] || "not_configured",
+});
 
 // Export types for use in other modules
 export type { SerpRequest, SerpResponse, RankingAnalysis };

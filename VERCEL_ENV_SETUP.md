@@ -77,10 +77,26 @@ BRIGHTDATA_PROXY_PORT=33335
 
 **Note**: BrightData proxy provides fallback support for SerpAPI, reducing error rates and improving reliability.
 
+### **CRITICAL**: AI Services (OpenAI)
+
+```
+OPENAI_API_KEY=sk-proj-your_openai_api_key_here
+OPENAI_ORGANIZATION=org-your_organization_id (optional)
+OPENAI_PROJECT_ID=proj_your_project_id (optional)
+```
+
+**⚠️ IMPORTANT**: OpenAI integration is CRITICAL for:
+
+- AI-powered content analysis
+- Content optimization suggestions
+- Automated insights and recommendations
+- Content scoring and competitive analysis
+
+**Error Rate Monitoring**: Target <2% (current monitoring threshold: 5%)
+
 ### Optional: Additional AI Services
 
 ```
-OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_AI_API_KEY=your_google_ai_api_key
 ```
