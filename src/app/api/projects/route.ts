@@ -3,9 +3,9 @@
  * Basic implementation that works
  */
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { withSimpleAuth, SimpleUser } from "@/lib/auth/simple-api-auth";
+import { authenticatedApiHandler } from "@/lib/auth/api-handler";
 
 // Database connection initialization with detailed logging
 console.log("🔌 Initializing Supabase client for Projects API...");
@@ -35,8 +35,8 @@ interface CreateProjectRequest {
   settings?: Record<string, unknown>;
 }
 
-export const POST = withSimpleAuth(
-  async (request: NextRequest, user: SimpleUser) => {
+export async function POST(request: NextRequest) {
+  return authenticatedApiHandler(request, async (user, team) => {
     // Method-specific logging
     console.log("📤 POST request received for project creation");
     console.log("🔧 Request method: POST");
@@ -376,12 +376,12 @@ export const POST = withSimpleAuth(
         headers: { "Content-Type": "application/json" },
       });
     }
-  }
-);
+  });
+}
 
 // Add GET method to handle the 405 error mentioned in test
-export const GET = withSimpleAuth(
-  async (request: NextRequest, user: SimpleUser) => {
+export async function GET(request: NextRequest) {
+  return authenticatedApiHandler(request, async (user, team) => {
     // Method-specific logging
     console.log("📥 GET request received for projects");
     console.log("🔧 Request method: GET");
@@ -690,5 +690,5 @@ export const GET = withSimpleAuth(
         headers: { "Content-Type": "application/json" },
       });
     }
-  }
-);
+  });
+}
