@@ -42,7 +42,7 @@ export const Sidebar = () => {
         {/* Mobile sidebar */}
         <aside
           className={cn(
-            "fixed top-0 left-0 z-50 h-full w-64 border-r border-gray-200 bg-white shadow-xl",
+            "border-primary/20 from-primary-50/80 to-secondary-50/30 fixed top-0 left-0 z-50 h-full w-64 border-r bg-gradient-to-b via-white shadow-xl",
             "transform transition-transform duration-300 ease-in-out md:hidden",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           )}
@@ -58,8 +58,8 @@ export const Sidebar = () => {
     <aside
       className={cn(
         "fixed top-0 left-0 z-40 hidden h-full md:block",
-        "bg-gradient-to-b from-white via-blue-50/20 to-white",
-        "border-r border-blue-100/50 shadow-lg shadow-blue-100/50",
+        "from-primary-50/80 to-secondary-50/30 bg-gradient-to-b via-white",
+        "border-primary/20 shadow-primary/10 border-r shadow-lg",
         "backdrop-blur-sm transition-all duration-300 ease-out",
         sidebarExpanded ? "w-64" : "w-16"
       )}
@@ -73,7 +73,7 @@ const SidebarContent = () => {
   return (
     <div className="flex h-full flex-col">
       {/* Logo Section */}
-      <div className="border-b border-blue-100/50 bg-gradient-to-r from-blue-50/30 to-transparent">
+      <div className="border-primary/20 from-primary-100/50 border-b bg-gradient-to-r to-transparent">
         <Logo />
       </div>
 
@@ -83,7 +83,7 @@ const SidebarContent = () => {
       </div>
 
       {/* User Controls */}
-      <div className="border-t border-blue-100/50 bg-gradient-to-r from-blue-50/30 to-transparent">
+      <div className="border-primary/20 from-primary-100/50 border-t bg-gradient-to-r to-transparent">
         <UserControls />
       </div>
     </div>

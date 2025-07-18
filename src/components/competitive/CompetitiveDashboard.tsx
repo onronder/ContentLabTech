@@ -3,6 +3,7 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useCompetitiveDashboard } from "@/hooks/useCompetitiveDashboard";
 import { CompetitiveErrorBoundary } from "./CompetitiveErrorBoundary";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -36,12 +37,9 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
     return (
       <div className="p-8 text-center">
         <div className="mb-4 text-red-600">{error}</div>
-        <button
-          onClick={refresh}
-          className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
+        <Button onClick={refresh} variant="destructive" className="shadow-lg">
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -50,15 +48,14 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Competitive Intelligence</h1>
+          <h1 className="bg-gradient-primary bg-clip-text text-3xl font-bold text-transparent">
+            Competitive Intelligence
+          </h1>
           <WebSocketStatus projectId={projectId} className="mt-2" />
         </div>
-        <button
-          onClick={refresh}
-          className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-        >
+        <Button onClick={refresh} variant="default" className="shadow-lg">
           Refresh
-        </button>
+        </Button>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
@@ -72,30 +69,49 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card>
+            <Card className="border-l-primary-500 border-l-4">
               <CardHeader>
-                <CardTitle>Total Competitors</CardTitle>
+                <CardTitle className="text-primary-700">
+                  Total Competitors
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{competitors.length}</div>
+                <div className="text-primary-600 text-3xl font-bold">
+                  {competitors.length}
+                </div>
+                <div className="text-success mt-1 text-sm font-medium">
+                  Active tracking
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-warning-500 border-l-4">
               <CardHeader>
-                <CardTitle>Active Alerts</CardTitle>
+                <CardTitle className="text-warning-700">
+                  Active Alerts
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{alerts.length}</div>
+                <div className="text-warning-600 text-3xl font-bold">
+                  {alerts.length}
+                </div>
+                <div className="text-warning mt-1 text-sm font-medium">
+                  Monitoring
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-l-info-500 border-l-4">
               <CardHeader>
-                <CardTitle>Recent Analysis</CardTitle>
+                <CardTitle className="text-info-700">Recent Analysis</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analysis.length}</div>
+                <div className="text-info-600 text-3xl font-bold">
+                  {analysis.length}
+                </div>
+                <div className="text-info mt-1 text-sm font-medium">
+                  Completed
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -125,10 +141,22 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
                   </div>
                   <div className="space-y-4">
                     {competitors.map(competitor => (
-                      <div key={competitor.id} className="rounded border p-4">
-                        <h3 className="font-semibold">{competitor.name}</h3>
-                        <p className="text-gray-600">{competitor.url}</p>
-                        <p className="text-sm text-gray-500">
+                      <div
+                        key={competitor.id}
+                        className="border-primary/20 to-primary-50/30 rounded-lg border bg-gradient-to-r from-white p-4 transition-all duration-200 hover:shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-primary-800 font-semibold">
+                            {competitor.name}
+                          </h3>
+                          <span className="bg-success inline-flex items-center rounded-full px-2 py-1 text-xs font-medium text-white">
+                            Active
+                          </span>
+                        </div>
+                        <p className="text-primary-600 mt-1">
+                          {competitor.url}
+                        </p>
+                        <p className="mt-1 text-sm text-neutral-600">
                           {competitor.industry}
                         </p>
                       </div>
@@ -164,12 +192,22 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
                   </div>
                   <div className="space-y-4">
                     {alerts.map(alert => (
-                      <div key={alert.id} className="rounded border p-4">
-                        <h3 className="font-semibold">{alert.alert_type}</h3>
-                        <p className="text-gray-600">
+                      <div
+                        key={alert.id}
+                        className="border-warning/20 to-warning-50/30 rounded-lg border bg-gradient-to-r from-white p-4 transition-all duration-200 hover:shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-warning-800 font-semibold">
+                            {alert.alert_type}
+                          </h3>
+                          <span className="bg-warning inline-flex items-center rounded-full px-2 py-1 text-xs font-medium text-white">
+                            Monitoring
+                          </span>
+                        </div>
+                        <p className="text-warning-600 mt-1">
                           Threshold: {alert.threshold}%
                         </p>
-                        <p className="text-sm text-gray-500">
+                        <p className="mt-1 text-sm text-neutral-600">
                           Frequency: {alert.frequency}
                         </p>
                       </div>
@@ -209,10 +247,32 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
                   </div>
                   <div className="space-y-4">
                     {analysis.map((result, index) => (
-                      <div key={index} className="rounded border p-4">
-                        <h3 className="font-semibold">Analysis #{index + 1}</h3>
-                        <p className="text-gray-600">Status: {result.status}</p>
-                        <p className="text-sm text-gray-500">
+                      <div
+                        key={index}
+                        className="border-info/20 to-info-50/30 rounded-lg border bg-gradient-to-r from-white p-4 transition-all duration-200 hover:shadow-md"
+                      >
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-info-800 font-semibold">
+                            Analysis #{index + 1}
+                          </h3>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              result.status === "completed"
+                                ? "bg-success text-white"
+                                : result.status === "pending"
+                                  ? "bg-warning text-white"
+                                  : result.status === "failed"
+                                    ? "bg-error text-white"
+                                    : "bg-info text-white"
+                            }`}
+                          >
+                            {result.status}
+                          </span>
+                        </div>
+                        <p className="text-info-600 mt-1">
+                          Status: {result.status}
+                        </p>
+                        <p className="mt-1 text-sm text-neutral-600">
                           Created:{" "}
                           {new Date(result.created_at).toLocaleDateString()}
                         </p>

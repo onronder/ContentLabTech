@@ -87,18 +87,18 @@ export const EnhancedNavItems = () => {
             href={item.href}
             className={cn(
               "group flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-              "hover:bg-blue-50 hover:text-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none",
+              "hover:from-primary-50 hover:to-secondary-50/50 hover:text-primary-700 focus:ring-primary-500 hover:bg-gradient-to-r focus:ring-2 focus:ring-offset-2 focus:outline-none",
               isActive
-                ? "border border-blue-200 bg-blue-100 text-blue-700 shadow-sm"
-                : "text-gray-700 hover:text-blue-700"
+                ? "border-primary-200 from-primary-100 to-secondary-100/50 text-primary-700 border bg-gradient-to-r shadow-md"
+                : "hover:text-primary-700 text-neutral-700"
             )}
           >
             <item.icon
               className={cn(
                 "h-5 w-5 flex-shrink-0 transition-colors duration-200",
                 isActive
-                  ? "text-blue-600"
-                  : "text-gray-400 group-hover:text-blue-600"
+                  ? "text-primary-600"
+                  : "group-hover:text-primary-600 text-neutral-400"
               )}
             />
 
@@ -108,8 +108,8 @@ export const EnhancedNavItems = () => {
                   className={cn(
                     "truncate font-medium transition-colors duration-200",
                     isActive
-                      ? "text-blue-700"
-                      : "text-gray-900 group-hover:text-blue-700"
+                      ? "text-primary-700"
+                      : "group-hover:text-primary-700 text-neutral-900"
                   )}
                 >
                   {item.name}
@@ -118,8 +118,8 @@ export const EnhancedNavItems = () => {
                   className={cn(
                     "mt-0.5 truncate text-xs transition-colors duration-200",
                     isActive
-                      ? "text-blue-500"
-                      : "text-gray-500 group-hover:text-blue-500"
+                      ? "text-primary-500"
+                      : "group-hover:text-primary-500 text-neutral-500"
                   )}
                 >
                   {item.description}
@@ -129,14 +129,14 @@ export const EnhancedNavItems = () => {
 
             {/* Badge */}
             {item.badge && sidebarExpanded && (
-              <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">
+              <span className="from-secondary-100 to-secondary-200 text-secondary-700 ml-2 inline-flex items-center rounded-full bg-gradient-to-r px-2 py-0.5 text-xs font-medium">
                 {item.badge}
               </span>
             )}
 
             {/* Active indicator */}
             {isActive && (
-              <div className="absolute top-1/2 left-0 h-6 w-1 -translate-y-1/2 rounded-r-full bg-blue-600" />
+              <div className="from-primary-500 to-secondary-500 absolute top-1/2 left-0 h-6 w-1 -translate-y-1/2 rounded-r-full bg-gradient-to-b" />
             )}
           </Link>
         );

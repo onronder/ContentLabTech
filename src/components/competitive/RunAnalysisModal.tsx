@@ -85,11 +85,13 @@ export function RunAnalysisModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-blue-600 hover:bg-blue-700">Run Analysis</Button>
+        <Button variant="info" className="shadow-lg">
+          Run Analysis
+        </Button>
       </DialogTrigger>
-      <DialogContent className="bg-white sm:max-w-[500px]">
+      <DialogContent className="bg-gradient-card border-info/20 border-2 sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="mb-2 text-xl font-bold text-gray-900">
+          <DialogTitle className="bg-gradient-info mb-2 bg-clip-text text-xl font-bold text-transparent">
             Run Competitive Analysis
           </DialogTitle>
         </DialogHeader>
@@ -183,14 +185,15 @@ export function RunAnalysisModal({
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={isSubmitting}
-              className="border-gray-200 px-6 py-2 text-gray-700 hover:bg-gray-50"
+              className="px-6 py-2"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-blue-600 px-6 py-2 text-white shadow-sm hover:bg-blue-700"
+              variant="info"
+              className="px-6 py-2"
             >
               {isSubmitting ? "Starting..." : "Start Analysis"}
             </Button>

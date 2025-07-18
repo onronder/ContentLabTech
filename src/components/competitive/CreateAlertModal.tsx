@@ -75,11 +75,13 @@ export function CreateAlertModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-blue-600 hover:bg-blue-700">Create Alert</Button>
+        <Button variant="warning" className="shadow-lg">
+          Create Alert
+        </Button>
       </DialogTrigger>
-      <DialogContent className="bg-white sm:max-w-[425px]">
+      <DialogContent className="bg-gradient-card border-warning/20 border-2 sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="mb-2 text-xl font-bold text-gray-900">
+          <DialogTitle className="bg-gradient-warning mb-2 bg-clip-text text-xl font-bold text-transparent">
             Create New Alert
           </DialogTitle>
         </DialogHeader>
@@ -160,14 +162,15 @@ export function CreateAlertModal({
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={isSubmitting}
-              className="border-gray-200 px-6 py-2 text-gray-700 hover:bg-gray-50"
+              className="px-6 py-2"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-blue-600 px-6 py-2 text-white shadow-sm hover:bg-blue-700"
+              variant="warning"
+              className="px-6 py-2"
             >
               {isSubmitting ? "Creating..." : "Create Alert"}
             </Button>
