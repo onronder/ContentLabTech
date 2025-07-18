@@ -158,38 +158,425 @@ export interface Database {
         Row: {
           id: string;
           project_id: string;
+          team_id: string;
           name: string;
           website_url: string;
           description: string | null;
           market_share: number | null;
           monitoring_enabled: boolean;
           last_analyzed_at: string | null;
+          competitor_name: string | null;
+          competitor_url: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           project_id: string;
+          team_id: string;
           name: string;
           website_url: string;
           description?: string | null;
           market_share?: number | null;
           monitoring_enabled?: boolean;
           last_analyzed_at?: string | null;
+          competitor_name?: string | null;
+          competitor_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           project_id?: string;
+          team_id?: string;
           name?: string;
           website_url?: string;
           description?: string | null;
           market_share?: number | null;
           monitoring_enabled?: boolean;
           last_analyzed_at?: string | null;
+          competitor_name?: string | null;
+          competitor_url?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      competitor_alerts: {
+        Row: {
+          id: string;
+          project_id: string;
+          team_id: string;
+          competitor_id: string | null;
+          alert_type:
+            | "ranking_change"
+            | "traffic_change"
+            | "new_content"
+            | "keyword_opportunity"
+            | "technical_issue";
+          keyword: string | null;
+          threshold: number | null;
+          frequency: "immediate" | "daily" | "weekly";
+          is_active: boolean;
+          alert_config: Json;
+          last_triggered: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          team_id: string;
+          competitor_id?: string | null;
+          alert_type:
+            | "ranking_change"
+            | "traffic_change"
+            | "new_content"
+            | "keyword_opportunity"
+            | "technical_issue";
+          keyword?: string | null;
+          threshold?: number | null;
+          frequency?: "immediate" | "daily" | "weekly";
+          is_active?: boolean;
+          alert_config?: Json;
+          last_triggered?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          team_id?: string;
+          competitor_id?: string | null;
+          alert_type?:
+            | "ranking_change"
+            | "traffic_change"
+            | "new_content"
+            | "keyword_opportunity"
+            | "technical_issue";
+          keyword?: string | null;
+          threshold?: number | null;
+          frequency?: "immediate" | "daily" | "weekly";
+          is_active?: boolean;
+          alert_config?: Json;
+          last_triggered?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      competitor_analysis_results: {
+        Row: {
+          id: string;
+          project_id: string;
+          team_id: string;
+          competitor_id: string;
+          analysis_type:
+            | "content_gap"
+            | "keyword_overlap"
+            | "backlink_analysis"
+            | "technical_seo"
+            | "performance_metrics"
+            | "content_strategy";
+          analysis_data: Json;
+          confidence_score: number | null;
+          generated_at: string;
+          expires_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          team_id: string;
+          competitor_id: string;
+          analysis_type:
+            | "content_gap"
+            | "keyword_overlap"
+            | "backlink_analysis"
+            | "technical_seo"
+            | "performance_metrics"
+            | "content_strategy";
+          analysis_data?: Json;
+          confidence_score?: number | null;
+          generated_at?: string;
+          expires_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          team_id?: string;
+          competitor_id?: string;
+          analysis_type?:
+            | "content_gap"
+            | "keyword_overlap"
+            | "backlink_analysis"
+            | "technical_seo"
+            | "performance_metrics"
+            | "content_strategy";
+          analysis_data?: Json;
+          confidence_score?: number | null;
+          generated_at?: string;
+          expires_at?: string | null;
+          created_at?: string;
+        };
+      };
+      competitor_tracking: {
+        Row: {
+          id: string;
+          project_id: string;
+          team_id: string;
+          competitor_id: string;
+          tracking_date: string;
+          metrics: Json;
+          rankings: Json;
+          traffic_data: Json;
+          content_count: number;
+          backlink_count: number;
+          domain_authority: number | null;
+          page_authority: number | null;
+          organic_keywords: number;
+          paid_keywords: number;
+          social_signals: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          team_id: string;
+          competitor_id: string;
+          tracking_date?: string;
+          metrics?: Json;
+          rankings?: Json;
+          traffic_data?: Json;
+          content_count?: number;
+          backlink_count?: number;
+          domain_authority?: number | null;
+          page_authority?: number | null;
+          organic_keywords?: number;
+          paid_keywords?: number;
+          social_signals?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          team_id?: string;
+          competitor_id?: string;
+          tracking_date?: string;
+          metrics?: Json;
+          rankings?: Json;
+          traffic_data?: Json;
+          content_count?: number;
+          backlink_count?: number;
+          domain_authority?: number | null;
+          page_authority?: number | null;
+          organic_keywords?: number;
+          paid_keywords?: number;
+          social_signals?: Json;
+          created_at?: string;
+        };
+      };
+      competitive_keywords: {
+        Row: {
+          id: string;
+          project_id: string;
+          team_id: string;
+          keyword: string;
+          search_volume: number;
+          difficulty_score: number | null;
+          cpc: number | null;
+          competition_level:
+            | Database["public"]["Enums"]["competition_level"]
+            | null;
+          trend_data: Json;
+          our_position: number | null;
+          our_url: string | null;
+          competitors_data: Json;
+          opportunity_score: number | null;
+          last_updated: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          team_id: string;
+          keyword: string;
+          search_volume?: number;
+          difficulty_score?: number | null;
+          cpc?: number | null;
+          competition_level?:
+            | Database["public"]["Enums"]["competition_level"]
+            | null;
+          trend_data?: Json;
+          our_position?: number | null;
+          our_url?: string | null;
+          competitors_data?: Json;
+          opportunity_score?: number | null;
+          last_updated?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          team_id?: string;
+          keyword?: string;
+          search_volume?: number;
+          difficulty_score?: number | null;
+          cpc?: number | null;
+          competition_level?:
+            | Database["public"]["Enums"]["competition_level"]
+            | null;
+          trend_data?: Json;
+          our_position?: number | null;
+          our_url?: string | null;
+          competitors_data?: Json;
+          opportunity_score?: number | null;
+          last_updated?: string;
+          created_at?: string;
+        };
+      };
+      competitive_content_analysis: {
+        Row: {
+          id: string;
+          project_id: string;
+          team_id: string;
+          competitor_id: string;
+          content_url: string;
+          content_title: string | null;
+          content_type:
+            | "blog_post"
+            | "landing_page"
+            | "product_page"
+            | "category_page"
+            | "guide"
+            | "case_study"
+            | "whitepaper"
+            | "infographic"
+            | "video"
+            | "other"
+            | null;
+          word_count: number;
+          readability_score: number | null;
+          seo_score: number | null;
+          target_keywords: string[];
+          meta_title: string | null;
+          meta_description: string | null;
+          headings: Json;
+          internal_links: number;
+          external_links: number;
+          images_count: number;
+          social_shares: Json;
+          estimated_traffic: number;
+          content_freshness: string | null;
+          analysis_data: Json;
+          discovered_at: string;
+          last_analyzed: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          team_id: string;
+          competitor_id: string;
+          content_url: string;
+          content_title?: string | null;
+          content_type?:
+            | "blog_post"
+            | "landing_page"
+            | "product_page"
+            | "category_page"
+            | "guide"
+            | "case_study"
+            | "whitepaper"
+            | "infographic"
+            | "video"
+            | "other"
+            | null;
+          word_count?: number;
+          readability_score?: number | null;
+          seo_score?: number | null;
+          target_keywords?: string[];
+          meta_title?: string | null;
+          meta_description?: string | null;
+          headings?: Json;
+          internal_links?: number;
+          external_links?: number;
+          images_count?: number;
+          social_shares?: Json;
+          estimated_traffic?: number;
+          content_freshness?: string | null;
+          analysis_data?: Json;
+          discovered_at?: string;
+          last_analyzed?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          team_id?: string;
+          competitor_id?: string;
+          content_url?: string;
+          content_title?: string | null;
+          content_type?:
+            | "blog_post"
+            | "landing_page"
+            | "product_page"
+            | "category_page"
+            | "guide"
+            | "case_study"
+            | "whitepaper"
+            | "infographic"
+            | "video"
+            | "other"
+            | null;
+          word_count?: number;
+          readability_score?: number | null;
+          seo_score?: number | null;
+          target_keywords?: string[];
+          meta_title?: string | null;
+          meta_description?: string | null;
+          headings?: Json;
+          internal_links?: number;
+          external_links?: number;
+          images_count?: number;
+          social_shares?: Json;
+          estimated_traffic?: number;
+          content_freshness?: string | null;
+          analysis_data?: Json;
+          discovered_at?: string;
+          last_analyzed?: string;
+          created_at?: string;
+        };
+      };
+      user_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_type: string;
+          event_data: Json;
+          ip_address: string | null;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          event_type: string;
+          event_data?: Json;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          event_type?: string;
+          event_data?: Json;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
         };
       };
       keyword_opportunities: {
