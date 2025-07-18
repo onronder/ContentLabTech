@@ -53,7 +53,6 @@ export async function authenticatedApiHandler(
       `
       )
       .eq("user_id", user.id)
-      .eq("status", "active")
       .single();
 
     if (teamError || !teamMember) {
