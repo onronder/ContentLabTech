@@ -1,418 +1,206 @@
-/**
- * Competitive Intelligence API - Analysis Management
- * RESTful API endpoints for managing competitive analysis jobs and results
- */
-
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { z } from "zod";
 import { authenticatedApiHandler } from "@/lib/auth/api-handler";
-import type {
-  CompetitiveIntelligenceResponse,
-  AnalysisStatusResponse,
-} from "@/lib/competitive/types";
-import type {
-  CompetitiveAnalysisJobData,
-  CompetitiveAnalysisResult,
-} from "@/lib/jobs/types";
+import { createClient } from "@/lib/supabase/server-auth";
+import { NextRequest, NextResponse } from "next/server";
 
-const supabase = createClient(
-  process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-  process.env["SUPABASE_SERVICE_ROLE_KEY"]!
-);
-
-// Validation schemas
-const createAnalysisSchema = z.object({
-  projectId: z.string().uuid(),
-  userId: z.string().uuid(),
-  teamId: z.string().uuid(),
-  targetDomain: z
-    .string()
-    .url()
-    .transform(url => new URL(url).hostname),
-  competitorIds: z.array(z.string().uuid()).min(1).max(10),
-  analysisTypes: z
-    .array(
-      z.enum([
-        "content-similarity",
-        "seo-comparison",
-        "performance-benchmark",
-        "market-position",
-        "content-gaps",
-        "comprehensive",
-      ])
-    )
-    .min(1),
-  options: z
-    .object({
-      depth: z.enum(["basic", "standard", "comprehensive"]).default("standard"),
-      includeHistorical: z.boolean().default(false),
-      alertsEnabled: z.boolean().default(true),
-      customParameters: z.record(z.unknown()).optional(),
-    })
-    .default({}),
-});
-
-const queryAnalysisSchema = z.object({
-  projectId: z.string().uuid().optional(),
-  competitorId: z.string().uuid().optional(),
-  analysisType: z
-    .enum([
-      "content-similarity",
-      "seo-comparison",
-      "performance-benchmark",
-      "market-position",
-      "content-gaps",
-      "comprehensive",
-    ])
-    .optional(),
-  status: z.enum(["pending", "processing", "completed", "failed"]).optional(),
-  page: z
-    .string()
-    .optional()
-    .transform(val => (val ? parseInt(val) : 1)),
-  pageSize: z
-    .string()
-    .optional()
-    .transform(val => (val ? Math.min(parseInt(val), 50) : 20)),
-  sortBy: z.enum(["timestamp", "progress", "status"]).default("timestamp"),
-  sortOrder: z.enum(["asc", "desc"]).default("desc"),
-});
-
-/**
- * GET /api/competitive/analysis
- * List competitive analysis results with filtering and pagination
- */
 export async function GET(request: NextRequest) {
-  return authenticatedApiHandler(request, async (_user, _team) => {
-    try {
-      const { searchParams } = new URL(request.url);
-      const query = queryAnalysisSchema.parse(Object.fromEntries(searchParams));
+  return authenticatedApiHandler(request, async (user, team) => {
+    const supabase = await createClient();
 
-      // Build the query with team filtering
-      let supabaseQuery = supabase.from("competitive_analysis_results").select(
-        `
-        *,
-        competitors:competitor_id (
-          id,
-          name,
-          domain,
-          category
-        )
-      `,
-        { count: "exact" }
-      );
+    // Debug logging
+    console.log("User:", user.id, "Team:", team.id);
 
-      // Apply filters
-      if (query.projectId) {
-        supabaseQuery = supabaseQuery.eq("project_id", query.projectId);
-      }
-      if (query.competitorId) {
-        supabaseQuery = supabaseQuery.eq("competitor_id", query.competitorId);
-      }
-      if (query.analysisType) {
-        supabaseQuery = supabaseQuery.eq("analysis_type", query.analysisType);
-      }
-      if (query.status) {
-        supabaseQuery = supabaseQuery.eq("status", query.status);
-      }
+    // Verify team membership
+    const { data: membership, error: membershipError } = await supabase
+      .from("team_members")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("team_id", team.id)
+      .single();
 
-      // Apply sorting
-      supabaseQuery = supabaseQuery.order(query.sortBy, {
-        ascending: query.sortOrder === "asc",
-      });
-
-      // Apply pagination
-      const offset = (query.page - 1) * query.pageSize;
-      supabaseQuery = supabaseQuery.range(offset, offset + query.pageSize - 1);
-
-      const { data: analysisResults, error, count } = await supabaseQuery;
-
-      if (error) {
-        console.error("Error fetching analysis results:", error);
-        // Return empty result for now if table doesn't exist
-        const mockResponse = {
-          results: [],
-          pagination: {
-            total: 0,
-            page: query.page,
-            pageSize: query.pageSize,
-            hasNext: false,
-          },
-          filters: {
-            applied: {
-              projectId: query.projectId,
-              competitorId: query.competitorId,
-              analysisType: query.analysisType,
-              status: query.status,
-            },
-          },
-        };
-
-        return NextResponse.json({
-          success: true,
-          data: mockResponse,
-          metadata: {
-            timestamp: new Date(),
-            version: "1.0.0",
-            processingTime: 0,
-          },
-        } as CompetitiveIntelligenceResponse<typeof mockResponse>);
-      }
-
-      // Transform to TypeScript interface format
-      const transformedResults: CompetitiveAnalysisResult[] = (
-        analysisResults || []
-      ).map(result => ({
-        id: result.id,
-        projectId: result.project_id,
-        competitorId: result.competitor_id,
-        analysisType: result.analysis_type,
-        timestamp: new Date(result.timestamp),
-        status: result.status,
-        progress: result.progress,
-        data: result.data,
-        confidence: result.confidence,
-        metadata: result.metadata,
-      }));
-
-      const response = {
-        results: transformedResults,
-        pagination: {
-          total: count || 0,
-          page: query.page,
-          pageSize: query.pageSize,
-          hasNext: offset + query.pageSize < (count || 0),
-        },
-        filters: {
-          applied: {
-            projectId: query.projectId,
-            competitorId: query.competitorId,
-            analysisType: query.analysisType,
-            status: query.status,
-          },
-        },
-      };
-
-      return NextResponse.json({
-        success: true,
-        data: response,
-        metadata: {
-          timestamp: new Date(),
-          version: "1.0.0",
-          processingTime: 0,
-        },
-      } as CompetitiveIntelligenceResponse<typeof response>);
-    } catch (error) {
-      console.error("Error in analysis GET:", error);
+    if (membershipError || !membership) {
+      console.error("Team membership error:", membershipError);
       return NextResponse.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-          metadata: {
-            timestamp: new Date(),
-            version: "1.0.0",
-            processingTime: 0,
-          },
-        } as CompetitiveIntelligenceResponse,
+          error: "Team membership validation failed",
+          code: "NO_MEMBERSHIP",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Parse query parameters
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get("projectId");
+    const analysisType = searchParams.get("analysisType");
+    const competitorId = searchParams.get("competitorId");
+    const limit = parseInt(searchParams.get("limit") || "50");
+
+    // Validate projectId if provided
+    if (projectId) {
+      const { data: project, error: projectError } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("id", projectId)
+        .eq("team_id", team.id)
+        .single();
+
+      if (projectError || !project) {
+        return NextResponse.json(
+          { success: false, error: "Project not found or access denied" },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Build query for analysis results
+    let query = supabase
+      .from("competitor_analysis_results")
+      .select("*")
+      .eq("team_id", team.id)
+      .order("generated_at", { ascending: false })
+      .limit(limit);
+
+    if (projectId) {
+      query = query.eq("project_id", projectId);
+    }
+
+    if (analysisType) {
+      query = query.eq("analysis_type", analysisType);
+    }
+
+    if (competitorId) {
+      query = query.eq("competitor_id", competitorId);
+    }
+
+    const { data: analyses, error } = await query;
+
+    if (error) {
+      console.error("Database error:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to fetch analyses",
+          details: error.message,
+        },
         { status: 500 }
       );
     }
+
+    // Get analysis statistics
+    const { data: analysisStats } = await supabase
+      .from("competitor_analysis_results")
+      .select("analysis_type, confidence_score, generated_at")
+      .eq("team_id", team.id);
+
+    const stats = {
+      total: analysisStats?.length || 0,
+      byType:
+        analysisStats?.reduce(
+          (acc, analysis) => {
+            acc[analysis.analysis_type] =
+              (acc[analysis.analysis_type] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        ) || {},
+      avgConfidence: analysisStats?.length
+        ? analysisStats.reduce((sum, a) => sum + (a.confidence_score || 0), 0) /
+          analysisStats.length
+        : 0,
+      recent:
+        analysisStats?.filter(
+          a =>
+            new Date(a.generated_at) >
+            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        )?.length || 0,
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: analyses || [],
+      stats,
+      count: analyses?.length || 0,
+    });
   });
 }
 
-/**
- * POST /api/competitive/analysis
- * Create a new competitive analysis job
- */
 export async function POST(request: NextRequest) {
-  return authenticatedApiHandler(request, async (_user, _team) => {
-    try {
-      const body = await request.json();
-      const validatedData = createAnalysisSchema.parse(body);
+  return authenticatedApiHandler(request, async (user, team) => {
+    const supabase = await createClient();
+    const body = await request.json();
 
-      // Verify that all competitors exist
-      const { data: competitors, error: competitorError } = await supabase
-        .from("competitors")
-        .select("id, status")
-        .in("id", validatedData.competitorIds);
-
-      if (
-        competitorError ||
-        !competitors ||
-        competitors.length !== validatedData.competitorIds.length
-      ) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "One or more competitors not found",
-            metadata: {
-              timestamp: new Date(),
-              version: "1.0.0",
-              processingTime: 0,
-            },
-          } as CompetitiveIntelligenceResponse,
-          { status: 400 }
-        );
-      }
-
-      // Check if any competitors are inactive
-      const inactiveCompetitors = competitors.filter(
-        comp => comp.status === "inactive"
-      );
-      if (inactiveCompetitors.length > 0) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Cannot analyze inactive competitors",
-            metadata: {
-              timestamp: new Date(),
-              version: "1.0.0",
-              processingTime: 0,
-            },
-          } as CompetitiveIntelligenceResponse,
-          { status: 400 }
-        );
-      }
-
-      // Import job queue and processor
-      const { jobQueue } = await import("@/lib/jobs/queue");
-      const { CompetitiveAnalysisProcessor } = await import(
-        "@/lib/jobs/processors/competitive-analysis"
-      );
-
-      // Create job data
-      const jobData: CompetitiveAnalysisJobData = {
-        projectId: validatedData.projectId,
-        userId: validatedData.userId,
-        teamId: validatedData.teamId,
-        params: {
-          targetDomain: validatedData.targetDomain,
-          competitorIds: validatedData.competitorIds,
-          analysisTypes: validatedData.analysisTypes,
-          options: {
-            depth: validatedData.options.depth,
-            includeHistorical: validatedData.options.includeHistorical,
-            alertsEnabled: validatedData.options.alertsEnabled,
-            ...(validatedData.options.customParameters && {
-              customParameters: validatedData.options.customParameters,
-            }),
-          },
-        },
-      };
-
-      // Estimate processing time
-      const processor = new CompetitiveAnalysisProcessor();
-      const estimatedTime = processor.estimateProcessingTime(jobData);
-
-      // Determine priority based on analysis scope
-      const priority = validatedData.analysisTypes.includes("comprehensive")
-        ? "high"
-        : validatedData.competitorIds.length > 3
-          ? "high"
-          : "normal";
-
-      // Add job to queue
-      const jobId = await jobQueue.addJob(
-        "competitive-analysis",
-        jobData,
-        priority
-      );
-
-      // Create initial database record
-      const { data: _analysisRecord, error: recordError } = await supabase
-        .from("competitive_analysis_results")
-        .insert({
-          job_id: jobId,
-          project_id: validatedData.projectId,
-          competitor_id: validatedData.competitorIds[0], // Primary competitor
-          analysis_type: validatedData.analysisTypes.includes("comprehensive")
-            ? "comprehensive"
-            : validatedData.analysisTypes[0],
-          timestamp: new Date().toISOString(),
-          status: "pending",
-          progress: 0,
-          data: {},
-          confidence: {},
-          metadata: {
-            estimatedTime,
-            competitorCount: validatedData.competitorIds.length,
-            analysisTypes: validatedData.analysisTypes,
-            options: validatedData.options,
-          },
-        })
-        .select()
-        .single();
-
-      if (recordError) {
-        console.error("Error creating analysis record:", recordError);
-        // Try to cancel the job
-        await jobQueue.cancelJob(jobId);
-
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Failed to create analysis record",
-            metadata: {
-              timestamp: new Date(),
-              version: "1.0.0",
-              processingTime: 0,
-            },
-          } as CompetitiveIntelligenceResponse,
-          { status: 500 }
-        );
-      }
-
-      const response: AnalysisStatusResponse = {
-        jobId,
-        status: "pending",
-        progress: 0,
-        estimatedTimeRemaining: estimatedTime,
-        currentStep: "Queued for processing",
-      };
-
-      return NextResponse.json(
-        {
-          success: true,
-          data: response,
-          metadata: {
-            timestamp: new Date(),
-            version: "1.0.0",
-            processingTime: 0,
-          },
-        } as CompetitiveIntelligenceResponse<AnalysisStatusResponse>,
-        { status: 201 }
-      );
-    } catch (error) {
-      console.error("Error in analysis POST:", error);
-
-      if (error instanceof z.ZodError) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Invalid request data",
-            metadata: {
-              timestamp: new Date(),
-              version: "1.0.0",
-              processingTime: 0,
-            },
-          } as CompetitiveIntelligenceResponse,
-          { status: 400 }
-        );
-      }
-
+    // Validate required fields
+    if (!body.project_id || !body.competitor_id || !body.analysis_type) {
       return NextResponse.json(
         {
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-          metadata: {
-            timestamp: new Date(),
-            version: "1.0.0",
-            processingTime: 0,
-          },
-        } as CompetitiveIntelligenceResponse,
+          error: "project_id, competitor_id, and analysis_type are required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Verify project belongs to team
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("id", body.project_id)
+      .eq("team_id", team.id)
+      .single();
+
+    if (projectError || !project) {
+      return NextResponse.json(
+        { success: false, error: "Project not found or access denied" },
+        { status: 404 }
+      );
+    }
+
+    // Verify competitor belongs to team
+    const { data: competitor, error: competitorError } = await supabase
+      .from("competitors")
+      .select("id")
+      .eq("id", body.competitor_id)
+      .eq("team_id", team.id)
+      .single();
+
+    if (competitorError || !competitor) {
+      return NextResponse.json(
+        { success: false, error: "Competitor not found or access denied" },
+        { status: 404 }
+      );
+    }
+
+    // Create analysis result
+    const { data: analysis, error } = await supabase
+      .from("competitor_analysis_results")
+      .insert({
+        team_id: team.id,
+        project_id: body.project_id,
+        competitor_id: body.competitor_id,
+        analysis_type: body.analysis_type,
+        analysis_data: body.analysis_data || {},
+        confidence_score: body.confidence_score,
+        expires_at: body.expires_at,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Create analysis error:", error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Failed to create analysis",
+          details: error.message,
+        },
         { status: 500 }
       );
     }
+
+    return NextResponse.json({
+      success: true,
+      data: analysis,
+    });
   });
 }
