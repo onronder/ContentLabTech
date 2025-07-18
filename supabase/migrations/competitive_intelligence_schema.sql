@@ -558,13 +558,13 @@ BEGIN
     
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
     
-    -- Log the cleanup
-    INSERT INTO user_events (user_id, event_type, event_data)
-    VALUES (
-        '00000000-0000-0000-0000-000000000000'::UUID,
-        'system_cleanup',
-        jsonb_build_object('deleted_analyses', deleted_count, 'table', 'competitor_analysis_results')
-    );
+    -- Log the cleanup (commented out to avoid foreign key constraint issues)
+    -- INSERT INTO user_events (user_id, event_type, event_data)
+    -- VALUES (
+    --     '00000000-0000-0000-0000-000000000000'::UUID,
+    --     'system_cleanup',
+    --     jsonb_build_object('deleted_analyses', deleted_count, 'table', 'competitor_analysis_results')
+    -- );
     
     RETURN deleted_count;
 END;
@@ -657,29 +657,6 @@ GRANT EXECUTE ON FUNCTION cleanup_expired_competitive_analysis TO authenticated;
 -- =============================================
 -- SCHEMA CREATION COMPLETE
 -- =============================================
-
--- Log the schema creation
-INSERT INTO user_events (user_id, event_type, event_data)
-VALUES (
-    '00000000-0000-0000-0000-000000000000'::UUID,
-    'schema_creation',
-    jsonb_build_object(
-        'schema_type', 'competitive_intelligence',
-        'tables_created', ARRAY[
-            'competitor_alerts',
-            'competitor_analysis_results', 
-            'competitor_tracking',
-            'competitive_keywords',
-            'competitive_content_analysis',
-            'user_events'
-        ],
-        'functions_created', ARRAY[
-            'get_competitor_analysis_summary',
-            'get_keyword_opportunities',
-            'cleanup_expired_competitive_analysis'
-        ]
-    )
-);
 
 -- Success message
 SELECT 'Competitive Intelligence Database Schema Created Successfully!' as status;
