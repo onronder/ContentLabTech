@@ -9,6 +9,10 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { WebSocketStatus } from "./WebSocketStatus";
 import { RealTimeUpdates } from "./RealTimeUpdates";
 import { WebSocketTester } from "./WebSocketTester";
+import { AddCompetitorModal } from "./AddCompetitorModal";
+import { CreateAlertModal } from "./CreateAlertModal";
+import { RunAnalysisModal } from "./RunAnalysisModal";
+import { useAuth } from "@/lib/auth/context";
 
 interface CompetitiveDashboardProps {
   projectId: string;
@@ -17,6 +21,7 @@ interface CompetitiveDashboardProps {
 function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
   const { competitors, alerts, analysis, loading, error, refresh } =
     useCompetitiveDashboard(projectId);
+  const { currentTeam } = useAuth();
 
   if (loading) {
     return (
@@ -105,21 +110,30 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
               {competitors.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="mb-4 text-gray-500">No competitors added yet</p>
-                  <button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                    Add Competitor
-                  </button>
+                  <AddCompetitorModal
+                    onCompetitorAdded={refresh}
+                    teamId={currentTeam?.id || ""}
+                  />
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {competitors.map(competitor => (
-                    <div key={competitor.id} className="rounded border p-4">
-                      <h3 className="font-semibold">{competitor.name}</h3>
-                      <p className="text-gray-600">{competitor.url}</p>
-                      <p className="text-sm text-gray-500">
-                        {competitor.industry}
-                      </p>
-                    </div>
-                  ))}
+                  <div className="flex justify-end">
+                    <AddCompetitorModal
+                      onCompetitorAdded={refresh}
+                      teamId={currentTeam?.id || ""}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    {competitors.map(competitor => (
+                      <div key={competitor.id} className="rounded border p-4">
+                        <h3 className="font-semibold">{competitor.name}</h3>
+                        <p className="text-gray-600">{competitor.url}</p>
+                        <p className="text-sm text-gray-500">
+                          {competitor.industry}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -135,23 +149,32 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
               {alerts.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="mb-4 text-gray-500">No alerts configured</p>
-                  <button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                    Create Alert
-                  </button>
+                  <CreateAlertModal
+                    onAlertCreated={refresh}
+                    teamId={currentTeam?.id || ""}
+                  />
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {alerts.map(alert => (
-                    <div key={alert.id} className="rounded border p-4">
-                      <h3 className="font-semibold">{alert.alert_type}</h3>
-                      <p className="text-gray-600">
-                        Threshold: {alert.threshold}%
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Frequency: {alert.frequency}
-                      </p>
-                    </div>
-                  ))}
+                  <div className="flex justify-end">
+                    <CreateAlertModal
+                      onAlertCreated={refresh}
+                      teamId={currentTeam?.id || ""}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    {alerts.map(alert => (
+                      <div key={alert.id} className="rounded border p-4">
+                        <h3 className="font-semibold">{alert.alert_type}</h3>
+                        <p className="text-gray-600">
+                          Threshold: {alert.threshold}%
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Frequency: {alert.frequency}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -169,22 +192,33 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
                   <p className="mb-4 text-gray-500">
                     No analysis results available
                   </p>
-                  <button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-                    Run Analysis
-                  </button>
+                  <RunAnalysisModal
+                    onAnalysisStarted={refresh}
+                    teamId={currentTeam?.id || ""}
+                    projectId={projectId}
+                  />
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {analysis.map((result, index) => (
-                    <div key={index} className="rounded border p-4">
-                      <h3 className="font-semibold">Analysis #{index + 1}</h3>
-                      <p className="text-gray-600">Status: {result.status}</p>
-                      <p className="text-sm text-gray-500">
-                        Created:{" "}
-                        {new Date(result.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                  ))}
+                  <div className="flex justify-end">
+                    <RunAnalysisModal
+                      onAnalysisStarted={refresh}
+                      teamId={currentTeam?.id || ""}
+                      projectId={projectId}
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    {analysis.map((result, index) => (
+                      <div key={index} className="rounded border p-4">
+                        <h3 className="font-semibold">Analysis #{index + 1}</h3>
+                        <p className="text-gray-600">Status: {result.status}</p>
+                        <p className="text-sm text-gray-500">
+                          Created:{" "}
+                          {new Date(result.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
