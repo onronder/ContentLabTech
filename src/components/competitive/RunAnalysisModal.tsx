@@ -87,11 +87,13 @@ export function RunAnalysisModal({
       <DialogTrigger asChild>
         <Button className="bg-blue-600 hover:bg-blue-700">Run Analysis</Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="bg-white sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Run Competitive Analysis</DialogTitle>
+          <DialogTitle className="mb-2 text-xl font-bold text-gray-900">
+            Run Competitive Analysis
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-6">
           <div>
             <select
               {...register("analysis_type", {
@@ -175,16 +177,21 @@ export function RunAnalysisModal({
             </label>
           </div>
 
-          <div className="flex justify-end space-x-2">
+          <div className="mt-6 flex justify-end space-x-3 border-t border-gray-100 pt-4">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={isSubmitting}
+              className="border-gray-200 px-6 py-2 text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-blue-600 px-6 py-2 text-white shadow-sm hover:bg-blue-700"
+            >
               {isSubmitting ? "Starting..." : "Start Analysis"}
             </Button>
           </div>
