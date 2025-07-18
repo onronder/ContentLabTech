@@ -66,6 +66,7 @@ interface _AlertsRequest {
 
 export async function POST(request: NextRequest) {
   return authenticatedApiHandler(request, async (_user, team) => {
+    const userId = _user.id; // Capture user ID for nested scopes
     return competitiveCircuitBreaker.execute(async () => {
       try {
         // Parse and validate request body
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
               threshold: threshold || getDefaultThreshold(alertType),
               frequency,
               is_active: true,
-              created_by: _user.id,
+              created_by: userId,
               alert_config: buildAlertConfig(alertType, params as AlertParams),
             };
 
@@ -205,7 +206,7 @@ export async function POST(request: NextRequest) {
 
             // Log alert creation
             await supabase.from("user_events").insert({
-              user_id: _user.id,
+              user_id: userId,
               event_type: "alert_created",
               event_data: {
                 project_id: projectId,
@@ -278,7 +279,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Test the alert by simulating a trigger
-            const testResult = await testAlert(supabase, alert, _user.id);
+            const testResult = await testAlert(supabase, alert, userId);
 
             result = {
               alertId,

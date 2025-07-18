@@ -80,12 +80,9 @@ export async function POST(request: NextRequest) {
           error: parseError,
           bodyPreview: requestText.substring(0, 100),
         });
-        return new Response(
-          JSON.stringify({ error: "Invalid JSON in request body" }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }
+        return NextResponse.json(
+          { error: "Invalid JSON in request body" },
+          { status: 400 }
         );
       }
       console.log("📊 Request body parsed successfully:", {
@@ -131,15 +128,12 @@ export async function POST(request: NextRequest) {
 
       if (!allDataValid) {
         console.log("❌ Data validation details:", dataValidation);
-        return new Response(
-          JSON.stringify({
+        return NextResponse.json(
+          {
             error: "Invalid request data",
             validation: dataValidation,
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }
+          },
+          { status: 400 }
         );
       }
 
@@ -163,12 +157,9 @@ export async function POST(request: NextRequest) {
           hasTeamId: !!body.teamId,
           hasName: !!body.name,
         });
-        return new Response(
-          JSON.stringify({ error: "Team ID and project name are required" }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          }
+        return NextResponse.json(
+          { error: "Team ID and project name are required" },
+          { status: 400 }
         );
       }
 
@@ -231,12 +222,9 @@ export async function POST(request: NextRequest) {
           teamAccessGranted: false,
           reason: teamError ? "Database error" : "User not in team",
         });
-        return new Response(
-          JSON.stringify({ error: "User is not a member of this team" }),
-          {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          }
+        return NextResponse.json(
+          { error: "User is not a member of this team" },
+          { status: 403 }
         );
       }
 
@@ -336,12 +324,9 @@ export async function POST(request: NextRequest) {
           errorHint: (createError as any)?.hint,
           fullError: createError,
         });
-        return new Response(
-          JSON.stringify({ error: "Failed to create project" }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }
+        return NextResponse.json(
+          { error: "Failed to create project" },
+          { status: 500 }
         );
       }
 
@@ -352,15 +337,12 @@ export async function POST(request: NextRequest) {
       });
 
       console.log("✅ Sending response: 201 Created");
-      return new Response(
-        JSON.stringify({
+      return NextResponse.json(
+        {
           success: true,
           project: newProject,
-        }),
-        {
-          status: 201,
-          headers: { "Content-Type": "application/json" },
-        }
+        },
+        { status: 201 }
       );
     } catch (error) {
       console.log("❌ Error caught in main try-catch:", {
@@ -433,15 +415,12 @@ export async function GET(request: NextRequest) {
 
     if (!allValid) {
       console.log("❌ Query validation details:", queryValidation);
-      return new Response(
-        JSON.stringify({
+      return NextResponse.json(
+        {
           error: "Invalid query parameters",
           validation: queryValidation,
-        }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
+        },
+        { status: 400 }
       );
     }
 
@@ -536,12 +515,9 @@ export async function GET(request: NextRequest) {
             teamsError instanceof Error ? teamsError.stack : "No stack trace",
         });
         console.log("✅ Sending response: 500 Internal Server Error");
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch user teams" }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }
+        return NextResponse.json(
+          { error: "Failed to fetch user teams" },
+          { status: 500 }
         );
       }
 
@@ -555,12 +531,9 @@ export async function GET(request: NextRequest) {
         console.log("🎯 Filtering to specific team:", teamId);
       } else if (teamId && !teamIds.includes(teamId)) {
         console.log("❌ User does not have access to requested team:", teamId);
-        return new Response(
-          JSON.stringify({ error: "Access denied to requested team" }),
-          {
-            status: 403,
-            headers: { "Content-Type": "application/json" },
-          }
+        return NextResponse.json(
+          { error: "Access denied to requested team" },
+          { status: 403 }
         );
       }
 
@@ -655,12 +628,9 @@ export async function GET(request: NextRequest) {
               : "No stack trace",
         });
         console.log("✅ Sending response: 500 Internal Server Error");
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch projects" }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json" },
-          }
+        return NextResponse.json(
+          { error: "Failed to fetch projects" },
+          { status: 500 }
         );
       }
 
