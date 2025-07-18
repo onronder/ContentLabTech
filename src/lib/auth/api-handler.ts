@@ -68,11 +68,14 @@ export async function authenticatedApiHandler(
     }
 
     // Extract team data
+    const teamData = Array.isArray(teamMember.teams)
+      ? teamMember.teams[0]
+      : teamMember.teams;
     const team = {
       id: teamMember.team_id,
-      name: teamMember.teams?.name || "Unknown",
-      tier: teamMember.teams?.tier || "free",
-      settings: teamMember.teams?.settings || {},
+      name: teamData?.name || "Unknown",
+      tier: teamData?.tier || "free",
+      settings: teamData?.settings || {},
       userRole: teamMember.role,
     };
 

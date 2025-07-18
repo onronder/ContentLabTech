@@ -371,10 +371,10 @@ export async function POST(request: NextRequest) {
       });
 
       console.log("✅ Sending response: 500 Internal Server Error");
-      return new Response(JSON.stringify({ error: "Internal server error" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 }
+      );
     }
   });
 }
@@ -569,10 +569,7 @@ export async function GET(request: NextRequest) {
           "✅ No accessible teams found for user, returning empty projects"
         );
         console.log("✅ Sending response: 200 OK");
-        return new Response(JSON.stringify({ projects: [] }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return NextResponse.json({ projects: [] }, { status: 200 });
       }
 
       // Get projects for user's teams
@@ -672,10 +669,7 @@ export async function GET(request: NextRequest) {
       });
 
       console.log("✅ Sending response: 200 OK");
-      return new Response(JSON.stringify({ projects: projects || [] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
+      return NextResponse.json({ projects: projects || [] }, { status: 200 });
     } catch (error) {
       console.log("❌ Error caught in GET method main try-catch:", {
         error: error,
@@ -685,10 +679,10 @@ export async function GET(request: NextRequest) {
       });
 
       console.log("✅ Sending response: 500 Internal Server Error");
-      return new Response(JSON.stringify({ error: "Internal server error" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 }
+      );
     }
   });
 }

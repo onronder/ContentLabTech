@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
               threshold: threshold || getDefaultThreshold(alertType),
               frequency,
               is_active: true,
-              created_by: user.id,
+              created_by: _user.id,
               alert_config: buildAlertConfig(alertType, params as AlertParams),
             };
 
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
 
             // Log alert creation
             await supabase.from("user_events").insert({
-              user_id: user.id,
+              user_id: _user.id,
               event_type: "alert_created",
               event_data: {
                 project_id: projectId,
@@ -278,7 +278,7 @@ export async function POST(request: NextRequest) {
             }
 
             // Test the alert by simulating a trigger
-            const testResult = await testAlert(supabase, alert, user.id);
+            const testResult = await testAlert(supabase, alert, _user.id);
 
             result = {
               alertId,
