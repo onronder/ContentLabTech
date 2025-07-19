@@ -5,7 +5,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,7 +98,7 @@ interface TeamFilters {
 
 type ViewMode = "members" | "activity" | "settings";
 
-export const TeamManager = () => {
+export const TeamManager = memo(() => {
   const { currentTeam, user, signOut } = useAuth();
   const router = useRouter();
   const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -111,12 +111,6 @@ export const TeamManager = () => {
 
   // Load team data when team changes
   useEffect(() => {
-    console.log("🔧 TeamManager: useEffect triggered", {
-      currentTeamId: currentTeam?.id,
-      currentTeamName: currentTeam?.name,
-      user: user?.email,
-    });
-
     if (currentTeam?.id) {
       loadTeamData();
     } else {
@@ -666,7 +660,7 @@ export const TeamManager = () => {
       />
     </div>
   );
-};
+});
 
 // Empty Members State Component
 const EmptyMembersState = ({
@@ -712,3 +706,5 @@ const EmptyMembersState = ({
     )}
   </div>
 );
+
+TeamManager.displayName = "TeamManager";

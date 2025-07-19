@@ -13,6 +13,8 @@ import {
   useState,
   ReactNode,
   useCallback,
+  useMemo,
+  memo,
 } from "react";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 
@@ -78,28 +80,6 @@ export const useAuth = (): AuthContextType => {
     throw new Error("useAuth must be used within an AuthProvider");
   }
 
-  // Enhanced debugging for team data flow tracking
-  console.log("🔧 useAuth Hook Debug:", {
-    contextAvailable: !!context,
-    user: context.user
-      ? { id: context.user.id, email: context.user.email }
-      : null,
-    teams: context.teams
-      ? context.teams.map(t => ({ id: t.id, name: t.name, role: t.userRole }))
-      : [],
-    currentTeam: context.currentTeam
-      ? {
-          id: context.currentTeam.id,
-          name: context.currentTeam.name,
-          role: context.currentTeamRole,
-        }
-      : null,
-    teamsLoading: context.teamsLoading,
-    loading: context.loading,
-    teamDataAvailable: !!context.currentTeam,
-    readyForApiCall: !!context.currentTeam?.id,
-  });
-
   return context;
 };
 
@@ -107,11 +87,9 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-// Development debugging helper
-const isDevelopment = process.env.NODE_ENV === "development";
-
+// Production-safe debug logging
 const debugLog = (message: string, data?: any) => {
-  if (isDevelopment) {
+  if (process.env.NODE_ENV === "development") {
     console.log(`[AuthContext Debug] ${message}`, data);
   }
 };
@@ -133,85 +111,115 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   >(null);
   const [teamsLoading, setTeamsLoading] = useState(false);
 
-  // Debug team state changes
+  // Optimized team state debug logging
   useEffect(() => {
-    console.log("🔍 Auth Context: Team state changed", {
-      currentTeam: currentTeam
-        ? {
-            id: currentTeam.id,
-            name: currentTeam.name,
-            role: currentTeam.userRole,
-          }
-        : null,
-      currentTeamRole,
-      teamsCount: teams.length,
-      teams: teams.map(t => ({ id: t.id, name: t.name, role: t.userRole })),
-    });
-  }, [currentTeam, currentTeamRole, teams]);
+    if (process.env.NODE_ENV === "development") {
+      debugLog("Team state changed", {
+        currentTeamId: currentTeam?.id,
+        currentTeamRole,
+        teamsCount: teams.length,
+      });
+    }
+  }, [currentTeam?.id, currentTeamRole, teams.length]);
 
-  // Load teams when user changes (backup mechanism)
-  useEffect(() => {
-    if (user && !teamsLoading && teams.length === 0) {
-      console.log(
-        "🔍 Auth Context: User available but no teams, loading teams",
-        {
-          userId: user.id,
-          teamsLoading,
-          teamsCount: teams.length,
+  // Declare loadUserTeams before it's used
+  const loadUserTeams = useCallback(
+    async (userId: string) => {
+      setTeamsLoading(true);
+      try {
+        debugLog("Loading user teams", { userId });
+
+        const { data: userTeams, error } = await supabase
+          .from("teams")
+          .select(
+            `
+          *,
+          team_members!inner(role)
+        `
+          )
+          .eq("team_members.user_id", userId)
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          console.error("[AuthContext] Error loading teams:", error);
+          return;
         }
-      );
+
+        const teamsWithRole: TeamWithUserRole[] = (userTeams || []).map(
+          team => ({
+            ...team,
+            userRole: team.team_members[0]?.role || "member",
+          })
+        );
+
+        debugLog("Setting teams state", { count: teamsWithRole.length });
+
+        setTeams(teamsWithRole);
+        debugLog("Teams loaded", { count: teamsWithRole.length });
+
+        // Set current team from localStorage or first team
+        const savedTeamId = getFromLocalStorage("currentTeamId");
+        const targetTeam = savedTeamId
+          ? teamsWithRole.find(team => team.id === savedTeamId)
+          : teamsWithRole[0];
+
+        if (targetTeam) {
+          debugLog("Setting current team", { teamId: targetTeam.id });
+
+          setCurrentTeam(targetTeam);
+          setCurrentTeamRole(targetTeam.userRole);
+          setToLocalStorage("currentTeamId", targetTeam.id);
+          debugLog("Current team set", {
+            teamId: targetTeam.id,
+            role: targetTeam.userRole,
+          });
+          debugLog("Team set successfully", {
+            teamId: targetTeam.id,
+            role: targetTeam.userRole,
+          });
+        } else {
+          debugLog("No team available to set", {
+            teamsAvailable: teamsWithRole.length,
+          });
+        }
+      } catch (error) {
+        console.error("[AuthContext] Error in loadUserTeams:", error);
+      } finally {
+        setTeamsLoading(false);
+      }
+    },
+    [teams]
+  );
+
+  // Optimized teams loading effect
+  useEffect(() => {
+    if (user?.id && !teamsLoading && teams.length === 0) {
+      debugLog("Loading teams for user", { userId: user.id });
       loadUserTeams(user.id);
     }
-  }, [user, teamsLoading, teams.length]);
+  }, [user?.id, teamsLoading, teams.length, loadUserTeams]);
 
-  // Enhanced configuration validation
-  const validateSupabaseConfig = useCallback(() => {
+  // Memoized configuration validation
+  const validateSupabaseConfig = useMemo(() => {
     const url = process.env["NEXT_PUBLIC_SUPABASE_URL"];
     const key = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
     if (!url || !key) {
-      const error =
-        "Missing Supabase configuration: URL or publishable key not found";
-      console.error("[AuthContext] " + error);
+      const error = "Missing Supabase configuration";
+      console.error("[AuthContext]", error);
       setInitializationError(error);
       return false;
     }
 
-    // Updated validation for legacy JWT keys
     if (!key.startsWith("eyJ")) {
-      const error =
-        "Invalid anon key format. Expected legacy JWT format starting with 'eyJ'";
-      console.error("[AuthContext] " + error);
+      const error = "Invalid anon key format";
+      console.error("[AuthContext]", error);
       setInitializationError(error);
       return false;
     }
 
-    debugLog("Supabase configuration validated successfully");
     return true;
   }, []);
-
-  // Simplified loading state management
-  const setLoadingWithTimeout = useCallback(
-    (isLoading: boolean, operation: string): (() => void) | undefined => {
-      debugLog(`Loading state change: ${operation}`, { isLoading });
-      setLoading(isLoading);
-
-      if (isLoading) {
-        // Shorter timeout for better UX
-        const timeout = setTimeout(() => {
-          console.warn(
-            `[AuthContext] Loading timeout for operation: ${operation}`
-          );
-          setLoading(false);
-        }, 3000); // Reduced to 3 seconds
-
-        return () => clearTimeout(timeout);
-      }
-
-      return undefined;
-    },
-    []
-  );
 
   // Enhanced auth state reset
   const resetAuthState = useCallback(() => {
@@ -259,7 +267,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         debugLog("Initializing auth state");
 
         // Quick validation - don't block initialization
-        if (!validateSupabaseConfig()) {
+        if (!validateSupabaseConfig) {
           if (mounted) {
             setLoading(false);
           }
@@ -325,114 +333,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, [validateSupabaseConfig]);
 
-  // Load user teams when user signs in
-  const loadUserTeams = async (userId: string) => {
-    setTeamsLoading(true);
-    try {
-      debugLog("Loading user teams", { userId });
-
-      const { data: userTeams, error } = await supabase
-        .from("teams")
-        .select(
-          `
-          *,
-          team_members!inner(role)
-        `
-        )
-        .eq("team_members.user_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("[AuthContext] Error loading teams:", error);
-        return;
-      }
-
-      const teamsWithRole: TeamWithUserRole[] = (userTeams || []).map(team => ({
-        ...team,
-        userRole: team.team_members[0]?.role || "member",
-      }));
-
-      console.log("🔍 Auth Context: About to set teams state", {
-        teamsWithRole,
-        count: teamsWithRole.length,
-        beforeSetTeams: teams,
-      });
-
-      setTeams(teamsWithRole);
-      debugLog("Teams loaded", { count: teamsWithRole.length });
-
-      // Set current team from localStorage or first team
-      const savedTeamId = getFromLocalStorage("currentTeamId");
-      const targetTeam = savedTeamId
-        ? teamsWithRole.find(team => team.id === savedTeamId)
-        : teamsWithRole[0];
-
-      if (targetTeam) {
-        console.log("🔍 Auth Context: About to set current team", {
-          targetTeam,
-          beforeSetCurrentTeam: currentTeam,
-        });
-
-        setCurrentTeam(targetTeam);
-        setCurrentTeamRole(targetTeam.userRole);
-        setToLocalStorage("currentTeamId", targetTeam.id);
-        debugLog("Current team set", {
-          teamId: targetTeam.id,
-          role: targetTeam.userRole,
-        });
-        console.log("🏢 Auth Context: Team set successfully", {
-          teamId: targetTeam.id,
-          teamName: targetTeam.name,
-          role: targetTeam.userRole,
-          savedTeamId,
-          totalTeams: teamsWithRole.length,
-        });
-      } else {
-        console.log("❌ Auth Context: No team available to set", {
-          savedTeamId,
-          teamsAvailable: teamsWithRole.length,
-          teams: teamsWithRole.map(t => ({ id: t.id, name: t.name })),
-        });
-      }
-    } catch (error) {
-      console.error("[AuthContext] Error in loadUserTeams:", error);
-    } finally {
-      setTeamsLoading(false);
-    }
-  };
-
   // Enhanced authentication methods with better error handling
-  const signUp = async (
-    email: string,
-    password: string,
-    options?: { data?: Record<string, unknown> }
-  ) => {
-    try {
-      debugLog("Sign up attempt", { email });
+  const signUp = useCallback(
+    async (
+      email: string,
+      password: string,
+      options?: { data?: Record<string, unknown> }
+    ) => {
+      try {
+        debugLog("Sign up attempt", { email });
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          ...options,
-          emailRedirectTo: `${getWindowOrigin()}/auth/callback`,
-        },
-      });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            ...options,
+            emailRedirectTo: `${getWindowOrigin()}/auth/callback`,
+          },
+        });
 
-      if (error) {
-        debugLog("Sign up error", error);
-      } else {
-        debugLog("Sign up success", { userId: data.user?.id });
+        if (error) {
+          debugLog("Sign up error", error);
+        } else {
+          debugLog("Sign up success", { userId: data.user?.id });
+        }
+
+        return { user: data.user, error };
+      } catch (error) {
+        console.error("[AuthContext] Sign up error:", error);
+        return { user: null, error: error as AuthError };
       }
+    },
+    []
+  );
 
-      return { user: data.user, error };
-    } catch (error) {
-      console.error("[AuthContext] Sign up error:", error);
-      return { user: null, error: error as AuthError };
-    }
-  };
-
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     try {
       debugLog("Sign in attempt", { email });
 
@@ -452,9 +387,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("[AuthContext] Sign in error:", error);
       return { user: null, error: error as AuthError };
     }
-  };
+  }, []);
 
-  const signInWithOAuth = async (provider: "google") => {
+  const signInWithOAuth = useCallback(async (provider: "google") => {
     try {
       debugLog("OAuth sign in attempt", { provider });
 
@@ -474,9 +409,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("[AuthContext] OAuth sign in error:", error);
       return { error: error as AuthError };
     }
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       debugLog("Sign out attempt");
 
@@ -493,9 +428,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("[AuthContext] Sign out error:", error);
       return { error: error as AuthError };
     }
-  };
+  }, []);
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     try {
       debugLog("Password reset attempt", { email });
 
@@ -514,108 +449,120 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("[AuthContext] Password reset error:", error);
       return { error: error as AuthError };
     }
-  };
+  }, []);
 
-  const switchTeam = async (teamId: string): Promise<boolean> => {
-    try {
-      debugLog("Team switch attempt", { teamId });
+  const switchTeam = useCallback(
+    async (teamId: string): Promise<boolean> => {
+      try {
+        debugLog("Team switch attempt", { teamId });
 
-      const team = teams.find(t => t.id === teamId);
-      if (!team) {
-        console.error("[AuthContext] Team not found:", teamId);
+        const team = teams.find(t => t.id === teamId);
+        if (!team) {
+          console.error("[AuthContext] Team not found:", teamId);
+          return false;
+        }
+
+        setCurrentTeam(team);
+        setCurrentTeamRole(team.userRole);
+        setToLocalStorage("currentTeamId", teamId);
+        debugLog("Team switch success", { teamId, role: team.userRole });
+        return true;
+      } catch (error) {
+        console.error("[AuthContext] Team switch error:", error);
         return false;
       }
+    },
+    [teams]
+  );
 
-      setCurrentTeam(team);
-      setCurrentTeamRole(team.userRole);
-      setToLocalStorage("currentTeamId", teamId);
-      debugLog("Team switch success", { teamId, role: team.userRole });
-      return true;
-    } catch (error) {
-      console.error("[AuthContext] Team switch error:", error);
-      return false;
-    }
-  };
-
-  const refreshTeams = async () => {
-    if (user) {
+  const refreshTeams = useCallback(async () => {
+    if (user?.id) {
       await loadUserTeams(user.id);
     }
-  };
+  }, [user?.id, loadUserTeams]);
 
-  const hasPermission = (permission: string): boolean => {
-    if (!currentTeamRole) return false;
+  const hasPermission = useCallback(
+    (permission: string): boolean => {
+      if (!currentTeamRole) return false;
 
-    // Define role-based permissions
-    const rolePermissions: Record<TeamMember["role"], string[]> = {
-      owner: ["*"], // All permissions
-      admin: [
-        "manage_content",
-        "manage_projects",
-        "view_analytics",
-        "invite_members",
-      ],
-      member: ["manage_content", "view_analytics"],
-      viewer: ["view_analytics"],
-    };
+      // Define role-based permissions
+      const rolePermissions: Record<TeamMember["role"], string[]> = {
+        owner: ["*"], // All permissions
+        admin: [
+          "manage_content",
+          "manage_projects",
+          "view_analytics",
+          "invite_members",
+        ],
+        member: ["manage_content", "view_analytics"],
+        viewer: ["view_analytics"],
+      };
 
-    const userPermissions = rolePermissions[currentTeamRole] || [];
-    return (
-      userPermissions.includes("*") || userPermissions.includes(permission)
-    );
-  };
+      const userPermissions = rolePermissions[currentTeamRole] || [];
+      return (
+        userPermissions.includes("*") || userPermissions.includes(permission)
+      );
+    },
+    [currentTeamRole]
+  );
 
-  const canManageTeam = (): boolean => {
+  const canManageTeam = useCallback((): boolean => {
     return currentTeamRole === "owner" || currentTeamRole === "admin";
-  };
+  }, [currentTeamRole]);
 
-  const isTeamOwner = (): boolean => {
+  const isTeamOwner = useCallback((): boolean => {
     return currentTeamRole === "owner";
-  };
+  }, [currentTeamRole]);
 
-  const contextValue: AuthContextType = {
-    // State
-    user,
-    session,
-    loading,
-    teams,
-    currentTeam,
-    currentTeamRole,
-    teamsLoading,
+  const contextValue: AuthContextType = useMemo(
+    () => ({
+      // State
+      user,
+      session,
+      loading,
+      teams,
+      currentTeam,
+      currentTeamRole,
+      teamsLoading,
 
-    // Methods
-    signUp,
-    signIn,
-    signInWithOAuth,
-    signOut,
-    resetPassword,
-    switchTeam,
-    refreshTeams,
-    hasPermission,
-    canManageTeam,
-    isTeamOwner,
+      // Methods
+      signUp,
+      signIn,
+      signInWithOAuth,
+      signOut,
+      resetPassword,
+      switchTeam,
+      refreshTeams,
+      hasPermission,
+      canManageTeam,
+      isTeamOwner,
 
-    // Enhanced debugging and recovery
-    resetAuthState,
-    getDebugInfo,
-  };
-
-  // Debug context value creation
-  console.log("🔍 Auth Context: Creating context value", {
-    user: user ? { id: user.id, email: user.email } : null,
-    teams: teams.map(t => ({ id: t.id, name: t.name, role: t.userRole })),
-    currentTeam: currentTeam
-      ? {
-          id: currentTeam.id,
-          name: currentTeam.name,
-          role: currentTeam.userRole,
-        }
-      : null,
-    currentTeamRole,
-    teamsLoading,
-    loading,
-    contextValueHasCurrentTeam: !!contextValue.currentTeam,
-  });
+      // Enhanced debugging and recovery
+      resetAuthState,
+      getDebugInfo,
+    }),
+    [
+      user,
+      session,
+      loading,
+      teams,
+      currentTeam,
+      currentTeamRole,
+      teamsLoading,
+      signUp,
+      signIn,
+      signInWithOAuth,
+      signOut,
+      resetPassword,
+      switchTeam,
+      refreshTeams,
+      hasPermission,
+      canManageTeam,
+      isTeamOwner,
+      resetAuthState,
+      getDebugInfo,
+    ]
+  );
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
