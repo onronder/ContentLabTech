@@ -1,13 +1,33 @@
-import { authenticatedApiHandler } from "@/lib/auth/api-handler";
-import { createClient } from "@/lib/supabase/server-auth";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  withApiAuth,
+  createSuccessResponse,
+  validateTeamAccess,
+  type AuthContext,
+} from "@/lib/auth/withApiAuth-definitive";
 
-export async function GET(request: NextRequest) {
-  return authenticatedApiHandler(request, async (user, team) => {
-    const supabase = await createClient();
+export const GET = withApiAuth(
+  async (request: NextRequest, { user, supabase }: AuthContext) => {
+    // Validate team access with enhanced logging
+    const teamValidation = await validateTeamAccess(request, user, supabase);
+    if (!teamValidation.success) {
+      return new Response(
+        JSON.stringify({
+          error: teamValidation.error,
+          code: "TEAM_ACCESS_DENIED",
+          status: 403,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const { team } = teamValidation;
 
-    // Debug logging
-    console.log("User:", user.id, "Team:", team.id);
+    console.log("📊 Competitive Analysis API: GET request", {
+      userId: user.id,
+      teamId: team.id,
+      teamName: team.name,
+      url: request.url,
+    });
 
     // Verify team membership
     const { data: membership, error: membershipError } = await supabase
@@ -116,18 +136,36 @@ export async function GET(request: NextRequest) {
         )?.length || 0,
     };
 
-    return NextResponse.json({
-      success: true,
-      data: analyses || [],
+    return createSuccessResponse({
+      analyses: analyses || [],
       stats,
       count: analyses?.length || 0,
     });
-  });
-}
+  }
+);
 
-export async function POST(request: NextRequest) {
-  return authenticatedApiHandler(request, async (user, team) => {
-    const supabase = await createClient();
+export const POST = withApiAuth(
+  async (request: NextRequest, { user, supabase }: AuthContext) => {
+    // Validate team access with enhanced logging
+    const teamValidation = await validateTeamAccess(request, user, supabase);
+    if (!teamValidation.success) {
+      return new Response(
+        JSON.stringify({
+          error: teamValidation.error,
+          code: "TEAM_ACCESS_DENIED",
+          status: 403,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const { team } = teamValidation;
+
+    console.log("📊 Competitive Analysis API: POST request", {
+      userId: user.id,
+      teamId: team.id,
+      teamName: team.name,
+      url: request.url,
+    });
     const body = await request.json();
 
     // Validate required fields
@@ -198,9 +236,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: analysis,
-    });
-  });
-}
+    return createSuccessResponse({ analysis }, 201);
+  }
+);

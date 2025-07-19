@@ -1,33 +1,33 @@
-import { authenticatedApiHandler } from "@/lib/auth/api-handler";
-import { createClient } from "@/lib/supabase/server-auth";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  withApiAuth,
+  createSuccessResponse,
+  validateTeamAccess,
+  type AuthContext,
+} from "@/lib/auth/withApiAuth-definitive";
 
-export async function GET(request: NextRequest) {
-  return authenticatedApiHandler(request, async (user, team) => {
-    const supabase = await createClient();
-
-    // Debug logging
-    console.log("User:", user.id, "Team:", team.id);
-
-    // Verify team membership
-    const { data: membership, error: membershipError } = await supabase
-      .from("team_members")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("team_id", team.id)
-      .single();
-
-    if (membershipError || !membership) {
-      console.error("Team membership error:", membershipError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Team membership validation failed",
-          code: "NO_MEMBERSHIP",
-        },
-        { status: 403 }
+export const GET = withApiAuth(
+  async (request: NextRequest, { user, supabase }: AuthContext) => {
+    // Validate team access with enhanced logging
+    const teamValidation = await validateTeamAccess(request, user, supabase);
+    if (!teamValidation.success) {
+      return new Response(
+        JSON.stringify({
+          error: teamValidation.error,
+          code: "TEAM_ACCESS_DENIED",
+          status: 403,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
+    const { team } = teamValidation;
+
+    console.log("🏆 Competitive Competitors API: GET request", {
+      userId: user.id,
+      teamId: team.id,
+      teamName: team.name,
+      url: request.url,
+    });
 
     // Fetch competitors
     const { data: competitors, error } = await supabase
@@ -38,34 +38,58 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        {
-          success: false,
+      return new Response(
+        JSON.stringify({
           error: "Failed to fetch competitors",
+          code: "FETCH_COMPETITORS_ERROR",
           details: error.message,
-        },
-        { status: 500 }
+          status: 500,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: competitors || [],
+    return createSuccessResponse({
+      competitors: competitors || [],
       count: competitors?.length || 0,
     });
-  });
-}
+  }
+);
 
-export async function POST(request: NextRequest) {
-  return authenticatedApiHandler(request, async (user, team) => {
-    const supabase = await createClient();
+export const POST = withApiAuth(
+  async (request: NextRequest, { user, supabase }: AuthContext) => {
+    // Validate team access with enhanced logging
+    const teamValidation = await validateTeamAccess(request, user, supabase);
+    if (!teamValidation.success) {
+      return new Response(
+        JSON.stringify({
+          error: teamValidation.error,
+          code: "TEAM_ACCESS_DENIED",
+          status: 403,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const { team } = teamValidation;
+
+    console.log("🏆 Competitive Competitors API: POST request", {
+      userId: user.id,
+      teamId: team.id,
+      teamName: team.name,
+      url: request.url,
+    });
+
     const body = await request.json();
 
     // Validate required fields
     if (!body.name || !body.domain || !body.project_id) {
-      return NextResponse.json(
-        { success: false, error: "Name, domain, and project_id are required" },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({
+          error: "Name, domain, and project_id are required",
+          code: "INVALID_REQUEST",
+          status: 400,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -86,19 +110,17 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Create competitor error:", error);
-      return NextResponse.json(
-        {
-          success: false,
+      return new Response(
+        JSON.stringify({
           error: "Failed to create competitor",
+          code: "CREATE_COMPETITOR_ERROR",
           details: error.message,
-        },
-        { status: 500 }
+          status: 500,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: competitor,
-    });
-  });
-}
+    return createSuccessResponse({ competitor }, 201);
+  }
+);

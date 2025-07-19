@@ -1,33 +1,33 @@
-import { authenticatedApiHandler } from "@/lib/auth/api-handler";
-import { createClient } from "@/lib/supabase/server-auth";
 import { NextRequest, NextResponse } from "next/server";
+import {
+  withApiAuth,
+  createSuccessResponse,
+  validateTeamAccess,
+  type AuthContext,
+} from "@/lib/auth/withApiAuth-definitive";
 
-export async function GET(request: NextRequest) {
-  return authenticatedApiHandler(request, async (user, team) => {
-    const supabase = await createClient();
-
-    // Debug logging
-    console.log("User:", user.id, "Team:", team.id);
-
-    // Verify team membership
-    const { data: membership, error: membershipError } = await supabase
-      .from("team_members")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("team_id", team.id)
-      .single();
-
-    if (membershipError || !membership) {
-      console.error("Team membership error:", membershipError);
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Team membership validation failed",
-          code: "NO_MEMBERSHIP",
-        },
-        { status: 403 }
+export const GET = withApiAuth(
+  async (request: NextRequest, { user, supabase }: AuthContext) => {
+    // Validate team access with enhanced logging
+    const teamValidation = await validateTeamAccess(request, user, supabase);
+    if (!teamValidation.success) {
+      return new Response(
+        JSON.stringify({
+          error: teamValidation.error,
+          code: "TEAM_ACCESS_DENIED",
+          status: 403,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
+    const { team } = teamValidation;
+
+    console.log("🎯 Competitive Alerts API: GET request", {
+      userId: user.id,
+      teamId: team.id,
+      teamName: team.name,
+      url: request.url,
+    });
 
     // Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -113,25 +113,47 @@ export async function GET(request: NextRequest) {
         )?.length || 0,
     };
 
-    return NextResponse.json({
-      success: true,
-      data: alerts || [],
+    return createSuccessResponse({
+      alerts: alerts || [],
       stats,
       count: alerts?.length || 0,
     });
-  });
-}
+  }
+);
 
-export async function POST(request: NextRequest) {
-  return authenticatedApiHandler(request, async (user, team) => {
-    const supabase = await createClient();
+export const POST = withApiAuth(
+  async (request: NextRequest, { user, supabase }: AuthContext) => {
+    // Validate team access with enhanced logging
+    const teamValidation = await validateTeamAccess(request, user, supabase);
+    if (!teamValidation.success) {
+      return new Response(
+        JSON.stringify({
+          error: teamValidation.error,
+          code: "TEAM_ACCESS_DENIED",
+          status: 403,
+        }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    const { team } = teamValidation;
+
+    console.log("🎯 Competitive Alerts API: POST request", {
+      userId: user.id,
+      teamId: team.id,
+      teamName: team.name,
+      url: request.url,
+    });
     const body = await request.json();
 
     // Validate required fields
     if (!body.project_id || !body.alert_type) {
-      return NextResponse.json(
-        { success: false, error: "project_id and alert_type are required" },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({
+          error: "project_id and alert_type are required",
+          code: "INVALID_REQUEST",
+          status: 400,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -144,9 +166,13 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json(
-        { success: false, error: "Project not found or access denied" },
-        { status: 404 }
+      return new Response(
+        JSON.stringify({
+          error: "Project not found or access denied",
+          code: "PROJECT_NOT_FOUND",
+          status: 404,
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -170,19 +196,17 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Create alert error:", error);
-      return NextResponse.json(
-        {
-          success: false,
+      return new Response(
+        JSON.stringify({
           error: "Failed to create alert",
+          code: "CREATE_ALERT_ERROR",
           details: error.message,
-        },
-        { status: 500 }
+          status: 500,
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      data: alert,
-    });
-  });
-}
+    return createSuccessResponse({ alert }, 201);
+  }
+);
