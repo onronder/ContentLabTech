@@ -10,7 +10,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AlertCircle, CheckCircle, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Sparkles,
+  Loader2,
+  Plus,
+  X,
+} from "lucide-react";
+
+const MAX_DESCRIPTION_LENGTH = 500;
 
 const INDUSTRY_OPTIONS = [
   "Technology",
@@ -117,6 +126,16 @@ export function AddCompetitorModal({
     website_url?: boolean;
   }>({});
 
+  // Submission state management
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Enhanced description handler
+  const handleDescriptionChange = (value: string) => {
+    setDescription(value);
+    validateField("description", value);
+  };
+
   const validateField = (
     fieldName: keyof ValidationErrors,
     value: string
@@ -175,9 +194,8 @@ export function AddCompetitorModal({
         break;
 
       case "description":
-        if (value.length > 500) {
-          newErrors.description =
-            "Description must be less than 500 characters";
+        if (value.length > MAX_DESCRIPTION_LENGTH) {
+          newErrors.description = `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters`;
         } else {
           delete newErrors.description;
         }
@@ -241,7 +259,11 @@ export function AddCompetitorModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Mark all fields as touched
+    // Clear previous submission states
+    setSubmitError("");
+    setSubmitSuccess(false);
+
+    // Mark all fields as touched for validation display
     setTouched({
       name: true,
       domain: true,
@@ -251,60 +273,81 @@ export function AddCompetitorModal({
     });
 
     // Validate all fields
-    const isNameValid = validateField("name", name);
-    const isDomainValid = validateField("domain", domain);
-    const isUrlValid = validateField("website_url", websiteUrl);
-    const isIndustryValid = validateField("industry", industry);
-    const isDescriptionValid = validateField("description", description);
+    const validations = [
+      validateField("name", name),
+      validateField("domain", domain),
+      validateField("website_url", websiteUrl),
+      validateField("industry", industry),
+      validateField("description", description),
+    ];
 
-    if (
-      isNameValid &&
-      isDomainValid &&
-      isUrlValid &&
-      isIndustryValid &&
-      isDescriptionValid
-    ) {
-      setIsSubmitting(true);
-      try {
-        const response = await fetch("/api/competitive/competitors", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name,
-            domain,
-            website_url: websiteUrl,
-            industry,
-            description,
-          }),
-        });
+    const isFormValid = validations.every(Boolean);
 
-        if (!response.ok) {
-          throw new Error("Failed to add competitor");
-        }
-
-        // Reset form
-        setName("");
-        setDomain("");
-        setWebsiteUrl("");
-        setIndustry("");
-        setDescription("");
-        setErrors({});
-        setTouched({});
-        setOpen(false);
-        onCompetitorAdded();
-      } catch (error) {
-        console.error("Error adding competitor:", error);
-      } finally {
-        setIsSubmitting(false);
-      }
-    } else {
+    if (!isFormValid) {
       // Focus on first error field
-      const firstErrorField = document.querySelector(".field-error");
-      if (firstErrorField instanceof HTMLElement) {
-        firstErrorField.focus();
+      setTimeout(() => {
+        const firstErrorField = document.querySelector(".field-error");
+        if (firstErrorField instanceof HTMLElement) {
+          firstErrorField.focus();
+          firstErrorField.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }
+      }, 100);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const competitorData = {
+        name: name.trim(),
+        domain: domain.trim(),
+        website_url: websiteUrl.trim(),
+        industry: industry,
+        description: description.trim() || null,
+      };
+
+      const response = await fetch("/api/competitive/competitors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Important for authentication
+        body: JSON.stringify(competitorData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message ||
+            errorData.error ||
+            `Server error: ${response.status} ${response.statusText}`
+        );
       }
+
+      const result = await response.json();
+
+      // Success handling
+      setSubmitSuccess(true);
+
+      // Call success callback
+      onCompetitorAdded();
+
+      // Auto-close modal after success
+      setTimeout(() => {
+        setOpen(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Error adding competitor:", error);
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Failed to add competitor. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -317,6 +360,8 @@ export function AddCompetitorModal({
     setErrors({});
     setTouched({});
     setAutoCompletedFields({});
+    setSubmitError("");
+    setSubmitSuccess(false);
   };
 
   return (
@@ -535,36 +580,64 @@ export function AddCompetitorModal({
                 Description
                 <span className="field-hint">
                   Additional context about this competitor (optional)
-                  {description.length > 0 && (
-                    <span
-                      className={description.length > 500 ? "text-red-500" : ""}
-                    >
-                      {" "}
-                      ({description.length}/500)
-                    </span>
-                  )}
                 </span>
               </label>
-              <Input
+              <textarea
                 id="description"
-                type="text"
-                placeholder="Brief description of the competitor, their main products, market position, etc."
-                className={`field-input ${
+                className={`field-input field-textarea ${
                   errors.description
                     ? "field-error"
-                    : touched.description && !errors.description && description
+                    : description.length > 0 && !errors.description
                       ? "field-success"
                       : ""
                 }`}
+                placeholder="Brief description of the competitor, their main products, market position, competitive advantages, etc."
                 value={description}
-                onChange={e => {
-                  setDescription(e.target.value);
-                  validateField("description", e.target.value);
-                }}
-                onBlur={() => {
-                  setTouched({ ...touched, description: true });
-                }}
+                onChange={e => handleDescriptionChange(e.target.value)}
+                onBlur={() => setTouched({ ...touched, description: true })}
+                rows={4}
+                maxLength={MAX_DESCRIPTION_LENGTH + 50}
               />
+
+              <div className="field-footer">
+                <div className="character-counter">
+                  <span
+                    className={`character-count ${
+                      description.length > MAX_DESCRIPTION_LENGTH
+                        ? "over-limit"
+                        : description.length > MAX_DESCRIPTION_LENGTH * 0.8
+                          ? "near-limit"
+                          : ""
+                    }`}
+                  >
+                    {description.length}/{MAX_DESCRIPTION_LENGTH}
+                  </span>
+                  {description.length > MAX_DESCRIPTION_LENGTH && (
+                    <span className="over-limit-text">
+                      {description.length - MAX_DESCRIPTION_LENGTH} characters
+                      over limit
+                    </span>
+                  )}
+                </div>
+
+                {description.length > 0 &&
+                  description.length <= MAX_DESCRIPTION_LENGTH && (
+                    <div className="description-quality">
+                      {description.length < 50 ? (
+                        <span className="quality-hint">
+                          Consider adding more detail
+                        </span>
+                      ) : description.length < 150 ? (
+                        <span className="quality-good">Good length</span>
+                      ) : (
+                        <span className="quality-excellent">
+                          Excellent detail
+                        </span>
+                      )}
+                    </div>
+                  )}
+              </div>
+
               {errors.description && (
                 <div className="error-message">
                   <AlertCircle size={16} />
@@ -574,25 +647,71 @@ export function AddCompetitorModal({
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end space-x-3 border-t border-gray-100 pt-4">
-            <Button
+          <div className="form-actions">
+            <button
               type="button"
-              variant="outline"
               onClick={() => setOpen(false)}
+              className="btn-secondary"
               disabled={isSubmitting}
-              className="px-6 py-2"
             >
               Cancel
-            </Button>
-            <Button
+            </button>
+
+            <button
               type="submit"
+              className={`btn-primary ${isSubmitting ? "btn-loading" : ""}`}
               disabled={isSubmitting || Object.keys(errors).length > 0}
-              variant="success"
-              className="px-6 py-2"
             >
-              {isSubmitting ? "Adding..." : "Add Competitor"}
-            </Button>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="animate-spin" size={16} />
+                  Adding Competitor...
+                </>
+              ) : (
+                <>
+                  <Plus size={16} />
+                  Add Competitor
+                </>
+              )}
+            </button>
           </div>
+
+          {/* Submission Feedback */}
+          {submitError && (
+            <div className="submission-feedback error">
+              <div className="feedback-content">
+                <AlertCircle size={20} />
+                <div>
+                  <div className="feedback-title">Failed to Add Competitor</div>
+                  <div className="feedback-message">{submitError}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmitError("")}
+                className="feedback-close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {submitSuccess && (
+            <div className="submission-feedback success">
+              <div className="feedback-content">
+                <CheckCircle size={20} />
+                <div>
+                  <div className="feedback-title">
+                    Competitor Added Successfully!
+                  </div>
+                  <div className="feedback-message">
+                    {name} has been added to your competitive intelligence
+                    dashboard.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </form>
       </DialogContent>
     </Dialog>
