@@ -94,7 +94,8 @@ export const GET = withApiAuth(
       hasMore: filteredEvents.length > limitedEvents.length,
       nextSince:
         limitedEvents.length > 0
-          ? limitedEvents[limitedEvents.length - 1].timestamp.toString()
+          ? (limitedEvents[limitedEvents.length - 1]?.timestamp?.toString() ??
+            since)
           : since,
     });
   }

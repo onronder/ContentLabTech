@@ -39,6 +39,23 @@ export const GET = withApiAuth(
       );
     }
 
+    // Get team data for queries
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .single();
+
+    if (teamError || !team) {
+      return new Response(
+        JSON.stringify({
+          error: "Team not found",
+          code: "TEAM_NOT_FOUND",
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     console.log("🎯 Competitive Alerts API: GET request", {
       userId: user.id,
       teamId: teamId,
@@ -109,12 +126,18 @@ export const GET = withApiAuth(
       .select("alert_type, is_active, last_triggered")
       .eq("team_id", team.id);
 
+    interface AlertStat {
+      alert_type: string;
+      is_active: boolean;
+      last_triggered: string | null;
+    }
+
     const stats = {
       total: alertStats?.length || 0,
-      active: alertStats?.filter(a => a.is_active)?.length || 0,
+      active: alertStats?.filter((a: AlertStat) => a.is_active)?.length || 0,
       byType:
         alertStats?.reduce(
-          (acc, alert) => {
+          (acc: Record<string, number>, alert: AlertStat) => {
             acc[alert.alert_type] = (acc[alert.alert_type] || 0) + 1;
             return acc;
           },
@@ -122,7 +145,7 @@ export const GET = withApiAuth(
         ) || {},
       recentlyTriggered:
         alertStats?.filter(
-          a =>
+          (a: AlertStat) =>
             a.last_triggered &&
             new Date(a.last_triggered) >
               new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -139,27 +162,59 @@ export const GET = withApiAuth(
 
 export const POST = withApiAuth(
   async (request: NextRequest, { user, supabase }: AuthContext) => {
-    // Validate team access with enhanced logging
-    const teamValidation = await validateTeamAccess(request, user, supabase);
-    if (!teamValidation.success) {
+    // Get teamId from request body
+    const body = await request.json();
+    const teamId = body.teamId;
+
+    if (!teamId) {
       return new Response(
         JSON.stringify({
-          error: teamValidation.error,
+          error: "Team ID is required",
+          code: "INVALID_REQUEST",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate team access with enhanced logging
+    const teamAccess = await validateTeamAccess(
+      supabase,
+      user.id,
+      teamId,
+      "member"
+    );
+    if (!teamAccess.hasAccess) {
+      return new Response(
+        JSON.stringify({
+          error: "Access denied",
           code: "TEAM_ACCESS_DENIED",
-          status: 403,
         }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
-    const { team } = teamValidation;
+
+    // Get team data
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .single();
+
+    if (teamError || !team) {
+      return new Response(
+        JSON.stringify({
+          error: "Team not found",
+          code: "TEAM_NOT_FOUND",
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     console.log("🎯 Competitive Alerts API: POST request", {
       userId: user.id,
       teamId: team.id,
-      teamName: team.name,
       url: request.url,
     });
-    const body = await request.json();
 
     // Validate required fields
     if (!body.project_id || !body.alert_type) {

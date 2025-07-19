@@ -39,6 +39,23 @@ export const POST = withApiAuth(
       );
     }
 
+    // Get team data for queries
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .single();
+
+    if (teamError || !team) {
+      return new Response(
+        JSON.stringify({
+          error: "Team not found",
+          code: "TEAM_NOT_FOUND",
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     console.log("🔍 Competitive Analyze API: POST request", {
       userId: user.id,
       teamId: teamId,
@@ -191,24 +208,57 @@ export const POST = withApiAuth(
 
 export const GET = withApiAuth(
   async (request: NextRequest, { user, supabase }: AuthContext) => {
-    // Validate team access with enhanced logging
-    const teamValidation = await validateTeamAccess(request, user, supabase);
-    if (!teamValidation.success) {
+    // Get teamId from query parameters
+    const { searchParams } = new URL(request.url);
+    const teamId = searchParams.get("teamId");
+
+    if (!teamId) {
       return new Response(
         JSON.stringify({
-          error: teamValidation.error,
+          error: "Team ID is required",
+          code: "INVALID_REQUEST",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate team access with enhanced logging
+    const teamAccess = await validateTeamAccess(
+      supabase,
+      user.id,
+      teamId,
+      "member"
+    );
+    if (!teamAccess.hasAccess) {
+      return new Response(
+        JSON.stringify({
+          error: "Access denied",
           code: "TEAM_ACCESS_DENIED",
-          status: 403,
         }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
-    const { team } = teamValidation;
+
+    // Get team data
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .single();
+
+    if (teamError || !team) {
+      return new Response(
+        JSON.stringify({
+          error: "Team not found",
+          code: "TEAM_NOT_FOUND",
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     console.log("🔍 Competitive Analyze API: GET request", {
       userId: user.id,
       teamId: team.id,
-      teamName: team.name,
       url: request.url,
     });
 
@@ -236,7 +286,6 @@ export const GET = withApiAuth(
     }
 
     // Parse query parameters
-    const { searchParams } = new URL(request.url);
     const projectId = searchParams.get("projectId");
     const analysisId = searchParams.get("analysisId");
 

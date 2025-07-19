@@ -39,6 +39,23 @@ export const GET = withApiAuth(
       );
     }
 
+    // Get team data for queries
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .single();
+
+    if (teamError || !team) {
+      return new Response(
+        JSON.stringify({
+          error: "Team not found",
+          code: "TEAM_NOT_FOUND",
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     console.log("📊 Competitive Analysis API: GET request", {
       userId: user.id,
       teamId: teamId,
@@ -129,11 +146,17 @@ export const GET = withApiAuth(
       .select("analysis_type, confidence_score, generated_at")
       .eq("team_id", team.id);
 
+    interface AnalysisStat {
+      analysis_type: string;
+      confidence_score: number | null;
+      generated_at: string;
+    }
+
     const stats = {
       total: analysisStats?.length || 0,
       byType:
         analysisStats?.reduce(
-          (acc, analysis) => {
+          (acc: Record<string, number>, analysis: AnalysisStat) => {
             acc[analysis.analysis_type] =
               (acc[analysis.analysis_type] || 0) + 1;
             return acc;
@@ -141,12 +164,14 @@ export const GET = withApiAuth(
           {} as Record<string, number>
         ) || {},
       avgConfidence: analysisStats?.length
-        ? analysisStats.reduce((sum, a) => sum + (a.confidence_score || 0), 0) /
-          analysisStats.length
+        ? analysisStats.reduce(
+            (sum: number, a: AnalysisStat) => sum + (a.confidence_score || 0),
+            0
+          ) / analysisStats.length
         : 0,
       recent:
         analysisStats?.filter(
-          a =>
+          (a: AnalysisStat) =>
             new Date(a.generated_at) >
             new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
         )?.length || 0,
@@ -162,27 +187,59 @@ export const GET = withApiAuth(
 
 export const POST = withApiAuth(
   async (request: NextRequest, { user, supabase }: AuthContext) => {
-    // Validate team access with enhanced logging
-    const teamValidation = await validateTeamAccess(request, user, supabase);
-    if (!teamValidation.success) {
+    // Get teamId from request body
+    const body = await request.json();
+    const teamId = body.teamId;
+
+    if (!teamId) {
       return new Response(
         JSON.stringify({
-          error: teamValidation.error,
+          error: "Team ID is required",
+          code: "INVALID_REQUEST",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate team access with enhanced logging
+    const teamAccess = await validateTeamAccess(
+      supabase,
+      user.id,
+      teamId,
+      "member"
+    );
+    if (!teamAccess.hasAccess) {
+      return new Response(
+        JSON.stringify({
+          error: "Access denied",
           code: "TEAM_ACCESS_DENIED",
-          status: 403,
         }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
-    const { team } = teamValidation;
+
+    // Get team data
+    const { data: team, error: teamError } = await supabase
+      .from("teams")
+      .select("id")
+      .eq("id", teamId)
+      .single();
+
+    if (teamError || !team) {
+      return new Response(
+        JSON.stringify({
+          error: "Team not found",
+          code: "TEAM_NOT_FOUND",
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     console.log("📊 Competitive Analysis API: POST request", {
       userId: user.id,
       teamId: team.id,
-      teamName: team.name,
       url: request.url,
     });
-    const body = await request.json();
 
     // Validate required fields
     if (!body.project_id || !body.competitor_id || !body.analysis_type) {
