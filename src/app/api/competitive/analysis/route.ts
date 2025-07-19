@@ -66,8 +66,7 @@ export const GET = withApiAuth(
       );
     }
 
-    // Parse query parameters
-    const { searchParams } = new URL(request.url);
+    // Parse additional query parameters
     const projectId = searchParams.get("projectId");
     const analysisType = searchParams.get("analysisType");
     const competitorId = searchParams.get("competitorId");

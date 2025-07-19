@@ -46,8 +46,7 @@ export const GET = withApiAuth(
       url: request.url,
     });
 
-    // Parse query parameters
-    const { searchParams } = new URL(request.url);
+    // Parse additional query parameters
     const projectId = searchParams.get("projectId");
     const status = searchParams.get("status");
     const alertType = searchParams.get("alertType");

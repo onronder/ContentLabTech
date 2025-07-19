@@ -66,8 +66,6 @@ export const POST = withApiAuth(
       );
     }
 
-    const body = await request.json();
-
     // Validate required fields
     if (!body.project_id || !body.analysis_type) {
       return NextResponse.json(
