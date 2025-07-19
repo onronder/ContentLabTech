@@ -27,7 +27,7 @@ interface CompetitorFormData {
 
 export function AddCompetitorModal({
   onCompetitorAdded,
-  teamId,
+  teamId: _teamId,
 }: AddCompetitorModalProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,57 +83,108 @@ export function AddCompetitorModal({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-6">
-          <div>
-            <Input
-              placeholder="Competitor Name"
-              {...register("name", { required: "Name is required" })}
-            />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-500">{errors.name.message}</p>
-            )}
-          </div>
+          <div className="form-container">
+            <div className="form-field">
+              <label htmlFor="company-name" className="field-label required">
+                Company Name *
+                <span className="field-hint">
+                  The official name of the competitor
+                </span>
+              </label>
+              <Input
+                id="company-name"
+                type="text"
+                placeholder="e.g., Apple Inc."
+                className="field-input"
+                {...register("name", { required: "Company name is required" })}
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.name.message}
+                </p>
+              )}
+            </div>
 
-          <div>
-            <Input
-              placeholder="Domain (e.g., example.com)"
-              {...register("domain", { required: "Domain is required" })}
-            />
-            {errors.domain && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.domain.message}
-              </p>
-            )}
-          </div>
+            <div className="form-field">
+              <label htmlFor="domain" className="field-label required">
+                Domain *
+                <span className="field-hint">
+                  Domain without http:// or www
+                </span>
+              </label>
+              <Input
+                id="domain"
+                type="text"
+                placeholder="e.g., apple.com"
+                className="field-input"
+                {...register("domain", { required: "Domain is required" })}
+              />
+              {errors.domain && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.domain.message}
+                </p>
+              )}
+            </div>
 
-          <div>
-            <Input
-              placeholder="Website URL"
-              type="url"
-              {...register("website_url", {
-                required: "Website URL is required",
-              })}
-            />
-            {errors.website_url && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.website_url.message}
-              </p>
-            )}
-          </div>
+            <div className="form-field">
+              <label htmlFor="website-url" className="field-label required">
+                Website URL *
+                <span className="field-hint">
+                  Full website URL including https://
+                </span>
+              </label>
+              <Input
+                id="website-url"
+                type="url"
+                placeholder="e.g., https://apple.com"
+                className="field-input"
+                {...register("website_url", {
+                  required: "Website URL is required",
+                })}
+              />
+              {errors.website_url && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.website_url.message}
+                </p>
+              )}
+            </div>
 
-          <div>
-            <Input
-              placeholder="Industry"
-              {...register("industry", { required: "Industry is required" })}
-            />
-            {errors.industry && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.industry.message}
-              </p>
-            )}
-          </div>
+            <div className="form-field">
+              <label htmlFor="industry" className="field-label required">
+                Industry *
+                <span className="field-hint">
+                  Select the competitor&apos;s primary industry
+                </span>
+              </label>
+              <Input
+                id="industry"
+                type="text"
+                placeholder="e.g., Technology"
+                className="field-input"
+                {...register("industry", { required: "Industry is required" })}
+              />
+              {errors.industry && (
+                <p className="mt-1 text-sm text-red-500">
+                  {errors.industry.message}
+                </p>
+              )}
+            </div>
 
-          <div>
-            <Input placeholder="Description" {...register("description")} />
+            <div className="form-field">
+              <label htmlFor="description" className="field-label">
+                Description
+                <span className="field-hint">
+                  Additional context about this competitor (optional)
+                </span>
+              </label>
+              <Input
+                id="description"
+                type="text"
+                placeholder="Brief description of the competitor, their main products, market position, etc."
+                className="field-input"
+                {...register("description")}
+              />
+            </div>
           </div>
 
           <div className="mt-6 flex justify-end space-x-3 border-t border-gray-100 pt-4">
