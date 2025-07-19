@@ -8,24 +8,41 @@ import {
 
 export const POST = withApiAuth(
   async (request: NextRequest, { user, supabase }: AuthContext) => {
-    // Validate team access with enhanced logging
-    const teamValidation = await validateTeamAccess(request, user, supabase);
-    if (!teamValidation.success) {
+    // Get request body
+    const body = await request.json();
+    const { teamId } = body;
+
+    if (!teamId) {
       return new Response(
         JSON.stringify({
-          error: teamValidation.error,
+          error: "Team ID is required",
+          code: "INVALID_REQUEST",
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate team access with enhanced logging
+    const teamAccess = await validateTeamAccess(
+      supabase,
+      user.id,
+      teamId,
+      "member"
+    );
+    if (!teamAccess.hasAccess) {
+      return new Response(
+        JSON.stringify({
+          error: "Access denied",
           code: "TEAM_ACCESS_DENIED",
-          status: 403,
         }),
         { status: 403, headers: { "Content-Type": "application/json" } }
       );
     }
-    const { team } = teamValidation;
 
     console.log("🔍 Competitive Analyze API: POST request", {
       userId: user.id,
-      teamId: team.id,
-      teamName: team.name,
+      teamId: teamId,
+      userRole: teamAccess.userRole,
       url: request.url,
     });
 
