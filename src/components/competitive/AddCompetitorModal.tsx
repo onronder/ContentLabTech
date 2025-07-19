@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -102,6 +102,38 @@ const extractDomainFromUrl = (url: string): string => {
   }
 };
 
+// Accessibility helper functions
+const announceToScreenReader = (message: string) => {
+  const announcement = document.createElement("div");
+  announcement.setAttribute("aria-live", "polite");
+  announcement.className = "sr-only";
+  announcement.textContent = message;
+
+  document.body.appendChild(announcement);
+
+  setTimeout(() => {
+    if (document.body.contains(announcement)) {
+      document.body.removeChild(announcement);
+    }
+  }, 1000);
+};
+
+const announceSubmissionStatus = (message: string) => {
+  const announcement = document.createElement("div");
+  announcement.setAttribute("aria-live", "assertive");
+  announcement.setAttribute("aria-atomic", "true");
+  announcement.className = "sr-only";
+  announcement.textContent = message;
+
+  document.body.appendChild(announcement);
+
+  setTimeout(() => {
+    if (document.body.contains(announcement)) {
+      document.body.removeChild(announcement);
+    }
+  }, 1000);
+};
+
 export function AddCompetitorModal({
   onCompetitorAdded,
   teamId: _teamId,
@@ -135,6 +167,190 @@ export function AddCompetitorModal({
     setDescription(value);
     validateField("description", value);
   };
+
+  // Mobile-specific helper functions
+  const handleMobileFocus = useCallback((fieldName: string) => {
+    if (window.innerWidth <= 768) {
+      // Scroll field into view on mobile
+      setTimeout(() => {
+        const field = document.getElementById(`competitor-${fieldName}`);
+        if (field) {
+          field.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest",
+          });
+        }
+      }, 300); // Wait for virtual keyboard
+    }
+  }, []);
+
+  // Touch-friendly validation feedback
+  const showMobileValidationFeedback = useCallback(
+    (fieldName: string, isValid: boolean) => {
+      if (window.innerWidth <= 768) {
+        // Provide haptic feedback on mobile devices
+        if ("vibrate" in navigator) {
+          if (isValid) {
+            navigator.vibrate(50); // Short vibration for success
+          } else {
+            navigator.vibrate([100, 50, 100]); // Pattern for error
+          }
+        }
+      }
+    },
+    []
+  );
+
+  // Accessibility helper functions
+  const getFieldStateClass = (fieldName: keyof ValidationErrors): string => {
+    if (errors[fieldName]) return "field-error";
+    if (touched[fieldName] && !errors[fieldName]) {
+      const value = getFieldValue(fieldName);
+      if (value && value.trim()) return "field-success";
+    }
+    return "";
+  };
+
+  const getFieldValue = (fieldName: keyof ValidationErrors): string => {
+    switch (fieldName) {
+      case "name":
+        return name;
+      case "domain":
+        return domain;
+      case "website_url":
+        return websiteUrl;
+      case "industry":
+        return industry;
+      case "description":
+        return description;
+      default:
+        return "";
+    }
+  };
+
+  const handleFieldBlur = (fieldName: keyof ValidationErrors) => {
+    setTouched({ ...touched, [fieldName]: true });
+
+    const value = getFieldValue(fieldName);
+    const isValid = validateField(fieldName, value);
+
+    // Announce validation result to screen readers
+    if (!isValid && errors[fieldName]) {
+      announceToScreenReader(
+        `${fieldName} field has an error: ${errors[fieldName]}`
+      );
+    } else if (isValid && value.trim()) {
+      announceToScreenReader(`${fieldName} field is valid`);
+    }
+
+    // Provide mobile feedback
+    showMobileValidationFeedback(fieldName, isValid);
+  };
+
+  // Keyboard navigation
+  const handleTabNavigation = useCallback((e: KeyboardEvent) => {
+    const focusableElements = document.querySelectorAll(
+      'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[
+      focusableElements.length - 1
+    ] as HTMLElement;
+
+    if (e.shiftKey && document.activeElement === firstElement) {
+      e.preventDefault();
+      lastElement.focus();
+    } else if (!e.shiftKey && document.activeElement === lastElement) {
+      e.preventDefault();
+      firstElement.focus();
+    }
+  }, []);
+
+  // Mobile-specific enhancements
+  useEffect(() => {
+    if (!open) return;
+
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+
+    if (isMobile) {
+      // Prevent body scroll when modal is open
+      const originalOverflow = document.body.style.overflow;
+      const originalPosition = document.body.style.position;
+      const originalWidth = document.body.style.width;
+
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.width = "100%";
+
+      // Handle virtual keyboard
+      const handleResize = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty("--vh", `${vh}px`);
+      };
+
+      window.addEventListener("resize", handleResize);
+      handleResize();
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.position = originalPosition;
+        document.body.style.width = originalWidth;
+        window.removeEventListener("resize", handleResize);
+      };
+    }
+
+    // Return cleanup function for non-mobile or undefined
+    return undefined;
+  }, [open]);
+
+  // Focus management and keyboard navigation
+  useEffect(() => {
+    if (!open) return;
+
+    // Focus first input when modal opens
+    const firstInput = document.getElementById("competitor-name");
+    if (firstInput) {
+      setTimeout(() => {
+        firstInput.focus();
+        announceToScreenReader(
+          "Add competitor form opened. Fill in the required fields to add a new competitor."
+        );
+      }, 100);
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+      }
+
+      if (e.key === "Tab") {
+        handleTabNavigation(e);
+      }
+
+      // Submit with Ctrl+Enter
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const form = document.querySelector(
+          'form[role="form"]'
+        ) as HTMLFormElement;
+        if (form) {
+          const submitEvent = new Event("submit", {
+            bubbles: true,
+            cancelable: true,
+          });
+          form.dispatchEvent(submitEvent);
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, handleTabNavigation]);
 
   const validateField = (
     fieldName: keyof ValidationErrors,
@@ -284,7 +500,12 @@ export function AddCompetitorModal({
     const isFormValid = validations.every(Boolean);
 
     if (!isFormValid) {
-      // Focus on first error field
+      // Focus on first error field and announce errors
+      const errorCount = Object.keys(errors).length;
+      announceSubmissionStatus(
+        `Form has ${errorCount} error${errorCount === 1 ? "" : "s"}. Please correct the errors and try again.`
+      );
+
       setTimeout(() => {
         const firstErrorField = document.querySelector(".field-error");
         if (firstErrorField instanceof HTMLElement) {
@@ -331,6 +552,9 @@ export function AddCompetitorModal({
 
       // Success handling
       setSubmitSuccess(true);
+      announceSubmissionStatus(
+        `Success! ${name.trim()} has been added to your competitive intelligence dashboard.`
+      );
 
       // Call success callback
       onCompetitorAdded();
@@ -341,11 +565,12 @@ export function AddCompetitorModal({
       }, 2000);
     } catch (error) {
       console.error("Error adding competitor:", error);
-      setSubmitError(
+      const errorMessage =
         error instanceof Error
           ? error.message
-          : "Failed to add competitor. Please try again."
-      );
+          : "Failed to add competitor. Please try again.";
+      setSubmitError(errorMessage);
+      announceSubmissionStatus(`Error: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -381,22 +606,43 @@ export function AddCompetitorModal({
       </DialogTrigger>
       <DialogContent className="bg-gradient-card border-primary/20 border-2 sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="bg-gradient-primary mb-2 bg-clip-text text-xl font-bold text-transparent">
+          <DialogTitle
+            id="competitor-form-title"
+            className="bg-gradient-primary mb-2 bg-clip-text text-xl font-bold text-transparent"
+          >
             Add New Competitor
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="mt-4 space-y-6">
-          <div className="form-container">
+        <form
+          onSubmit={handleSubmit}
+          className="mt-4 space-y-6"
+          role="form"
+          aria-labelledby="competitor-form-title"
+          aria-describedby="competitor-form-description"
+        >
+          <div id="competitor-form-description" className="sr-only">
+            Add a new competitor to your competitive intelligence database.
+            Required fields are marked with an asterisk.
+          </div>
+          <fieldset
+            className="form-container"
+            aria-label="Competitor Information"
+          >
             <div className="form-field">
-              <label htmlFor="company-name" className="field-label required">
+              <label htmlFor="competitor-name" className="field-label required">
                 Company Name *
-                <span className="field-hint">
+                <span id="competitor-name-hint" className="field-hint">
                   The official name of the competitor
                 </span>
               </label>
               <Input
-                id="company-name"
+                id="competitor-name"
                 type="text"
+                inputMode="text"
+                autoComplete="organization"
+                autoCapitalize="words"
+                autoCorrect="off"
+                spellCheck="true"
                 placeholder="e.g., Apple Inc."
                 className={`field-input ${
                   errors.name
@@ -412,35 +658,54 @@ export function AddCompetitorModal({
                     validateField("name", e.target.value);
                   }
                 }}
-                onBlur={() => {
-                  setTouched({ ...touched, name: true });
-                  validateField("name", name);
-                }}
+                onBlur={() => handleFieldBlur("name")}
+                onFocus={() => handleMobileFocus("name")}
+                aria-required="true"
+                aria-invalid={errors.name ? "true" : "false"}
+                aria-describedby={`${errors.name ? "competitor-name-error" : ""} ${touched.name && !errors.name && name.trim() ? "competitor-name-success" : ""} competitor-name-hint`.trim()}
               />
               {errors.name && touched.name && (
-                <div className="error-message">
-                  <AlertCircle size={16} />
+                <div
+                  id="competitor-name-error"
+                  className="error-message"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertCircle size={16} aria-hidden="true" />
                   {errors.name}
                 </div>
               )}
               {touched.name && !errors.name && name.trim() && (
-                <div className="success-message">
-                  <CheckCircle size={16} />
+                <div
+                  id="competitor-name-success"
+                  className="success-message"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <CheckCircle size={16} aria-hidden="true" />
                   Looks good!
                 </div>
               )}
             </div>
 
             <div className="form-field">
-              <label htmlFor="domain" className="field-label required">
+              <label
+                htmlFor="competitor-domain"
+                className="field-label required"
+              >
                 Domain *
-                <span className="field-hint">
+                <span id="competitor-domain-hint" className="field-hint">
                   Domain without http:// or www
                 </span>
               </label>
               <Input
-                id="domain"
+                id="competitor-domain"
                 type="text"
+                inputMode="url"
+                autoComplete="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
                 placeholder="e.g., apple.com"
                 className={`field-input ${
                   errors.domain
@@ -451,20 +716,31 @@ export function AddCompetitorModal({
                 } ${autoCompletedFields.domain ? "auto-completed" : ""}`}
                 value={domain}
                 onChange={e => handleDomainChange(e.target.value)}
-                onBlur={() => {
-                  setTouched({ ...touched, domain: true });
-                  validateField("domain", domain);
-                }}
+                onBlur={() => handleFieldBlur("domain")}
+                onFocus={() => handleMobileFocus("domain")}
+                aria-required="true"
+                aria-invalid={errors.domain ? "true" : "false"}
+                aria-describedby={`${errors.domain ? "competitor-domain-error" : ""} ${touched.domain && !errors.domain && domain.trim() ? "competitor-domain-success" : ""} ${autoCompletedFields.domain ? "competitor-domain-auto" : ""} competitor-domain-hint`.trim()}
               />
               {errors.domain && touched.domain && (
-                <div className="error-message">
-                  <AlertCircle size={16} />
+                <div
+                  id="competitor-domain-error"
+                  className="error-message"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertCircle size={16} aria-hidden="true" />
                   {errors.domain}
                 </div>
               )}
               {autoCompletedFields.domain && (
-                <div className="auto-completion-hint">
-                  <Sparkles size={12} />
+                <div
+                  id="competitor-domain-auto"
+                  className="auto-completion-hint"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Sparkles size={12} aria-hidden="true" />
                   Auto-extracted from website URL
                 </div>
               )}
@@ -472,23 +748,36 @@ export function AddCompetitorModal({
                 !errors.domain &&
                 domain.trim() &&
                 !autoCompletedFields.domain && (
-                  <div className="success-message">
-                    <CheckCircle size={16} />
+                  <div
+                    id="competitor-domain-success"
+                    className="success-message"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <CheckCircle size={16} aria-hidden="true" />
                     Looks good!
                   </div>
                 )}
             </div>
 
             <div className="form-field">
-              <label htmlFor="website-url" className="field-label required">
+              <label
+                htmlFor="competitor-website-url"
+                className="field-label required"
+              >
                 Website URL *
-                <span className="field-hint">
+                <span id="competitor-website-hint" className="field-hint">
                   Full website URL including https://
                 </span>
               </label>
               <Input
-                id="website-url"
+                id="competitor-website-url"
                 type="url"
+                inputMode="url"
+                autoComplete="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
                 placeholder="e.g., https://apple.com"
                 className={`field-input ${
                   errors.website_url
@@ -502,16 +791,30 @@ export function AddCompetitorModal({
                 value={websiteUrl}
                 onChange={e => handleWebsiteUrlChange(e.target.value)}
                 onBlur={handleWebsiteUrlBlur}
+                onFocus={() => handleMobileFocus("website-url")}
+                aria-required="true"
+                aria-invalid={errors.website_url ? "true" : "false"}
+                aria-describedby={`${errors.website_url ? "competitor-website-error" : ""} ${touched.website_url && !errors.website_url && websiteUrl.trim() ? "competitor-website-success" : ""} ${autoCompletedFields.website_url ? "competitor-website-auto" : ""} competitor-website-hint`.trim()}
               />
               {errors.website_url && touched.website_url && (
-                <div className="error-message">
-                  <AlertCircle size={16} />
+                <div
+                  id="competitor-website-error"
+                  className="error-message"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertCircle size={16} aria-hidden="true" />
                   {errors.website_url}
                 </div>
               )}
               {autoCompletedFields.website_url && (
-                <div className="auto-completion-hint">
-                  <Sparkles size={12} />
+                <div
+                  id="competitor-website-auto"
+                  className="auto-completion-hint"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <Sparkles size={12} aria-hidden="true" />
                   Auto-suggested from domain
                 </div>
               )}
@@ -519,22 +822,31 @@ export function AddCompetitorModal({
                 !errors.website_url &&
                 websiteUrl.trim() &&
                 !autoCompletedFields.website_url && (
-                  <div className="success-message">
-                    <CheckCircle size={16} />
+                  <div
+                    id="competitor-website-success"
+                    className="success-message"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <CheckCircle size={16} aria-hidden="true" />
                     Looks good!
                   </div>
                 )}
             </div>
 
             <div className="form-field">
-              <label htmlFor="industry" className="field-label required">
+              <label
+                htmlFor="competitor-industry"
+                className="field-label required"
+              >
                 Industry *
-                <span className="field-hint">
+                <span id="competitor-industry-hint" className="field-hint">
                   Select the competitor&apos;s primary industry
                 </span>
               </label>
               <select
-                id="industry"
+                id="competitor-industry"
+                autoComplete="organization-title"
                 className={`field-input field-select ${
                   errors.industry
                     ? "field-error"
@@ -549,10 +861,11 @@ export function AddCompetitorModal({
                     validateField("industry", e.target.value);
                   }
                 }}
-                onBlur={() => {
-                  setTouched({ ...touched, industry: true });
-                  validateField("industry", industry);
-                }}
+                onBlur={() => handleFieldBlur("industry")}
+                onFocus={() => handleMobileFocus("industry")}
+                aria-required="true"
+                aria-invalid={errors.industry ? "true" : "false"}
+                aria-describedby={`${errors.industry ? "competitor-industry-error" : ""} ${touched.industry && !errors.industry && industry ? "competitor-industry-success" : ""} competitor-industry-hint`.trim()}
               >
                 <option value="">Select industry</option>
                 {INDUSTRY_OPTIONS.map(option => (
@@ -562,28 +875,43 @@ export function AddCompetitorModal({
                 ))}
               </select>
               {errors.industry && touched.industry && (
-                <div className="error-message">
-                  <AlertCircle size={16} />
+                <div
+                  id="competitor-industry-error"
+                  className="error-message"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertCircle size={16} aria-hidden="true" />
                   {errors.industry}
                 </div>
               )}
               {touched.industry && !errors.industry && industry && (
-                <div className="success-message">
-                  <CheckCircle size={16} />
+                <div
+                  id="competitor-industry-success"
+                  className="success-message"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <CheckCircle size={16} aria-hidden="true" />
                   Looks good!
                 </div>
               )}
             </div>
 
             <div className="form-field">
-              <label htmlFor="description" className="field-label">
+              <label htmlFor="competitor-description" className="field-label">
                 Description
-                <span className="field-hint">
+                <span id="competitor-description-hint" className="field-hint">
                   Additional context about this competitor (optional)
                 </span>
               </label>
               <textarea
-                id="description"
+                id="competitor-description"
+                inputMode="text"
+                autoComplete="off"
+                autoCapitalize="sentences"
+                autoCorrect="on"
+                spellCheck="true"
                 className={`field-input field-textarea ${
                   errors.description
                     ? "field-error"
@@ -594,13 +922,21 @@ export function AddCompetitorModal({
                 placeholder="Brief description of the competitor, their main products, market position, competitive advantages, etc."
                 value={description}
                 onChange={e => handleDescriptionChange(e.target.value)}
-                onBlur={() => setTouched({ ...touched, description: true })}
+                onBlur={() => handleFieldBlur("description")}
+                onFocus={() => handleMobileFocus("description")}
                 rows={4}
                 maxLength={MAX_DESCRIPTION_LENGTH + 50}
+                aria-required="false"
+                aria-invalid={errors.description ? "true" : "false"}
+                aria-describedby={`${errors.description ? "competitor-description-error" : ""} competitor-description-hint competitor-description-counter`.trim()}
               />
 
               <div className="field-footer">
-                <div className="character-counter">
+                <div
+                  id="competitor-description-counter"
+                  className="character-counter"
+                  aria-live="polite"
+                >
                   <span
                     className={`character-count ${
                       description.length > MAX_DESCRIPTION_LENGTH
@@ -609,11 +945,12 @@ export function AddCompetitorModal({
                           ? "near-limit"
                           : ""
                     }`}
+                    aria-label={`Character count: ${description.length} of ${MAX_DESCRIPTION_LENGTH} characters used`}
                   >
                     {description.length}/{MAX_DESCRIPTION_LENGTH}
                   </span>
                   {description.length > MAX_DESCRIPTION_LENGTH && (
-                    <span className="over-limit-text">
+                    <span className="over-limit-text" role="alert">
                       {description.length - MAX_DESCRIPTION_LENGTH} characters
                       over limit
                     </span>
@@ -639,13 +976,18 @@ export function AddCompetitorModal({
               </div>
 
               {errors.description && (
-                <div className="error-message">
-                  <AlertCircle size={16} />
+                <div
+                  id="competitor-description-error"
+                  className="error-message"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertCircle size={16} aria-hidden="true" />
                   {errors.description}
                 </div>
               )}
             </div>
-          </div>
+          </fieldset>
 
           <div className="form-actions">
             <button
@@ -653,6 +995,7 @@ export function AddCompetitorModal({
               onClick={() => setOpen(false)}
               className="btn-secondary"
               disabled={isSubmitting}
+              aria-label="Cancel adding competitor and close dialog"
             >
               Cancel
             </button>
@@ -661,15 +1004,27 @@ export function AddCompetitorModal({
               type="submit"
               className={`btn-primary ${isSubmitting ? "btn-loading" : ""}`}
               disabled={isSubmitting || Object.keys(errors).length > 0}
+              aria-label={
+                isSubmitting
+                  ? "Adding competitor, please wait"
+                  : "Add competitor to database"
+              }
+              aria-describedby={
+                isSubmitting ? "submit-loading-status" : undefined
+              }
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="animate-spin" size={16} />
-                  Adding Competitor...
+                  <Loader2
+                    className="animate-spin"
+                    size={16}
+                    aria-hidden="true"
+                  />
+                  <span id="submit-loading-status">Adding Competitor...</span>
                 </>
               ) : (
                 <>
-                  <Plus size={16} />
+                  <Plus size={16} aria-hidden="true" />
                   Add Competitor
                 </>
               )}
@@ -678,9 +1033,13 @@ export function AddCompetitorModal({
 
           {/* Submission Feedback */}
           {submitError && (
-            <div className="submission-feedback error">
+            <div
+              className="submission-feedback error"
+              role="alert"
+              aria-live="assertive"
+            >
               <div className="feedback-content">
-                <AlertCircle size={20} />
+                <AlertCircle size={20} aria-hidden="true" />
                 <div>
                   <div className="feedback-title">Failed to Add Competitor</div>
                   <div className="feedback-message">{submitError}</div>
@@ -690,16 +1049,21 @@ export function AddCompetitorModal({
                 type="button"
                 onClick={() => setSubmitError("")}
                 className="feedback-close"
+                aria-label="Dismiss error message"
               >
-                <X size={16} />
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
           )}
 
           {submitSuccess && (
-            <div className="submission-feedback success">
+            <div
+              className="submission-feedback success"
+              role="status"
+              aria-live="polite"
+            >
               <div className="feedback-content">
-                <CheckCircle size={20} />
+                <CheckCircle size={20} aria-hidden="true" />
                 <div>
                   <div className="feedback-title">
                     Competitor Added Successfully!
