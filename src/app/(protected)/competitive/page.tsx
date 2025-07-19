@@ -2,7 +2,7 @@
 
 import React, { Suspense } from "react";
 import { CompetitiveDashboard } from "@/components/competitive/CompetitiveDashboard";
-import { RealtimeDemo } from "@/components/realtime/RealtimeDemo";
+import { RealtimeDemo } from "@/components/competitive/RealtimeDemo";
 import { useAuth } from "@/lib/auth/context";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
