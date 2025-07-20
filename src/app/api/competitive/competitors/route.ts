@@ -160,7 +160,6 @@ export const POST = withApiAuth(
           .from("team_members")
           .select("team_id, role")
           .eq("user_id", user.id)
-          .eq("status", "active")
           .single();
 
         if (teamMemberError || !teamMember) {

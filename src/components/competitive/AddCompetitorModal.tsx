@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -136,7 +137,7 @@ const announceSubmissionStatus = (message: string) => {
 
 export function AddCompetitorModal({
   onCompetitorAdded,
-  teamId: _teamId,
+  teamId,
   onSuccess,
 }: AddCompetitorModalProps) {
   const [open, setOpen] = useState(false);
@@ -569,6 +570,7 @@ export function AddCompetitorModal({
         website_url: websiteUrl.trim(),
         industry: industry,
         description: description.trim() || null,
+        teamId: teamId,
       };
 
       // eslint-disable-next-line no-console
@@ -704,19 +706,17 @@ export function AddCompetitorModal({
           >
             Add New Competitor
           </DialogTitle>
+          <DialogDescription className="text-sm text-gray-500">
+            Add a new competitor to your competitive intelligence database.
+            Required fields are marked with an asterisk.
+          </DialogDescription>
         </DialogHeader>
         <form
           onSubmit={handleSubmit}
           className="mt-4 space-y-6"
           role="form"
           aria-labelledby="competitor-form-title"
-          aria-describedby="competitor-form-description"
         >
-          <div id="competitor-form-description" className="sr-only">
-            Add a new competitor to your competitive intelligence database.
-            Required fields are marked with an asterisk.
-          </div>
-
           {/* Error display at top of form */}
           {submitError && (
             <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3">
