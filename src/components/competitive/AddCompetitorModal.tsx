@@ -44,6 +44,7 @@ const INDUSTRY_OPTIONS = [
 interface AddCompetitorModalProps {
   onCompetitorAdded: () => void;
   teamId: string;
+  onSuccess?: (competitor: any) => void;
 }
 
 interface ValidationErrors {
@@ -137,6 +138,7 @@ const announceSubmissionStatus = (message: string) => {
 export function AddCompetitorModal({
   onCompetitorAdded,
   teamId: _teamId,
+  onSuccess,
 }: AddCompetitorModalProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -475,7 +477,9 @@ export function AddCompetitorModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Clear previous submission states
+    console.log("🔍 [FORM] Submit attempt started");
+
+    // Clear previous errors
     setSubmitError("");
     setSubmitSuccess(false);
 
@@ -488,7 +492,44 @@ export function AddCompetitorModal({
       description: true,
     });
 
-    // Validate all fields
+    // Validate all fields before submission
+    const validationErrors: ValidationErrors = {};
+
+    if (!name.trim()) {
+      validationErrors.name = "Company name is required";
+    }
+
+    if (!domain.trim()) {
+      validationErrors.domain = "Domain is required";
+    }
+
+    if (!websiteUrl.trim()) {
+      validationErrors.website_url = "Website URL is required";
+    }
+
+    if (!industry) {
+      validationErrors.industry = "Industry selection is required";
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      console.log("❌ [FORM] Validation failed:", validationErrors);
+      setErrors(validationErrors);
+
+      // Focus first error field and announce errors
+      const firstErrorField = Object.keys(validationErrors)[0];
+      const errorElement = document.getElementById(
+        `competitor-${firstErrorField}`
+      );
+      errorElement?.focus();
+
+      const errorCount = Object.keys(validationErrors).length;
+      announceSubmissionStatus(
+        `Form has ${errorCount} error${errorCount === 1 ? "" : "s"}. Please correct the errors and try again.`
+      );
+      return;
+    }
+
+    // Additional validation using existing validateField
     const validations = [
       validateField("name", name),
       validateField("domain", domain),
@@ -500,29 +541,22 @@ export function AddCompetitorModal({
     const isFormValid = validations.every(Boolean);
 
     if (!isFormValid) {
-      // Focus on first error field and announce errors
-      const errorCount = Object.keys(errors).length;
-      announceSubmissionStatus(
-        `Form has ${errorCount} error${errorCount === 1 ? "" : "s"}. Please correct the errors and try again.`
-      );
-
-      setTimeout(() => {
-        const firstErrorField = document.querySelector(".field-error");
-        if (firstErrorField instanceof HTMLElement) {
-          firstErrorField.focus();
-          firstErrorField.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-        }
-      }, 100);
+      console.log("❌ [FORM] Secondary validation failed:", errors);
       return;
     }
+
+    console.log("🔍 [FORM] Validation passed, submitting data:", {
+      name: name.trim(),
+      domain: domain.trim(),
+      website_url: websiteUrl.trim(),
+      industry: industry,
+      description: description ? `${description.substring(0, 30)}...` : "Empty",
+    });
 
     setIsSubmitting(true);
 
     try {
-      const competitorData = {
+      const formData = {
         name: name.trim(),
         domain: domain.trim(),
         website_url: websiteUrl.trim(),
@@ -530,27 +564,50 @@ export function AddCompetitorModal({
         description: description.trim() || null,
       };
 
+      // Submit to API
       const response = await fetch("/api/competitive/competitors", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include", // Important for authentication
-        body: JSON.stringify(competitorData),
+        credentials: "include", // Important for cookie-based auth
+        body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message ||
-            errorData.error ||
-            `Server error: ${response.status} ${response.statusText}`
-        );
-      }
+      console.log("🔍 [FORM] API response status:", response.status);
 
       const result = await response.json();
+      console.log("🔍 [FORM] API response data:", result);
+
+      if (!response.ok) {
+        // Handle specific error codes
+        if (result.code === "NO_SESSION") {
+          setSubmitError("Please log in again to continue");
+          announceSubmissionStatus(
+            "Authentication required - please refresh the page"
+          );
+        } else if (result.code === "NO_TEAM") {
+          setSubmitError("No active team membership found");
+          announceSubmissionStatus(
+            "Team access required - please contact your administrator"
+          );
+        } else if (result.code === "TABLE_MISSING") {
+          setSubmitError("Database setup required");
+          announceSubmissionStatus(
+            "System setup in progress - please try again in a moment"
+          );
+        } else {
+          setSubmitError(result.error || "Failed to add competitor");
+          announceSubmissionStatus(result.error || "Something went wrong");
+        }
+
+        console.error("❌ [FORM] API error:", result);
+        return;
+      }
 
       // Success handling
+      console.log("✅ [FORM] Competitor added successfully:", result.data);
+
       setSubmitSuccess(true);
       announceSubmissionStatus(
         `Success! ${name.trim()} has been added to your competitive intelligence dashboard.`
@@ -559,18 +616,29 @@ export function AddCompetitorModal({
       // Call success callback
       onCompetitorAdded();
 
+      // Refresh the competitors list
+      if (onSuccess) {
+        onSuccess(result.data);
+      }
+
+      // Reset form
+      setName("");
+      setDomain("");
+      setWebsiteUrl("");
+      setIndustry("");
+      setDescription("");
+      setErrors({});
+      setTouched({});
+      setAutoCompletedFields({});
+
       // Auto-close modal after success
       setTimeout(() => {
         setOpen(false);
       }, 2000);
     } catch (error) {
-      console.error("Error adding competitor:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Failed to add competitor. Please try again.";
-      setSubmitError(errorMessage);
-      announceSubmissionStatus(`Error: ${errorMessage}`);
+      console.error("❌ [FORM] Unexpected error:", error);
+      setSubmitError("Network error - please check your connection");
+      announceSubmissionStatus("Network error - please try again");
     } finally {
       setIsSubmitting(false);
     }
@@ -624,6 +692,17 @@ export function AddCompetitorModal({
             Add a new competitor to your competitive intelligence database.
             Required fields are marked with an asterisk.
           </div>
+
+          {/* Error display at top of form */}
+          {submitError && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3">
+              <div className="flex items-center">
+                <AlertCircle className="mr-2 h-4 w-4 text-red-500" />
+                <p className="text-sm text-red-700">{submitError}</p>
+              </div>
+            </div>
+          )}
+
           <fieldset
             className="form-container"
             aria-label="Competitor Information"
@@ -1002,8 +1081,12 @@ export function AddCompetitorModal({
 
             <button
               type="submit"
-              className={`btn-primary ${isSubmitting ? "btn-loading" : ""}`}
               disabled={isSubmitting || Object.keys(errors).length > 0}
+              className={`flex items-center justify-center rounded-md px-4 py-2 font-medium ${
+                isSubmitting || Object.keys(errors).length > 0
+                  ? "cursor-not-allowed bg-gray-300 text-gray-500"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+              } `}
               aria-label={
                 isSubmitting
                   ? "Adding competitor, please wait"
@@ -1015,46 +1098,17 @@ export function AddCompetitorModal({
             >
               {isSubmitting ? (
                 <>
-                  <Loader2
-                    className="animate-spin"
-                    size={16}
-                    aria-hidden="true"
-                  />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   <span id="submit-loading-status">Adding Competitor...</span>
                 </>
               ) : (
                 <>
-                  <Plus size={16} aria-hidden="true" />
+                  <Plus className="mr-2 h-4 w-4" />
                   Add Competitor
                 </>
               )}
             </button>
           </div>
-
-          {/* Submission Feedback */}
-          {submitError && (
-            <div
-              className="submission-feedback error"
-              role="alert"
-              aria-live="assertive"
-            >
-              <div className="feedback-content">
-                <AlertCircle size={20} aria-hidden="true" />
-                <div>
-                  <div className="feedback-title">Failed to Add Competitor</div>
-                  <div className="feedback-message">{submitError}</div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSubmitError("")}
-                className="feedback-close"
-                aria-label="Dismiss error message"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            </div>
-          )}
 
           {submitSuccess && (
             <div
