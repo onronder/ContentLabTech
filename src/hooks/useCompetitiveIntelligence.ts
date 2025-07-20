@@ -296,7 +296,7 @@ export const useCompetitiveIntelligence = (
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             projectId,
-            teamId: "current-team", // TODO: Get from auth context
+            teamId: localStorage.getItem("currentTeamId") || "",
             targetDomain: params.targetDomain,
             competitorIds: params.competitorIds,
             analysisTypes: params.analysisTypes,
