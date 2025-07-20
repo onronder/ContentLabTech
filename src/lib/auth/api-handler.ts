@@ -37,8 +37,8 @@ export async function authenticatedApiHandler(
       );
     }
 
-    // Get user's current team
-    const { data: teamMember, error: teamError } = await supabase
+    // Get user's team memberships
+    const { data: teamMemberships, error: teamError } = await supabase
       .from("team_members")
       .select(
         `
@@ -52,10 +52,9 @@ export async function authenticatedApiHandler(
         )
       `
       )
-      .eq("user_id", user.id)
-      .single();
+      .eq("user_id", user.id);
 
-    if (teamError || !teamMember) {
+    if (teamError || !teamMemberships || teamMemberships.length === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -65,6 +64,9 @@ export async function authenticatedApiHandler(
         { status: 403 }
       );
     }
+
+    // Use the first team membership (you can enhance this logic later)
+    const teamMember = teamMemberships[0];
 
     // Extract team data
     const teamData = Array.isArray(teamMember.teams)
