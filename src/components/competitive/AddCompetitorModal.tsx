@@ -682,9 +682,12 @@ export function AddCompetitorModal({
     <Dialog
       open={open}
       onOpenChange={newOpen => {
-        setOpen(newOpen);
-        if (!newOpen) {
+        // Only reset form when dialog is explicitly closed, not during validation
+        if (!newOpen && !isSubmitting) {
+          setOpen(newOpen);
           resetForm();
+        } else if (newOpen) {
+          setOpen(newOpen);
         }
       }}
     >
