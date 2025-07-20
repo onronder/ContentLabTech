@@ -16,7 +16,6 @@ import {
   Sparkles,
   Loader2,
   Plus,
-  X,
 } from "lucide-react";
 
 const MAX_DESCRIPTION_LENGTH = 500;
@@ -44,7 +43,7 @@ const INDUSTRY_OPTIONS = [
 interface AddCompetitorModalProps {
   onCompetitorAdded: () => void;
   teamId: string;
-  onSuccess?: (competitor: any) => void;
+  onSuccess?: (competitor: unknown) => void;
 }
 
 interface ValidationErrors {
@@ -205,14 +204,7 @@ export function AddCompetitorModal({
   );
 
   // Accessibility helper functions
-  const getFieldStateClass = (fieldName: keyof ValidationErrors): string => {
-    if (errors[fieldName]) return "field-error";
-    if (touched[fieldName] && !errors[fieldName]) {
-      const value = getFieldValue(fieldName);
-      if (value && value.trim()) return "field-success";
-    }
-    return "";
-  };
+  // getFieldStateClass removed - unused function
 
   const getFieldValue = (fieldName: keyof ValidationErrors): string => {
     switch (fieldName) {
@@ -477,6 +469,7 @@ export function AddCompetitorModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // eslint-disable-next-line no-console
     console.log("🔍 [FORM] Submit attempt started");
 
     // Clear previous errors
@@ -512,7 +505,17 @@ export function AddCompetitorModal({
     }
 
     if (Object.keys(validationErrors).length > 0) {
-      console.log("❌ [FORM] Validation failed:", validationErrors);
+      // eslint-disable-next-line no-console
+      console.log("❌ [FORM] Validation failed:", {
+        validationErrors,
+        formState: {
+          name: name.trim(),
+          domain: domain.trim(),
+          websiteUrl: websiteUrl.trim(),
+          industry: industry,
+          industryEmpty: !industry,
+        },
+      });
       setErrors(validationErrors);
 
       // Focus first error field and announce errors
@@ -541,15 +544,19 @@ export function AddCompetitorModal({
     const isFormValid = validations.every(Boolean);
 
     if (!isFormValid) {
+      // eslint-disable-next-line no-console
       console.log("❌ [FORM] Secondary validation failed:", errors);
       return;
     }
 
+    // eslint-disable-next-line no-console
     console.log("🔍 [FORM] Validation passed, submitting data:", {
       name: name.trim(),
       domain: domain.trim(),
       website_url: websiteUrl.trim(),
       industry: industry,
+      industryIsEmpty: !industry,
+      industryLength: industry?.length || 0,
       description: description ? `${description.substring(0, 30)}...` : "Empty",
     });
 
@@ -564,6 +571,17 @@ export function AddCompetitorModal({
         description: description.trim() || null,
       };
 
+      // eslint-disable-next-line no-console
+      console.log("🔍 [FORM] Final form data prepared:", {
+        ...formData,
+        industryCheck: {
+          value: industry,
+          isEmpty: !industry,
+          length: industry?.length || 0,
+          type: typeof industry,
+        },
+      });
+
       // Submit to API
       const response = await fetch("/api/competitive/competitors", {
         method: "POST",
@@ -574,9 +592,11 @@ export function AddCompetitorModal({
         body: JSON.stringify(formData),
       });
 
+      // eslint-disable-next-line no-console
       console.log("🔍 [FORM] API response status:", response.status);
 
       const result = await response.json();
+      // eslint-disable-next-line no-console
       console.log("🔍 [FORM] API response data:", result);
 
       if (!response.ok) {
@@ -606,6 +626,7 @@ export function AddCompetitorModal({
       }
 
       // Success handling
+      // eslint-disable-next-line no-console
       console.log("✅ [FORM] Competitor added successfully:", result.data);
 
       setSubmitSuccess(true);
@@ -935,9 +956,19 @@ export function AddCompetitorModal({
                 }`}
                 value={industry}
                 onChange={e => {
-                  setIndustry(e.target.value);
-                  if (touched.industry) {
-                    validateField("industry", e.target.value);
+                  const value = e.target.value;
+                  // eslint-disable-next-line no-console
+                  console.log("🔍 [FORM] Industry onChange:", {
+                    value,
+                    previousValue: industry,
+                    touched: touched.industry,
+                  });
+
+                  setIndustry(value);
+
+                  // Always validate on change to provide immediate feedback
+                  if (value || touched.industry) {
+                    validateField("industry", value);
                   }
                 }}
                 onBlur={() => handleFieldBlur("industry")}

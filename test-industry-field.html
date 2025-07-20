@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Industry Field Debug Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+      .test-section {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+      select,
+      input {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 16px;
+      }
+      .output {
+        background: #f5f5f5;
+        padding: 10px;
+        border-radius: 4px;
+        margin-top: 10px;
+        font-family: monospace;
+      }
+      .success {
+        color: green;
+      }
+      .error {
+        color: red;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Industry Field State Test</h1>
+
+    <div class="test-section">
+      <h2>Test 1: Basic Select Element</h2>
+      <select id="test1" onchange="updateTest1()">
+        <option value="">Select industry</option>
+        <option value="Technology">Technology</option>
+        <option value="Healthcare">Healthcare</option>
+        <option value="Financial Services">Financial Services</option>
+      </select>
+      <div class="output" id="output1">Selected value: (none)</div>
+    </div>
+
+    <div class="test-section">
+      <h2>Test 2: React-style onChange Simulation</h2>
+      <select id="test2">
+        <option value="">Select industry</option>
+        <option value="Technology">Technology</option>
+        <option value="Healthcare">Healthcare</option>
+        <option value="Financial Services">Financial Services</option>
+      </select>
+      <div class="output" id="output2">Selected value: (none)</div>
+    </div>
+
+    <div class="test-section">
+      <h2>Test 3: Form Submission Test</h2>
+      <form id="testForm" onsubmit="testSubmit(event)">
+        <input type="text" id="name" placeholder="Company Name" required />
+        <input type="text" id="domain" placeholder="domain.com" required />
+        <input
+          type="url"
+          id="website_url"
+          placeholder="https://example.com"
+          required
+        />
+        <select id="industry" required>
+          <option value="">Select industry</option>
+          <option value="Technology">Technology</option>
+          <option value="Healthcare">Healthcare</option>
+          <option value="Financial Services">Financial Services</option>
+        </select>
+        <button type="submit">Submit</button>
+      </form>
+      <div class="output" id="output3">Form data will appear here</div>
+    </div>
+
+    <div class="test-section">
+      <h2>Debug Instructions</h2>
+      <ol>
+        <li>Open this file in a browser</li>
+        <li>Test each select element</li>
+        <li>Check if values are captured correctly</li>
+        <li>Submit the form to see all values</li>
+      </ol>
+      <p>
+        If these tests work but the React component doesn't, the issue might be:
+      </p>
+      <ul>
+        <li>Event handler not properly bound</li>
+        <li>State update being blocked</li>
+        <li>Validation interfering with state</li>
+        <li>Re-render not triggered after state change</li>
+      </ul>
+    </div>
+
+    <script>
+      // Test 1: Direct onchange
+      function updateTest1() {
+        const select = document.getElementById("test1");
+        document.getElementById("output1").innerHTML =
+          `Selected value: <span class="${select.value ? "success" : "error"}">${select.value || "(none)"}</span>`;
+      }
+
+      // Test 2: Event listener (React-style)
+      document.getElementById("test2").addEventListener("change", function (e) {
+        const value = e.target.value;
+        document.getElementById("output2").innerHTML =
+          `Selected value: <span class="${value ? "success" : "error"}">${value || "(none)"}</span>`;
+        console.log("Test 2 - onChange event:", { value, target: e.target });
+      });
+
+      // Test 3: Form submission
+      function testSubmit(event) {
+        event.preventDefault();
+        const formData = {
+          name: document.getElementById("name").value,
+          domain: document.getElementById("domain").value,
+          website_url: document.getElementById("website_url").value,
+          industry: document.getElementById("industry").value,
+        };
+
+        document.getElementById("output3").innerHTML =
+          `<pre>${JSON.stringify(formData, null, 2)}</pre>`;
+        console.log("Form data:", formData);
+
+        // Highlight if industry is missing
+        if (!formData.industry) {
+          document.getElementById("output3").innerHTML +=
+            '<p class="error">⚠️ Industry field is empty!</p>';
+        }
+      }
+
+      // Log all select changes for debugging
+      document.querySelectorAll("select").forEach(select => {
+        select.addEventListener("change", e => {
+          console.log(`Select changed: ${e.target.id} = "${e.target.value}"`);
+        });
+      });
+    </script>
+  </body>
+</html>
