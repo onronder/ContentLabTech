@@ -396,7 +396,7 @@ export function AddCompetitorModal({
         break;
 
       case "industry":
-        if (!value) {
+        if (!value || !value.trim()) {
           newErrors.industry = "Please select an industry";
         } else {
           delete newErrors.industry;
@@ -500,7 +500,7 @@ export function AddCompetitorModal({
       validationErrors.website_url = "Website URL is required";
     }
 
-    if (!industry) {
+    if (!industry || !industry.trim()) {
       validationErrors.industry = "Industry selection is required";
     }
 
@@ -512,8 +512,8 @@ export function AddCompetitorModal({
           name: name.trim(),
           domain: domain.trim(),
           websiteUrl: websiteUrl.trim(),
-          industry: industry,
-          industryEmpty: !industry,
+          industry: industry.trim(),
+          industryEmpty: !industry || !industry.trim(),
         },
       });
       setErrors(validationErrors);
