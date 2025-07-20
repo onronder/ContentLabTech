@@ -7,11 +7,11 @@ const CompetitorSchema = z.object({
   name: z.string().min(1),
   url: z.string().url(),
   industry: z.string(),
-  projectId: z.string().uuid(),
+  teamId: z.string().uuid(),
 });
 
 const AlertConfigSchema = z.object({
-  projectId: z.string().uuid(),
+  teamId: z.string().uuid(),
   competitorId: z.string().uuid(),
   alertType: z.enum([
     "ranking_change",
@@ -25,7 +25,7 @@ const AlertConfigSchema = z.object({
 
 const AnalysisResultSchema = z.object({
   id: z.string().uuid(),
-  projectId: z.string().uuid(),
+  teamId: z.string().uuid(),
   competitorId: z.string().uuid(),
   analysisType: z.enum(["seo", "content", "keywords", "backlinks"]),
   data: z.record(z.any()),
@@ -38,12 +38,12 @@ const CompetitorCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   url: z.string().url("Valid URL is required"),
   industry: z.string().min(1, "Industry is required"),
-  projectId: z.string().uuid("Valid project ID is required"),
+  teamId: z.string().uuid("Valid team ID is required"),
 });
 
 const MetricsSchema = z.object({
   competitorId: z.string().uuid(),
-  projectId: z.string().uuid(),
+  teamId: z.string().uuid(),
   metrics: z.object({
     organic_traffic: z.number().optional(),
     keyword_count: z.number().optional(),
@@ -93,14 +93,14 @@ export class CompetitiveService {
   }
 
   /**
-   * Get competitors for a project
+   * Get competitors for a project (using teamId)
    */
-  async getCompetitors(projectId: string) {
-    const key = `competitors_${projectId}`;
+  async getCompetitors(teamId: string) {
+    const key = `competitors_${teamId}`;
 
     return this.safeRequest(key, async () => {
       const response = await fetch(
-        `/api/competitive/competitors?projectId=${projectId}`,
+        `/api/competitive/competitors?teamId=${teamId}`,
         {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -124,7 +124,7 @@ export class CompetitiveService {
   async createCompetitor(
     competitorData: z.infer<typeof CompetitorCreateSchema>
   ) {
-    const key = `create_competitor_${competitorData.projectId}`;
+    const key = `create_competitor_${competitorData.teamId}`;
 
     return this.safeRequest(
       key,
@@ -150,7 +150,7 @@ export class CompetitiveService {
         const result = await response.json();
 
         // Invalidate competitors cache
-        this.requestCache.delete(`competitors_${competitorData.projectId}`);
+        this.requestCache.delete(`competitors_${competitorData.teamId}`);
 
         return result;
       },
@@ -162,7 +162,7 @@ export class CompetitiveService {
    * Create a competitive alert
    */
   async createAlert(alertConfig: z.infer<typeof AlertConfigSchema>) {
-    const key = `create_alert_${alertConfig.projectId}_${Date.now()}`;
+    const key = `create_alert_${alertConfig.teamId}_${Date.now()}`;
 
     return this.safeRequest(
       key,
@@ -188,7 +188,7 @@ export class CompetitiveService {
         const result = await response.json();
 
         // Invalidate alerts cache
-        this.requestCache.delete(`alerts_${alertConfig.projectId}`);
+        this.requestCache.delete(`alerts_${alertConfig.teamId}`);
 
         return result;
       },
@@ -197,19 +197,16 @@ export class CompetitiveService {
   }
 
   /**
-   * Get alerts for a project
+   * Get alerts for a team
    */
-  async getAlerts(projectId: string) {
-    const key = `alerts_${projectId}`;
+  async getAlerts(teamId: string) {
+    const key = `alerts_${teamId}`;
 
     return this.safeRequest(key, async () => {
-      const response = await fetch(
-        `/api/competitive/alerts?projectId=${projectId}`,
-        {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        }
-      );
+      const response = await fetch(`/api/competitive/alerts?teamId=${teamId}`, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
 
       if (!response.ok) {
         throw new Error(
@@ -223,14 +220,14 @@ export class CompetitiveService {
   }
 
   /**
-   * Get competitive analysis for a project
+   * Get competitive analysis for a team
    */
-  async getAnalysis(projectId: string) {
-    const key = `analysis_${projectId}`;
+  async getAnalysis(teamId: string) {
+    const key = `analysis_${teamId}`;
 
     return this.safeRequest(key, async () => {
       const response = await fetch(
-        `/api/competitive/analysis?projectId=${projectId}`,
+        `/api/competitive/analysis?teamId=${teamId}`,
         {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -291,12 +288,12 @@ export class CompetitiveService {
   /**
    * Get competitor metrics
    */
-  async getMetrics(competitorId: string, projectId: string) {
-    const key = `metrics_${competitorId}_${projectId}`;
+  async getMetrics(competitorId: string, teamId: string) {
+    const key = `metrics_${competitorId}_${teamId}`;
 
     return this.safeRequest(key, async () => {
       const response = await fetch(
-        `/api/competitive/metrics?competitorId=${competitorId}&projectId=${projectId}`,
+        `/api/competitive/metrics?competitorId=${competitorId}&teamId=${teamId}`,
         {
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -345,7 +342,7 @@ export class CompetitiveService {
 
         // Invalidate metrics cache
         this.requestCache.delete(
-          `metrics_${metricsData.competitorId}_${metricsData.projectId}`
+          `metrics_${metricsData.competitorId}_${metricsData.teamId}`
         );
 
         return result;
@@ -357,7 +354,7 @@ export class CompetitiveService {
   /**
    * Delete a competitor
    */
-  async deleteCompetitor(competitorId: string, projectId: string) {
+  async deleteCompetitor(competitorId: string, teamId: string) {
     const key = `delete_competitor_${competitorId}_${Date.now()}`;
 
     return this.safeRequest(
@@ -382,8 +379,8 @@ export class CompetitiveService {
         }
 
         // Invalidate related caches
-        this.requestCache.delete(`competitors_${projectId}`);
-        this.requestCache.delete(`metrics_${competitorId}_${projectId}`);
+        this.requestCache.delete(`competitors_${teamId}`);
+        this.requestCache.delete(`metrics_${competitorId}_${teamId}`);
         this.requestCache.forEach((_, key) => {
           if (key.includes(competitorId)) {
             this.requestCache.delete(key);

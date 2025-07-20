@@ -32,18 +32,19 @@ export default function CompetitivePage() {
     );
   }
 
-  // Use the current team's ID as the project ID for now
-  const projectId = currentTeam.id;
+  // Use the current team's ID
+  const teamId = currentTeam.id;
 
-  if (!projectId) {
+  if (!teamId) {
     return (
       <div className="p-8 text-center">
-        <h2 className="mb-4 text-xl font-semibold">No Project Found</h2>
+        <h2 className="mb-4 text-xl font-semibold">No Team Found</h2>
         <p className="mb-4 text-gray-600">
-          You need to create a project to use competitive intelligence features.
+          You need to be part of a team to use competitive intelligence
+          features.
         </p>
         <button className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
-          Create Project
+          Join or Create Team
         </button>
       </div>
     );
@@ -52,7 +53,7 @@ export default function CompetitivePage() {
   return (
     <div className="container mx-auto px-4 py-6">
       <Suspense fallback={<DashboardSkeleton />}>
-        <CompetitiveDashboard projectId={projectId} />
+        <CompetitiveDashboard teamId={teamId} />
       </Suspense>
     </div>
   );

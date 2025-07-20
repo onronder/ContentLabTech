@@ -10,7 +10,7 @@ interface CompetitiveDashboardState {
   error: string | null;
 }
 
-export function useCompetitiveDashboard(projectId: string) {
+export function useCompetitiveDashboard(teamId: string) {
   const { user } = useAuth();
   const [state, setState] = useState<CompetitiveDashboardState>({
     competitors: [],
@@ -21,15 +21,15 @@ export function useCompetitiveDashboard(projectId: string) {
   });
 
   const loadData = useCallback(async () => {
-    if (!projectId || !user) return;
+    if (!teamId || !user) return;
 
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
       const [competitors, alerts, analysis] = await Promise.allSettled([
-        competitiveService.getCompetitors(projectId),
-        competitiveService.getAlerts(projectId),
-        competitiveService.getAnalysis(projectId),
+        competitiveService.getCompetitors(teamId),
+        competitiveService.getAlerts(teamId),
+        competitiveService.getAnalysis(teamId),
       ]);
 
       setState({
@@ -51,7 +51,7 @@ export function useCompetitiveDashboard(projectId: string) {
             : "Failed to load dashboard data",
       }));
     }
-  }, [projectId, user]);
+  }, [teamId, user]);
 
   useEffect(() => {
     loadData();

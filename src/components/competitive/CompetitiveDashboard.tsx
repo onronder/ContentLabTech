@@ -16,12 +16,12 @@ import { RunAnalysisModal } from "./RunAnalysisModal";
 import { useAuth } from "@/lib/auth/context";
 
 interface CompetitiveDashboardProps {
-  projectId: string;
+  teamId: string;
 }
 
-function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
+function CompetitiveDashboardContent({ teamId }: CompetitiveDashboardProps) {
   const { competitors, alerts, analysis, loading, error, refresh } =
-    useCompetitiveDashboard(projectId);
+    useCompetitiveDashboard(teamId);
   const { currentTeam } = useAuth();
 
   if (loading) {
@@ -51,7 +51,7 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
           <h1 className="bg-gradient-primary bg-clip-text text-3xl font-bold text-transparent">
             Competitive Intelligence
           </h1>
-          <WebSocketStatus projectId={projectId} className="mt-2" />
+          <WebSocketStatus projectId={teamId} className="mt-2" />
         </div>
         <Button onClick={refresh} variant="default" className="shadow-lg">
           Refresh
@@ -233,7 +233,7 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
                   <RunAnalysisModal
                     onAnalysisStarted={refresh}
                     teamId={currentTeam?.id || ""}
-                    projectId={projectId}
+                    projectId={teamId}
                   />
                 </div>
               ) : (
@@ -242,7 +242,7 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
                     <RunAnalysisModal
                       onAnalysisStarted={refresh}
                       teamId={currentTeam?.id || ""}
-                      projectId={projectId}
+                      projectId={teamId}
                     />
                   </div>
                   <div className="space-y-4">
@@ -287,9 +287,9 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
 
         <TabsContent value="realtime">
           <div className="space-y-6">
-            <RealTimeUpdates projectId={projectId} />
+            <RealTimeUpdates projectId={teamId} />
             {process.env.NODE_ENV === "development" && (
-              <WebSocketTester projectId={projectId} />
+              <WebSocketTester projectId={teamId} />
             )}
           </div>
         </TabsContent>
@@ -298,10 +298,10 @@ function CompetitiveDashboardContent({ projectId }: CompetitiveDashboardProps) {
   );
 }
 
-export function CompetitiveDashboard({ projectId }: CompetitiveDashboardProps) {
+export function CompetitiveDashboard({ teamId }: CompetitiveDashboardProps) {
   return (
     <CompetitiveErrorBoundary>
-      <CompetitiveDashboardContent projectId={projectId} />
+      <CompetitiveDashboardContent teamId={teamId} />
     </CompetitiveErrorBoundary>
   );
 }
