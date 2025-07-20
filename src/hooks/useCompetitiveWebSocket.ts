@@ -148,7 +148,8 @@ export function useCompetitiveWebSocket(projectId: string) {
 
   // Connect to WebSocket when projectId changes
   useEffect(() => {
-    if (projectId) {
+    // Temporarily disable WebSocket connections until server is implemented
+    if (false && projectId) {
       competitiveWebSocket.connect(projectId);
     }
 

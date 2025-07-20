@@ -54,7 +54,13 @@ export const useCompetitiveIntelligence = (
 
   const fetchCompetitors = useCallback(async (): Promise<Competitor[]> => {
     try {
-      const response = await fetch("/api/competitive/competitors", {
+      // Get teamId from team context or local storage
+      const teamId = localStorage.getItem("currentTeamId") || "";
+      const url = teamId
+        ? `/api/competitive/competitors?teamId=${teamId}`
+        : "/api/competitive/competitors";
+
+      const response = await fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });
@@ -78,7 +84,7 @@ export const useCompetitiveIntelligence = (
 
     try {
       const response = await fetch(
-        `/api/competitive/analysis?projectId=${projectId}&pageSize=50`,
+        `/api/competitive/analysis?teamId=${localStorage.getItem("currentTeamId") || ""}&projectId=${projectId}&pageSize=50`,
         {
           method: "GET",
           headers: { "Content-Type": "application/json" },
@@ -99,7 +105,13 @@ export const useCompetitiveIntelligence = (
 
   const fetchAlerts = useCallback(async (): Promise<CompetitiveAlert[]> => {
     try {
-      const response = await fetch("/api/competitive/alerts", {
+      // Get teamId from team context or local storage
+      const teamId = localStorage.getItem("currentTeamId") || "";
+      const url = teamId
+        ? `/api/competitive/alerts?teamId=${teamId}`
+        : "/api/competitive/alerts";
+
+      const response = await fetch(url, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
       });

@@ -9,6 +9,14 @@ export class CompetitiveWebSocketService {
     "disconnected";
 
   connect(projectId: string) {
+    // Check if WebSocket is disabled
+    if (process.env.NEXT_PUBLIC_DISABLE_WEBSOCKET === "true") {
+      console.log("WebSocket connections are disabled");
+      this.connectionState = "disconnected";
+      this.emitConnectionState("disconnected");
+      return;
+    }
+
     if (this.socket?.connected && this.projectId === projectId) return;
 
     // Clean up existing connection if projectId changed
