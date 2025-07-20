@@ -43,40 +43,60 @@ export function RunAnalysisModal({
   } = useForm<AnalysisFormData>();
 
   const onSubmit = async (data: AnalysisFormData) => {
+    console.log("🔍 [RUN_ANALYSIS] Form submission started with:", data);
+    console.log("🔍 [RUN_ANALYSIS] TeamId:", teamId, "ProjectId:", projectId);
+
     setIsSubmitting(true);
     try {
+      const payload = {
+        project_id: projectId,
+        teamId: teamId,
+        analysis_type: data.analysis_type,
+        competitor_id: data.competitor_id || null,
+        keywords: data.keywords
+          .split(",")
+          .map(k => k.trim())
+          .filter(k => k),
+        competitorUrls: data.competitorUrls
+          .split(",")
+          .map(url => url.trim())
+          .filter(url => url),
+        includeContentGaps: data.includeContentGaps,
+        includeTechnicalSeo: data.includeTechnicalSeo,
+        analysisDepth: data.analysisDepth,
+      };
+
+      console.log("🔍 [RUN_ANALYSIS] Request payload:", payload);
+
       const response = await fetch("/api/competitive/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          project_id: projectId,
-          analysis_type: data.analysis_type,
-          competitor_id: data.competitor_id || null,
-          keywords: data.keywords
-            .split(",")
-            .map(k => k.trim())
-            .filter(k => k),
-          competitorUrls: data.competitorUrls
-            .split(",")
-            .map(url => url.trim())
-            .filter(url => url),
-          includeContentGaps: data.includeContentGaps,
-          includeTechnicalSeo: data.includeTechnicalSeo,
-          analysisDepth: data.analysisDepth,
-        }),
+        credentials: "include",
+        body: JSON.stringify(payload),
       });
 
+      console.log(
+        "🔍 [RUN_ANALYSIS] Response status:",
+        response.status,
+        response.statusText
+      );
+
       if (!response.ok) {
-        throw new Error("Failed to start analysis");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("❌ [RUN_ANALYSIS] API error:", errorData);
+        throw new Error(`Failed to start analysis: ${response.status}`);
       }
+
+      const result = await response.json();
+      console.log("✅ [RUN_ANALYSIS] Analysis started successfully:", result);
 
       reset();
       setOpen(false);
       onAnalysisStarted();
     } catch (error) {
-      console.error("Error starting analysis:", error);
+      console.error("❌ [RUN_ANALYSIS] Error starting analysis:", error);
     } finally {
       setIsSubmitting(false);
     }

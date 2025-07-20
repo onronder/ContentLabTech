@@ -137,8 +137,17 @@ export const ProjectsManager = () => {
   }, [searchTerm, filters.search]);
 
   const loadProjects = async () => {
-    if (!currentTeam?.id) return;
+    console.log("🔍 [PROJECTS] loadProjects called with:", {
+      teamId: currentTeam?.id,
+      filters,
+    });
 
+    if (!currentTeam?.id) {
+      console.log("⚠️ [PROJECTS] No team ID, returning early");
+      return;
+    }
+
+    console.log("🔍 [PROJECTS] Setting loading state");
     setLoading(true);
     setError(null);
 
@@ -151,6 +160,9 @@ export const ProjectsManager = () => {
 
       if (filters.status) params.append("status", filters.status);
       if (filters.search) params.append("search", filters.search);
+
+      const url = `/api/projects?${params.toString()}`;
+      console.log("🔍 [PROJECTS] Making request to:", url);
 
       // Use production-grade authenticated fetch
       const authContext = {
@@ -167,22 +179,39 @@ export const ProjectsManager = () => {
       };
 
       const response = await authenticatedFetch(
-        `/api/projects?${params.toString()}`,
-        {
-          method: "GET",
-        },
+        url,
+        { method: "GET" },
         authContext
       );
 
+      console.log(
+        "🔍 [PROJECTS] Response status:",
+        response.status,
+        response.statusText
+      );
+
       if (!response.ok) {
+        console.error(
+          "❌ [PROJECTS] API request failed:",
+          response.status,
+          response.statusText
+        );
         throw new Error("Failed to load projects");
       }
 
       const data = await response.json();
+      console.log("🔍 [PROJECTS] Raw API response:", data);
+
       // Ensure all projects have required stats structure
       const processedProjects = (data.projects || []).map(ensureProjectStats);
+      console.log(
+        "🔍 [PROJECTS] Processed projects count:",
+        processedProjects.length
+      );
+
       setProjects(processedProjects);
       setTotalProjects(data.total || 0);
+      console.log("✅ [PROJECTS] Projects loaded successfully");
     } catch (err) {
       console.error("Failed to load projects:", err);
 

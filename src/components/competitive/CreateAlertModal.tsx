@@ -39,34 +39,51 @@ export function CreateAlertModal({
   } = useForm<AlertFormData>();
 
   const onSubmit = async (data: AlertFormData) => {
+    console.log("🔍 [CREATE_ALERT] Form submission started with:", data);
+    console.log("🔍 [CREATE_ALERT] TeamId:", teamId);
+
     setIsSubmitting(true);
     try {
+      const payload = {
+        alert_type: data.alert_type,
+        competitor_id: data.competitor_id,
+        threshold: data.threshold,
+        frequency: data.frequency,
+        keywords: data.keywords,
+        teamId: teamId,
+      };
+
+      console.log("🔍 [CREATE_ALERT] Request payload:", payload);
+
       const response = await fetch("/api/competitive/alerts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          alert_type: data.alert_type,
-          competitor_id: data.competitor_id || null,
-          threshold: data.threshold,
-          frequency: data.frequency,
-          keywords: data.keywords
-            .split(",")
-            .map(k => k.trim())
-            .filter(k => k),
-        }),
+        credentials: "include",
+        body: JSON.stringify(payload),
       });
 
+      console.log(
+        "🔍 [CREATE_ALERT] Response status:",
+        response.status,
+        response.statusText
+      );
+
       if (!response.ok) {
-        throw new Error("Failed to create alert");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("❌ [CREATE_ALERT] API error:", errorData);
+        throw new Error(`Failed to create alert: ${response.status}`);
       }
+
+      const result = await response.json();
+      console.log("✅ [CREATE_ALERT] Alert created successfully:", result);
 
       reset();
       setOpen(false);
       onAlertCreated();
     } catch (error) {
-      console.error("Error creating alert:", error);
+      console.error("❌ [CREATE_ALERT] Error creating alert:", error);
     } finally {
       setIsSubmitting(false);
     }
