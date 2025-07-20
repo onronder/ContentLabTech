@@ -5,9 +5,15 @@ import { z } from "zod";
 const CompetitorSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
-  url: z.string().url(),
+  domain: z.string().optional(),
+  website_url: z.string().url(),
   industry: z.string(),
-  teamId: z.string().uuid(),
+  description: z.string().optional(),
+  team_id: z.string().uuid(),
+  created_by: z.string().uuid(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+  monitoring_enabled: z.boolean(),
 });
 
 const AlertConfigSchema = z.object({
@@ -36,8 +42,10 @@ const AnalysisResultSchema = z.object({
 
 const CompetitorCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  url: z.string().url("Valid URL is required"),
+  domain: z.string().optional(),
+  website_url: z.string().url("Valid URL is required"),
   industry: z.string().min(1, "Industry is required"),
+  description: z.string().optional().nullable(),
   teamId: z.string().uuid("Valid team ID is required"),
 });
 
@@ -114,7 +122,7 @@ export class CompetitiveService {
       }
 
       const data = await response.json();
-      return z.array(CompetitorSchema).parse(data.competitors || []);
+      return z.array(CompetitorSchema).parse(data.data?.competitors || []);
     });
   }
 
