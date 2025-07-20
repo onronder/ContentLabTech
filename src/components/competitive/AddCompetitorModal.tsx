@@ -618,6 +618,14 @@ export function AddCompetitorModal({
           announceSubmissionStatus(
             "System setup in progress - please try again in a moment"
           );
+        } else if (
+          result.code === "CREATE_COMPETITOR_ERROR" &&
+          result.details?.includes("duplicate key")
+        ) {
+          setSubmitError("This competitor domain already exists in your team");
+          announceSubmissionStatus(
+            "Competitor with this domain already exists"
+          );
         } else {
           setSubmitError(result.error || "Failed to add competitor");
           announceSubmissionStatus(result.error || "Something went wrong");

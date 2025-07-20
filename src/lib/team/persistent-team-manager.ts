@@ -32,7 +32,7 @@ const DEFAULT_OPTIONS: TeamPersistenceOptions = {
 
 const STORAGE_KEYS = {
   TEAMS: "contentlab_teams",
-  CURRENT_TEAM: "contentlab_current_team_id",
+  CURRENT_TEAM: "currentTeamId",
   PERSISTENCE_STATE: "contentlab_team_persistence_state",
   LAST_SYNC: "contentlab_last_team_sync",
 } as const;
