@@ -67,6 +67,16 @@ export async function authenticatedApiHandler(
 
     // Use the first team membership (you can enhance this logic later)
     const teamMember = teamMemberships[0];
+    if (!teamMember) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No valid team membership found",
+          code: "NO_TEAM",
+        },
+        { status: 403 }
+      );
+    }
 
     // Extract team data
     const teamData = Array.isArray(teamMember.teams)
