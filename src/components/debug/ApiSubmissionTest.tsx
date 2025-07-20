@@ -12,7 +12,7 @@ export function ApiSubmissionTest() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<unknown>(null);
+  const [result, setResult] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
