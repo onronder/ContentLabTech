@@ -105,24 +105,61 @@ export class CompetitiveService {
    */
   async getCompetitors(teamId: string) {
     const key = `competitors_${teamId}`;
+    console.log("🔍 [COMPETITIVE] getCompetitors called with teamId:", teamId);
 
     return this.safeRequest(key, async () => {
-      const response = await fetch(
-        `/api/competitive/competitors?teamId=${teamId}`,
-        {
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        }
+      const url = `/api/competitive/competitors?teamId=${teamId}`;
+      console.log("🔍 [COMPETITIVE] Making request to:", url);
+
+      const response = await fetch(url, {
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      console.log(
+        "🔍 [COMPETITIVE] Response status:",
+        response.status,
+        response.statusText
       );
 
       if (!response.ok) {
+        console.error(
+          "❌ [COMPETITIVE] API request failed:",
+          response.status,
+          response.statusText
+        );
         throw new Error(
           `Failed to fetch competitors: ${response.status} ${response.statusText}`
         );
       }
 
       const data = await response.json();
-      return z.array(CompetitorSchema).parse(data.data?.competitors || []);
+      console.log("🔍 [COMPETITIVE] Raw API response:", data);
+
+      const competitors = data.data?.competitors || [];
+      console.log("🔍 [COMPETITIVE] Extracted competitors:", competitors);
+      console.log("🔍 [COMPETITIVE] Competitor count:", competitors.length);
+
+      try {
+        const validatedCompetitors = z
+          .array(CompetitorSchema)
+          .parse(competitors);
+        console.log(
+          "✅ [COMPETITIVE] Schema validation successful. Competitors:",
+          validatedCompetitors.length
+        );
+        return validatedCompetitors;
+      } catch (validationError) {
+        console.error(
+          "❌ [COMPETITIVE] Schema validation failed:",
+          validationError
+        );
+        console.error(
+          "❌ [COMPETITIVE] Data that failed validation:",
+          competitors
+        );
+        throw validationError;
+      }
     });
   }
 

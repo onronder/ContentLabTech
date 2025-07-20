@@ -24,7 +24,18 @@ function CompetitiveDashboardContent({ teamId }: CompetitiveDashboardProps) {
     useCompetitiveDashboard(teamId);
   const { currentTeam } = useAuth();
 
+  console.log("🔍 [COMPONENT] CompetitiveDashboard render with:", {
+    teamId,
+    competitorsCount: competitors.length,
+    alertsCount: alerts.length,
+    analysisCount: analysis.length,
+    loading,
+    error,
+    currentTeamId: currentTeam?.id,
+  });
+
   if (loading) {
+    console.log("🔄 [COMPONENT] Showing loading state");
     return (
       <div className="flex h-64 items-center justify-center">
         <LoadingSpinner />
@@ -34,6 +45,7 @@ function CompetitiveDashboardContent({ teamId }: CompetitiveDashboardProps) {
   }
 
   if (error) {
+    console.log("❌ [COMPONENT] Showing error state:", error);
     return (
       <div className="p-8 text-center">
         <div className="mb-4 text-red-600">{error}</div>
@@ -123,6 +135,11 @@ function CompetitiveDashboardContent({ teamId }: CompetitiveDashboardProps) {
               <CardTitle>Competitor Management</CardTitle>
             </CardHeader>
             <CardContent>
+              {console.log(
+                "🔍 [COMPONENT] Competitors tab render with count:",
+                competitors.length
+              )}
+              {console.log("🔍 [COMPONENT] Competitors data:", competitors)}
               {competitors.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="mb-4 text-gray-500">No competitors added yet</p>
@@ -154,7 +171,7 @@ function CompetitiveDashboardContent({ teamId }: CompetitiveDashboardProps) {
                           </span>
                         </div>
                         <p className="text-primary-600 mt-1">
-                          {competitor.url}
+                          {competitor.website_url}
                         </p>
                         <p className="mt-1 text-sm text-neutral-600">
                           {competitor.industry}
