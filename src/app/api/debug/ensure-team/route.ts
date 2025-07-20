@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         message: "User already has team memberships",
         teams: existingMemberships,
-        currentTeamId: existingMemberships[0].team_id,
+        currentTeamId: existingMemberships[0]?.team_id || null,
       });
     }
 
