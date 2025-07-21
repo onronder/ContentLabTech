@@ -135,11 +135,6 @@ function CompetitiveDashboardContent({ teamId }: CompetitiveDashboardProps) {
               <CardTitle>Competitor Management</CardTitle>
             </CardHeader>
             <CardContent>
-              {console.log(
-                "🔍 [COMPONENT] Competitors tab render with count:",
-                competitors.length
-              )}
-              {console.log("🔍 [COMPONENT] Competitors data:", competitors)}
               {competitors.length === 0 ? (
                 <div className="py-8 text-center">
                   <p className="mb-4 text-gray-500">No competitors added yet</p>
