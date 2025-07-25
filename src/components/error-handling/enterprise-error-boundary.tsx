@@ -37,7 +37,11 @@ interface BusinessImpactSummary {
 interface EnterpriseErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
-  onError?: (error: Error, errorInfo: ErrorInfo, businessImpact: BusinessImpactSummary) => void;
+  onError?: (
+    error: Error,
+    errorInfo: ErrorInfo,
+    businessImpact: BusinessImpactSummary
+  ) => void;
   level?: "page" | "component" | "feature" | "critical";
   showDetails?: boolean;
   maxRetries?: number;
@@ -61,7 +65,10 @@ interface RecoveryOption {
 
 // Error classification service
 class ErrorClassificationService {
-  static classifyError(error: Error, context?: any): {
+  static classifyError(
+    error: Error,
+    context?: any
+  ): {
     category: string;
     severity: "low" | "medium" | "high" | "critical";
     businessImpact: BusinessImpactSummary;
@@ -74,18 +81,22 @@ class ErrorClassificationService {
 
     // Security classification
     const securityRelevant = this.isSecurityRelevant(error);
-    
+
     // Severity classification
     const severity = this.calculateSeverity(error, context);
-    
+
     // Category classification
     const category = this.categorizeError(error);
-    
+
     // Recoverability assessment
     const recoverable = this.isRecoverable(error);
-    
+
     // Business impact calculation
-    const businessImpact = this.calculateBusinessImpact(error, context, severity);
+    const businessImpact = this.calculateBusinessImpact(
+      error,
+      context,
+      severity
+    );
 
     return {
       category,
@@ -98,57 +109,78 @@ class ErrorClassificationService {
 
   private static isSecurityRelevant(error: Error): boolean {
     const securityKeywords = [
-      "unauthorized", "forbidden", "csrf", "xss", "injection",
-      "security", "breach", "attack", "malicious", "suspicious"
+      "unauthorized",
+      "forbidden",
+      "csrf",
+      "xss",
+      "injection",
+      "security",
+      "breach",
+      "attack",
+      "malicious",
+      "suspicious",
     ];
-    
+
     const message = error.message.toLowerCase();
     return securityKeywords.some(keyword => message.includes(keyword));
   }
 
-  private static calculateSeverity(error: Error, context?: any): "low" | "medium" | "high" | "critical" {
+  private static calculateSeverity(
+    error: Error,
+    context?: any
+  ): "low" | "medium" | "high" | "critical" {
     const message = error.message.toLowerCase();
     const name = error.name;
-    
+
     // Critical errors
-    if (name === "ChunkLoadError" || message.includes("chunk")) return "critical";
-    if (name === "TypeError" && message.includes("cannot read property")) return "critical";
+    if (name === "ChunkLoadError" || message.includes("chunk"))
+      return "critical";
+    if (name === "TypeError" && message.includes("cannot read property"))
+      return "critical";
     if (name === "ReferenceError") return "critical";
-    if (message.includes("network error") && context?.criticalPath) return "critical";
+    if (message.includes("network error") && context?.criticalPath)
+      return "critical";
     if (context?.userTier === "enterprise") return "critical";
-    
+
     // High severity
     if (name === "TypeError" || name === "ReferenceError") return "high";
-    if (message.includes("timeout") || message.includes("connection")) return "high";
+    if (message.includes("timeout") || message.includes("connection"))
+      return "high";
     if (context?.userTier === "premium") return "high";
     if (context?.revenueImpact > 1000) return "high";
-    
+
     // Medium severity
-    if (message.includes("validation") || message.includes("parse")) return "medium";
+    if (message.includes("validation") || message.includes("parse"))
+      return "medium";
     if (name === "SyntaxError") return "medium";
     if (context?.revenueImpact > 100) return "medium";
-    
+
     return "low";
   }
 
   private static categorizeError(error: Error): string {
     const message = error.message.toLowerCase();
     const name = error.name;
-    
-    if (name === "ChunkLoadError" || message.includes("loading")) return "infrastructure";
+
+    if (name === "ChunkLoadError" || message.includes("loading"))
+      return "infrastructure";
     if (name === "TypeError" || name === "ReferenceError") return "runtime";
-    if (message.includes("network") || message.includes("fetch")) return "network";
-    if (message.includes("auth") || message.includes("permission")) return "auth";
-    if (message.includes("validation") || message.includes("invalid")) return "validation";
-    if (message.includes("security") || message.includes("breach")) return "security";
-    
+    if (message.includes("network") || message.includes("fetch"))
+      return "network";
+    if (message.includes("auth") || message.includes("permission"))
+      return "auth";
+    if (message.includes("validation") || message.includes("invalid"))
+      return "validation";
+    if (message.includes("security") || message.includes("breach"))
+      return "security";
+
     return "unknown";
   }
 
   private static isRecoverable(error: Error): boolean {
     const recoverableTypes = ["ChunkLoadError", "NetworkError"];
     const recoverableMessages = ["loading", "chunk", "network", "timeout"];
-    
+
     return (
       recoverableTypes.includes(error.name) ||
       recoverableMessages.some(msg => error.message.toLowerCase().includes(msg))
@@ -161,43 +193,70 @@ class ErrorClassificationService {
     severity?: string
   ): BusinessImpactSummary {
     const baseSeverity = severity || "low";
-    
+
     return {
       severity: baseSeverity as "low" | "medium" | "high" | "critical",
       usersAffected: this.estimateUsersAffected(error, context, baseSeverity),
       estimatedDowntime: this.estimateDowntime(error, context, baseSeverity),
-      revenueImpact: context?.revenueImpact || this.estimateRevenueImpact(error, context, baseSeverity),
+      revenueImpact:
+        context?.revenueImpact ||
+        this.estimateRevenueImpact(error, context, baseSeverity),
       criticalFeatures: this.identifyCriticalFeatures(error, context),
     };
   }
 
-  private static estimateUsersAffected(error: Error, context?: any, severity?: string): number {
+  private static estimateUsersAffected(
+    error: Error,
+    context?: any,
+    severity?: string
+  ): number {
     const multipliers = { low: 1, medium: 10, high: 100, critical: 1000 };
-    const base = context?.userTier === "enterprise" ? 500 : context?.userTier === "premium" ? 50 : 5;
+    const base =
+      context?.userTier === "enterprise"
+        ? 500
+        : context?.userTier === "premium"
+          ? 50
+          : 5;
     return base * (multipliers[severity as keyof typeof multipliers] || 1);
   }
 
-  private static estimateDowntime(error: Error, context?: any, severity?: string): number {
+  private static estimateDowntime(
+    error: Error,
+    context?: any,
+    severity?: string
+  ): number {
     if (severity === "critical") return 300; // 5 minutes
     if (severity === "high") return 60; // 1 minute
     if (severity === "medium") return 10; // 10 seconds
     return 0;
   }
 
-  private static estimateRevenueImpact(error: Error, context?: any, severity?: string): number {
+  private static estimateRevenueImpact(
+    error: Error,
+    context?: any,
+    severity?: string
+  ): number {
     const multipliers = { low: 1, medium: 10, high: 100, critical: 1000 };
-    const base = context?.userTier === "enterprise" ? 100 : context?.userTier === "premium" ? 10 : 1;
+    const base =
+      context?.userTier === "enterprise"
+        ? 100
+        : context?.userTier === "premium"
+          ? 10
+          : 1;
     return base * (multipliers[severity as keyof typeof multipliers] || 1);
   }
 
-  private static identifyCriticalFeatures(error: Error, context?: any): string[] {
+  private static identifyCriticalFeatures(
+    error: Error,
+    context?: any
+  ): string[] {
     const features: string[] = [];
-    
+
     if (context?.feature) features.push(context.feature);
     if (context?.criticalPath) features.push("critical-user-journey");
     if (error.message.includes("auth")) features.push("authentication");
     if (error.message.includes("payment")) features.push("payment-processing");
-    
+
     return features;
   }
 }
@@ -248,7 +307,7 @@ export class EnterpriseErrorBoundary extends Component<
         description: "Clear browser cache and reload",
         automated: false,
         action: async () => {
-          if ('caches' in window) {
+          if ("caches" in window) {
             const cacheNames = await caches.keys();
             await Promise.all(cacheNames.map(name => caches.delete(name)));
           }
@@ -271,13 +330,18 @@ export class EnterpriseErrorBoundary extends Component<
     ];
 
     // Merge with custom recovery options
-    const allActions = [...defaultRecoveryActions, ...(this.props.recoveryOptions || [])];
+    const allActions = [
+      ...defaultRecoveryActions,
+      ...(this.props.recoveryOptions || []),
+    ];
     allActions.forEach(action => {
       this.recoveryActions.set(action.id, action);
     });
   }
 
-  static getDerivedStateFromError(error: Error): Partial<EnterpriseErrorBoundaryState> {
+  static getDerivedStateFromError(
+    error: Error
+  ): Partial<EnterpriseErrorBoundaryState> {
     return {
       hasError: true,
       error,
@@ -290,15 +354,18 @@ export class EnterpriseErrorBoundary extends Component<
     const { onError, level = "component", businessContext } = this.props;
 
     // Classify the error
-    const classification = ErrorClassificationService.classifyError(error, businessContext);
-    
+    const classification = ErrorClassificationService.classifyError(
+      error,
+      businessContext
+    );
+
     // Track with enterprise error tracker
     try {
       await enterpriseErrorTracker.trackEnterpriseError(error, {
-        correlationId: this.state.correlationId,
         endpoint: window.location.pathname,
         userAgent: navigator.userAgent,
-        businessContext,
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "production",
         traceContext: {
           traceId: this.state.correlationId,
           spanId: this.state.errorId!,
@@ -318,13 +385,16 @@ export class EnterpriseErrorBoundary extends Component<
         },
       });
     } catch (trackingError) {
-      logger.error("Failed to track error with enterprise tracker", trackingError as Error);
+      logger.error(
+        "Failed to track error with enterprise tracker",
+        trackingError as Error
+      );
     }
 
     // Update state with business impact
-    this.setState({ 
-      errorInfo, 
-      businessImpact: classification.businessImpact 
+    this.setState({
+      errorInfo,
+      businessImpact: classification.businessImpact,
     });
 
     // Call custom error handler
@@ -353,14 +423,22 @@ export class EnterpriseErrorBoundary extends Component<
 
   private async attemptAutomatedRecovery(error: Error): Promise<void> {
     for (const [actionId, action] of this.recoveryActions.entries()) {
-      if (action.automated && (!action.conditions || action.conditions(error))) {
+      if (
+        action.automated &&
+        (!action.conditions || action.conditions(error))
+      ) {
         try {
-          logger.info("Attempting automated recovery", { actionId, errorId: this.state.errorId });
+          logger.info("Attempting automated recovery", {
+            actionId,
+            errorId: this.state.errorId,
+          });
           await action.action();
           this.setState({ recoveryAttempted: true });
           break;
         } catch (recoveryError) {
-          logger.error("Automated recovery failed", recoveryError as Error, { actionId });
+          logger.error("Automated recovery failed", recoveryError as Error, {
+            actionId,
+          });
         }
       }
     }
@@ -376,9 +454,9 @@ export class EnterpriseErrorBoundary extends Component<
     const { retryCount, error } = this.state;
 
     if (retryCount >= maxRetries) {
-      logger.warn("Maximum retry attempts reached", { 
-        errorId: this.state.errorId, 
-        retryCount 
+      logger.warn("Maximum retry attempts reached", {
+        errorId: this.state.errorId,
+        retryCount,
       });
       return;
     }
@@ -405,21 +483,21 @@ export class EnterpriseErrorBoundary extends Component<
     if (!action) return;
 
     try {
-      logger.info("Manual recovery action initiated", { 
-        actionId, 
-        errorId: this.state.errorId 
+      logger.info("Manual recovery action initiated", {
+        actionId,
+        errorId: this.state.errorId,
       });
-      
+
       await action.action();
-      
-      logger.info("Manual recovery action completed", { 
-        actionId, 
-        errorId: this.state.errorId 
+
+      logger.info("Manual recovery action completed", {
+        actionId,
+        errorId: this.state.errorId,
       });
     } catch (recoveryError) {
-      logger.error("Manual recovery action failed", recoveryError as Error, { 
-        actionId, 
-        originalErrorId: this.state.errorId 
+      logger.error("Manual recovery action failed", recoveryError as Error, {
+        actionId,
+        originalErrorId: this.state.errorId,
       });
     }
   };
@@ -427,7 +505,7 @@ export class EnterpriseErrorBoundary extends Component<
   private getSeverityColor(severity: string): string {
     const colors = {
       low: "bg-blue-100 text-blue-800",
-      medium: "bg-yellow-100 text-yellow-800", 
+      medium: "bg-yellow-100 text-yellow-800",
       high: "bg-orange-100 text-orange-800",
       critical: "bg-red-100 text-red-800",
     };
@@ -441,43 +519,57 @@ export class EnterpriseErrorBoundary extends Component<
     return (
       <Card className="mt-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
             <Shield className="h-4 w-4" />
             Business Impact Assessment
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Severity</span>
+            <span className="text-muted-foreground text-sm">Severity</span>
             <Badge className={this.getSeverityColor(businessImpact.severity)}>
               {businessImpact.severity.toUpperCase()}
             </Badge>
           </div>
-          
+
           {businessImpact.usersAffected > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Users Affected</span>
-              <span className="text-sm font-medium">{businessImpact.usersAffected.toLocaleString()}</span>
+              <span className="text-muted-foreground text-sm">
+                Users Affected
+              </span>
+              <span className="text-sm font-medium">
+                {businessImpact.usersAffected.toLocaleString()}
+              </span>
             </div>
           )}
-          
+
           {businessImpact.estimatedDowntime > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Est. Downtime</span>
-              <span className="text-sm font-medium">{businessImpact.estimatedDowntime}s</span>
+              <span className="text-muted-foreground text-sm">
+                Est. Downtime
+              </span>
+              <span className="text-sm font-medium">
+                {businessImpact.estimatedDowntime}s
+              </span>
             </div>
           )}
-          
+
           {businessImpact.revenueImpact > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Revenue Impact</span>
-              <span className="text-sm font-medium">${businessImpact.revenueImpact.toLocaleString()}</span>
+              <span className="text-muted-foreground text-sm">
+                Revenue Impact
+              </span>
+              <span className="text-sm font-medium">
+                ${businessImpact.revenueImpact.toLocaleString()}
+              </span>
             </div>
           )}
-          
+
           {businessImpact.criticalFeatures.length > 0 && (
             <div className="space-y-1">
-              <span className="text-sm text-muted-foreground">Affected Features</span>
+              <span className="text-muted-foreground text-sm">
+                Affected Features
+              </span>
               <div className="flex flex-wrap gap-1">
                 {businessImpact.criticalFeatures.map((feature, index) => (
                   <Badge key={index} variant="outline" className="text-xs">
@@ -493,22 +585,23 @@ export class EnterpriseErrorBoundary extends Component<
   }
 
   private renderRecoveryActions(): ReactNode {
-    const availableActions = Array.from(this.recoveryActions.values())
-      .filter(action => !action.automated);
+    const availableActions = Array.from(this.recoveryActions.values()).filter(
+      action => !action.automated
+    );
 
     if (availableActions.length === 0) return null;
 
     return (
       <Card className="mt-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium">
             <Zap className="h-4 w-4" />
             Recovery Options
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {availableActions.map((action) => (
+            {availableActions.map(action => (
               <Button
                 key={action.id}
                 variant="outline"
@@ -517,7 +610,7 @@ export class EnterpriseErrorBoundary extends Component<
                 onClick={() => this.handleRecoveryAction(action.id)}
               >
                 {action.name}
-                <span className="ml-2 text-xs text-muted-foreground">
+                <span className="text-muted-foreground ml-2 text-xs">
                   {action.description}
                 </span>
               </Button>
@@ -536,7 +629,7 @@ export class EnterpriseErrorBoundary extends Component<
 
     return (
       <details className="mt-4">
-        <summary className="cursor-pointer text-sm text-muted-foreground mb-2">
+        <summary className="text-muted-foreground mb-2 cursor-pointer text-sm">
           Technical Details
         </summary>
         <div className="space-y-3 text-xs">
@@ -554,14 +647,14 @@ export class EnterpriseErrorBoundary extends Component<
           </div>
           <div>
             <strong>Stack Trace:</strong>
-            <pre className="mt-1 bg-muted p-2 rounded text-xs overflow-auto max-h-32">
+            <pre className="bg-muted mt-1 max-h-32 overflow-auto rounded p-2 text-xs">
               {error.stack}
             </pre>
           </div>
           {errorInfo && (
             <div>
               <strong>Component Stack:</strong>
-              <pre className="mt-1 bg-muted p-2 rounded text-xs overflow-auto max-h-32">
+              <pre className="bg-muted mt-1 max-h-32 overflow-auto rounded p-2 text-xs">
                 {errorInfo.componentStack}
               </pre>
             </div>
@@ -581,18 +674,23 @@ export class EnterpriseErrorBoundary extends Component<
     }
 
     // Critical page-level error
-    if (level === "page" || level === "critical" || businessImpact?.severity === "critical") {
+    if (
+      level === "page" ||
+      level === "critical" ||
+      businessImpact?.severity === "critical"
+    ) {
       return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <div className="max-w-md w-full">
+        <div className="bg-background flex min-h-screen items-center justify-center p-4">
+          <div className="w-full max-w-md">
             <Card>
               <CardHeader className="text-center">
-                <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-red-500" />
                 <CardTitle className="text-xl">System Error</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-center text-muted-foreground">
-                  We encountered a critical error that prevented the application from functioning properly.
+                <p className="text-muted-foreground text-center">
+                  We encountered a critical error that prevented the application
+                  from functioning properly.
                 </p>
 
                 {this.renderBusinessImpact()}
@@ -608,7 +706,7 @@ export class EnterpriseErrorBoundary extends Component<
                   </Button>
 
                   <Button
-                    onClick={() => window.location.href = "/dashboard"}
+                    onClick={() => (window.location.href = "/dashboard")}
                     variant="outline"
                     className="w-full"
                   >
@@ -635,14 +733,17 @@ export class EnterpriseErrorBoundary extends Component<
             <div className="space-y-3">
               <div>
                 <p className="font-medium">Component Error</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  This component encountered an error and couldn't render properly.
+                <p className="text-muted-foreground mt-1 text-sm">
+                  This component encountered an error and couldn&apos;t render
+                  properly.
                 </p>
               </div>
 
               {businessImpact && (
                 <div className="text-xs">
-                  <Badge className={this.getSeverityColor(businessImpact.severity)}>
+                  <Badge
+                    className={this.getSeverityColor(businessImpact.severity)}
+                  >
                     {businessImpact.severity.toUpperCase()} IMPACT
                   </Badge>
                 </div>
@@ -678,7 +779,7 @@ export class EnterpriseErrorBoundary extends Component<
 }
 
 // Specialized error boundaries for different contexts
-export const CriticalErrorBoundary: React.FC<{ 
+export const CriticalErrorBoundary: React.FC<{
   children: ReactNode;
   businessContext?: any;
 }> = ({ children, businessContext }) => (
@@ -692,7 +793,7 @@ export const CriticalErrorBoundary: React.FC<{
   </EnterpriseErrorBoundary>
 );
 
-export const PageErrorBoundary: React.FC<{ 
+export const PageErrorBoundary: React.FC<{
   children: ReactNode;
   businessContext?: any;
 }> = ({ children, businessContext }) => (
@@ -719,8 +820,9 @@ export const FeatureErrorBoundary: React.FC<{
         <AlertDescription>
           <div className="space-y-2">
             <p className="font-medium">Feature Temporarily Unavailable</p>
-            <p className="text-sm text-muted-foreground">
-              The {featureName} feature is experiencing issues. Please try again later.
+            <p className="text-muted-foreground text-sm">
+              The {featureName} feature is experiencing issues. Please try again
+              later.
             </p>
           </div>
         </AlertDescription>

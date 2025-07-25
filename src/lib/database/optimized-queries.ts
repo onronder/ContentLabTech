@@ -6,6 +6,7 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { withDatabaseConnection } from "./connection-pool";
+import { enterpriseLogger } from "@/lib/monitoring/enterprise-logger";
 
 type Tables = Database["public"]["Tables"];
 type Team = Tables["teams"]["Row"];
@@ -42,7 +43,8 @@ export const getTeamsWithFullDetailsForUser = async (
     // Single optimized query that joins everything needed
     const { data, error } = await client
       .from("teams")
-      .select(`
+      .select(
+        `
         *,
         team_members!inner (
           *,
@@ -57,12 +59,17 @@ export const getTeamsWithFullDetailsForUser = async (
           content_items (count),
           competitors (count)
         )
-      `)
+      `
+      )
       .eq("team_members.user_id", userId)
       .order("updated_at", { ascending: false });
 
     if (error) {
-      console.error("❌ Error fetching teams with details:", error);
+      enterpriseLogger.error(
+        "Error fetching teams with details",
+        new Error(error.message),
+        { userId }
+      );
       throw new Error(`Failed to fetch teams: ${error.message}`);
     }
 
@@ -87,14 +94,16 @@ export const getTeamsByUserOptimized = async (
   return withDatabaseConnection(async (client: SupabaseClient<Database>) => {
     const { data, error } = await client
       .from("teams")
-      .select(`
+      .select(
+        `
         *,
         team_members!inner (
           role,
           user_id
         ),
         member_count:team_members (count)
-      `)
+      `
+      )
       .eq("team_members.user_id", userId)
       .order("updated_at", { ascending: false });
 
@@ -111,7 +120,7 @@ export const getTeamsByUserOptimized = async (
 };
 
 // =====================================================
-// OPTIMIZED PROJECT QUERIES  
+// OPTIMIZED PROJECT QUERIES
 // =====================================================
 
 interface ProjectWithDetails extends Project {
@@ -144,7 +153,8 @@ export const getProjectsWithDetailsForTeam = async (
     // Build the query with proper joins to avoid N+1
     let query = client
       .from("projects")
-      .select(`
+      .select(
+        `
         *,
         team:teams!inner (
           id,
@@ -168,7 +178,8 @@ export const getProjectsWithDetailsForTeam = async (
           user_id,
           role
         )
-      `)
+      `
+      )
       .eq("team_id", teamId)
       .eq("team_members.user_id", userId);
 
@@ -283,7 +294,8 @@ export const getContentWithAnalyticsForProject = async (
     // Single query with joins for content and recent analytics
     let query = client
       .from("content_items")
-      .select(`
+      .select(
+        `
         *,
         project:projects!inner (
           id,
@@ -298,9 +310,13 @@ export const getContentWithAnalyticsForProject = async (
           date
         ),
         recommendations_count:content_recommendations (count)
-      `)
+      `
+      )
       .eq("project_id", projectId)
-      .gte("content_analytics.date", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .gte(
+        "content_analytics.date",
+        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      )
       .order("content_analytics.date", { ascending: false });
 
     // Apply filters
@@ -345,7 +361,8 @@ export const getContentWithAnalyticsForProject = async (
         ...content,
         recent_analytics: recentAnalytics,
         performance_trend: performanceTrend,
-        recommendations_count: (content as any).recommendations_count?.[0]?.count || 0,
+        recommendations_count:
+          (content as any).recommendations_count?.[0]?.count || 0,
       };
     });
   });
@@ -366,7 +383,8 @@ const calculatePerformanceTrend = (
     secondWeek.reduce((sum, a) => sum + (a.organic_traffic || 0), 0) /
     secondWeek.length;
 
-  const changePercentage = ((secondWeekAvg - firstWeekAvg) / firstWeekAvg) * 100;
+  const changePercentage =
+    ((secondWeekAvg - firstWeekAvg) / firstWeekAvg) * 100;
 
   if (changePercentage > 5) return "up";
   if (changePercentage < -5) return "down";
@@ -395,7 +413,8 @@ export const getCompetitorsWithTrackingForProject = async (
   return withDatabaseConnection(async (client: SupabaseClient<Database>) => {
     const { data, error } = await client
       .from("competitors")
-      .select(`
+      .select(
+        `
         *,
         latest_tracking:competitor_tracking (
           estimated_traffic,
@@ -405,7 +424,8 @@ export const getCompetitorsWithTrackingForProject = async (
           tracking_date
         ),
         alert_count:competitor_alerts (count)
-      `)
+      `
+      )
       .eq("project_id", projectId)
       .eq("team_id", teamId)
       .order("competitor_tracking.tracking_date", { ascending: false })
@@ -445,9 +465,7 @@ export const getDashboardsWithWidgetsForProject = async (
   }
 ): Promise<any[]> => {
   return withDatabaseConnection(async (client: SupabaseClient<Database>) => {
-    let query = client
-      .from("custom_dashboards")
-      .select(`
+    let query = client.from("custom_dashboards").select(`
         *,
         project:projects (
           id,
@@ -536,7 +554,10 @@ export const getDashboardsWithWidgetsForProject = async (
 // =====================================================
 
 export const bulkCreateContentItems = async (
-  items: Omit<Tables["content_items"]["Insert"], "id" | "created_at" | "updated_at">[]
+  items: Omit<
+    Tables["content_items"]["Insert"],
+    "id" | "created_at" | "updated_at"
+  >[]
 ): Promise<ContentItem[]> => {
   return withDatabaseConnection(async (client: SupabaseClient<Database>) => {
     const { data, error } = await client
@@ -557,12 +578,10 @@ export const bulkUpdateContentAnalytics = async (
 ): Promise<void> => {
   return withDatabaseConnection(async (client: SupabaseClient<Database>) => {
     // Use upsert for analytics to handle duplicates
-    const { error } = await client
-      .from("content_analytics")
-      .upsert(analytics, {
-        onConflict: "content_id,date",
-        ignoreDuplicates: false,
-      });
+    const { error } = await client.from("content_analytics").upsert(analytics, {
+      onConflict: "content_id,date",
+      ignoreDuplicates: false,
+    });
 
     if (error) {
       throw new Error(`Failed to bulk update analytics: ${error.message}`);
@@ -588,37 +607,42 @@ export const withQueryMetrics = async <T>(
   queryFn: () => Promise<T>
 ): Promise<T> => {
   const startTime = Date.now();
-  
+
   try {
     const result = await queryFn();
     const executionTime = Date.now() - startTime;
-    
+
     // Log slow queries (>1000ms)
     if (executionTime > 1000) {
-      console.warn(`🐌 Slow query detected: ${queryName}`, {
-        executionTime: `${executionTime}ms`,
+      enterpriseLogger.warn(`Slow query detected: ${queryName}`, {
+        executionTime,
         timestamp: new Date().toISOString(),
+        queryName,
       });
     }
-    
+
     queryMetrics.push({
       queryName,
       executionTime,
       rowsReturned: Array.isArray(result) ? result.length : 1,
     });
-    
+
     // Keep only last 100 metrics
     if (queryMetrics.length > 100) {
       queryMetrics.splice(0, queryMetrics.length - 100);
     }
-    
+
     return result;
   } catch (error) {
     const executionTime = Date.now() - startTime;
-    console.error(`❌ Query failed: ${queryName}`, {
-      executionTime: `${executionTime}ms`,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    enterpriseLogger.error(
+      `Query failed: ${queryName}`,
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        executionTime,
+        queryName,
+      }
+    );
     throw error;
   }
 };

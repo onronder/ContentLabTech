@@ -31,9 +31,21 @@ interface AnalyticsTrends {
 }
 
 interface AnalyticsPredictions {
-  nextWeek: { traffic: number; confidence: number; confidenceInterval: [number, number] };
-  nextMonth: { performance: number; confidence: number; confidenceInterval: [number, number] };
-  quarterlyGoals: { onTrack: boolean; progress: number; projectedCompletion: string };
+  nextWeek: {
+    traffic: number;
+    confidence: number;
+    confidenceInterval: [number, number];
+  };
+  nextMonth: {
+    performance: number;
+    confidence: number;
+    confidenceInterval: [number, number];
+  };
+  quarterlyGoals: {
+    onTrack: boolean;
+    progress: number;
+    projectedCompletion: string;
+  };
   methodology: string;
   lastUpdated: string;
 }
@@ -175,18 +187,21 @@ export const GET = withApiAuth(
             reason: "No projects found for the specified criteria",
             recommendations: [
               "Create projects to start collecting analytics data",
-              "Ensure proper project permissions are configured"
-            ]
+              "Ensure proper project permissions are configured",
+            ],
           },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
       // Execute ETL pipeline to ensure data freshness and quality
-      console.log(`📊 Executing analytics ETL for projects: ${projectIds.join(', ')}`);
-      
-      const etlMetrics = await etlPipeline.executeContentAnalysisPipeline(projectIds);
-      
+      console.log(
+        `📊 Executing analytics ETL for projects: ${projectIds.join(", ")}`
+      );
+
+      const etlMetrics =
+        await etlPipeline.executeContentAnalysisPipeline(projectIds);
+
       // Fetch validated analytics data
       const analyticsResult = await fetchValidatedAnalyticsData(
         context.supabase,
@@ -201,7 +216,7 @@ export const GET = withApiAuth(
         timeRange,
         dataQuality: analyticsResult.quality,
         etlMetrics,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error("Analytics API error:", error);
@@ -236,8 +251,10 @@ async function fetchValidatedAnalyticsData(
   };
 }> {
   try {
-    console.log(`🔍 Fetching validated analytics for ${projectIds.length} projects`);
-    
+    console.log(
+      `🔍 Fetching validated analytics for ${projectIds.length} projects`
+    );
+
     // Fetch real data with validation
     const [contentData, performanceData, trafficData] = await Promise.all([
       fetchValidatedContentMetrics(supabase, projectIds, timeRange),
@@ -247,7 +264,7 @@ async function fetchValidatedAnalyticsData(
 
     const validationErrors: string[] = [];
     const sources: string[] = [];
-    
+
     // Collect validation results
     if (contentData.validationErrors.length > 0) {
       validationErrors.push(...contentData.validationErrors);
@@ -258,25 +275,28 @@ async function fetchValidatedAnalyticsData(
     if (trafficData.validationErrors.length > 0) {
       validationErrors.push(...trafficData.validationErrors);
     }
-    
+
     // Collect data sources
-    if (contentData.hasData) sources.push('content_analytics');
-    if (performanceData.hasData) sources.push('performance_analytics');
-    if (trafficData.hasData) sources.push('traffic_analytics');
+    if (contentData.hasData) sources.push("content_analytics");
+    if (performanceData.hasData) sources.push("performance_analytics");
+    if (trafficData.hasData) sources.push("traffic_analytics");
 
     // Calculate overall data quality
     const qualityScores = [
       contentData.qualityScore,
       performanceData.qualityScore,
-      trafficData.qualityScore
+      trafficData.qualityScore,
     ].filter(score => score > 0);
-    
-    const dataQualityScore = qualityScores.length > 0 
-      ? qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length
-      : 0;
 
-    const hasData = contentData.hasData || performanceData.hasData || trafficData.hasData;
-    
+    const dataQualityScore =
+      qualityScores.length > 0
+        ? qualityScores.reduce((sum, score) => sum + score, 0) /
+          qualityScores.length
+        : 0;
+
+    const hasData =
+      contentData.hasData || performanceData.hasData || trafficData.hasData;
+
     if (!hasData) {
       return {
         data: null,
@@ -286,8 +306,10 @@ async function fetchValidatedAnalyticsData(
           completeness: 0,
           lastUpdated: new Date().toISOString(),
           sources: [],
-          validationErrors: ['No validated data available for the specified criteria']
-        }
+          validationErrors: [
+            "No validated data available for the specified criteria",
+          ],
+        },
       };
     }
 
@@ -312,12 +334,12 @@ async function fetchValidatedAnalyticsData(
         contentData,
         performanceData,
         trafficData,
-        timeRange
+        timeRange,
       }),
     };
 
     const completeness = calculateDataCompleteness(analytics);
-    
+
     return {
       data: analytics,
       quality: {
@@ -326,8 +348,8 @@ async function fetchValidatedAnalyticsData(
         completeness: Math.round(completeness * 100) / 100,
         lastUpdated: new Date().toISOString(),
         sources,
-        validationErrors
-      }
+        validationErrors,
+      },
     };
   } catch (error) {
     console.error("Error fetching validated analytics data:", error);
@@ -339,8 +361,10 @@ async function fetchValidatedAnalyticsData(
         completeness: 0,
         lastUpdated: new Date().toISOString(),
         sources: [],
-        validationErrors: [`Analytics fetch failed: ${error instanceof Error ? error.message : String(error)}`]
-      }
+        validationErrors: [
+          `Analytics fetch failed: ${error instanceof Error ? error.message : String(error)}`,
+        ],
+      },
     };
   }
 }
@@ -357,22 +381,26 @@ async function fetchValidatedContentMetrics(
     // Fetch from content_analytics table (populated by ETL)
     const { data: contentAnalytics, error: analyticsError } = await supabase
       .from("content_analytics")
-      .select(`
+      .select(
+        `
         content_id,
         project_id,
         metrics,
         quality_score,
         timestamp
-      `)
+      `
+      )
       .in("project_id", projectIds)
       .gte("timestamp", getTimeRangeStart(timeRange))
       .order("timestamp", { ascending: false });
 
     const validationErrors: string[] = [];
-    
+
     if (analyticsError) {
       console.error("Content analytics fetch error:", analyticsError);
-      validationErrors.push(`Content analytics error: ${analyticsError.message}`);
+      validationErrors.push(
+        `Content analytics error: ${analyticsError.message}`
+      );
     }
 
     // If no analytics data, try content_items as fallback
@@ -383,9 +411,11 @@ async function fetchValidatedContentMetrics(
         .select("id, project_id, seo_score, status, created_at, word_count")
         .in("project_id", projectIds)
         .gte("created_at", getTimeRangeStart(timeRange));
-        
+
       if (fallbackError) {
-        validationErrors.push(`Content fallback error: ${fallbackError.message}`);
+        validationErrors.push(
+          `Content fallback error: ${fallbackError.message}`
+        );
         return {
           hasData: false,
           totalContent: 0,
@@ -393,23 +423,24 @@ async function fetchValidatedContentMetrics(
           trendingContent: 0,
           trends: [],
           qualityScore: 0,
-          validationErrors
+          validationErrors,
         };
       }
-      
+
       // Transform fallback data to analytics format
-      contentData = fallbackContent?.map(item => ({
-        content_id: item.id,
-        project_id: item.project_id,
-        metrics: {
-          content_length: item.word_count || 0,
-          seo_score: item.seo_score || 0,
-          readability_score: 0, // Not available in fallback
-          keyword_density: 0
-        },
-        quality_score: item.seo_score ? 80 : 20, // Estimate quality
-        timestamp: item.created_at
-      })) || [];
+      contentData =
+        fallbackContent?.map((item: any) => ({
+          content_id: item.id,
+          project_id: item.project_id,
+          metrics: {
+            content_length: item.word_count || 0,
+            seo_score: item.seo_score || 0,
+            readability_score: 0, // Not available in fallback
+            keyword_density: 0,
+          },
+          quality_score: item.seo_score ? 80 : 20, // Estimate quality
+          timestamp: item.created_at,
+        })) || [];
     }
 
     if (!contentData || contentData.length === 0) {
@@ -420,37 +451,47 @@ async function fetchValidatedContentMetrics(
         trendingContent: 0,
         trends: [],
         qualityScore: 0,
-        validationErrors: [...validationErrors, 'No content data found']
+        validationErrors: [...validationErrors, "No content data found"],
       };
     }
 
     // Validate data quality
     const validatedData = [];
     let totalQualityScore = 0;
-    
+
     for (const item of contentData) {
-      const validation = dataValidationService.validateDataPoint('content', item.metrics);
+      const validation = dataValidationService.validateDataPoint(
+        "content",
+        item.metrics
+      );
       if (validation.isValid && validation.quality.overall >= 70) {
         validatedData.push(item);
         totalQualityScore += validation.quality.overall;
       } else {
-        validationErrors.push(`Content item ${item.content_id} failed validation: ${validation.errors.join(', ')}`);
+        validationErrors.push(
+          `Content item ${item.content_id} failed validation: ${validation.errors.join(", ")}`
+        );
       }
     }
 
     const totalContent = validatedData.length;
-    const avgSeoScore = totalContent > 0
-      ? validatedData.reduce((sum, item) => sum + (item.metrics.seo_score || 0), 0) / totalContent
-      : 0;
-    
+    const avgSeoScore =
+      totalContent > 0
+        ? validatedData.reduce(
+            (sum, item) => sum + (item.metrics.seo_score || 0),
+            0
+          ) / totalContent
+        : 0;
+
     const trendingContent = validatedData.filter(
       item => (item.metrics.seo_score || 0) > 75
     ).length;
 
     // Calculate real trends from time-series data
     const trends = calculateContentTrends(validatedData, timeRange);
-    
-    const qualityScore = totalContent > 0 ? totalQualityScore / totalContent : 0;
+
+    const qualityScore =
+      totalContent > 0 ? totalQualityScore / totalContent : 0;
 
     return {
       hasData: totalContent > 0,
@@ -459,7 +500,7 @@ async function fetchValidatedContentMetrics(
       trendingContent,
       trends,
       qualityScore,
-      validationErrors
+      validationErrors,
     };
   } catch (error) {
     console.error("Error in fetchValidatedContentMetrics:", error);
@@ -470,7 +511,9 @@ async function fetchValidatedContentMetrics(
       trendingContent: 0,
       trends: [],
       qualityScore: 0,
-      validationErrors: [`Content metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`]
+      validationErrors: [
+        `Content metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`,
+      ],
     };
   }
 }
@@ -486,19 +529,21 @@ async function fetchValidatedPerformanceMetrics(
   try {
     const { data: performanceData, error } = await supabase
       .from("performance_analytics")
-      .select(`
+      .select(
+        `
         content_id,
         project_id,
         metrics,
         quality_score,
         timestamp
-      `)
+      `
+      )
       .in("project_id", projectIds)
       .gte("timestamp", getTimeRangeStart(timeRange))
       .order("timestamp", { ascending: false });
 
     const validationErrors: string[] = [];
-    
+
     if (error) {
       console.error("Performance analytics fetch error:", error);
       validationErrors.push(`Performance analytics error: ${error.message}`);
@@ -508,7 +553,7 @@ async function fetchValidatedPerformanceMetrics(
         activeAlerts: 0,
         trends: [],
         qualityScore: 0,
-        validationErrors
+        validationErrors,
       };
     }
 
@@ -519,29 +564,37 @@ async function fetchValidatedPerformanceMetrics(
         activeAlerts: 0,
         trends: [],
         qualityScore: 0,
-        validationErrors: ['No performance data available']
+        validationErrors: ["No performance data available"],
       };
     }
 
     // Validate performance data
     const validatedData = [];
     let totalQualityScore = 0;
-    
+
     for (const item of performanceData) {
-      const validation = dataValidationService.validateDataPoint('performance', item.metrics);
+      const validation = dataValidationService.validateDataPoint(
+        "performance",
+        item.metrics
+      );
       if (validation.isValid && validation.quality.overall >= 70) {
         validatedData.push(item);
         totalQualityScore += validation.quality.overall;
       } else {
-        validationErrors.push(`Performance item ${item.content_id} failed validation`);
+        validationErrors.push(
+          `Performance item ${item.content_id} failed validation`
+        );
       }
     }
 
     const hasData = validatedData.length > 0;
     const avgScore = hasData
-      ? validatedData.reduce((sum, item) => sum + (item.metrics.lighthouse_score || 0), 0) / validatedData.length
+      ? validatedData.reduce(
+          (sum, item) => sum + (item.metrics.lighthouse_score || 0),
+          0
+        ) / validatedData.length
       : 0;
-    
+
     // Count alerts (performance scores below threshold)
     const activeAlerts = validatedData.filter(
       item => (item.metrics.lighthouse_score || 0) < 60
@@ -556,7 +609,7 @@ async function fetchValidatedPerformanceMetrics(
       activeAlerts,
       trends,
       qualityScore,
-      validationErrors
+      validationErrors,
     };
   } catch (error) {
     console.error("Error in fetchValidatedPerformanceMetrics:", error);
@@ -566,7 +619,9 @@ async function fetchValidatedPerformanceMetrics(
       activeAlerts: 0,
       trends: [],
       qualityScore: 0,
-      validationErrors: [`Performance metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`]
+      validationErrors: [
+        `Performance metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`,
+      ],
     };
   }
 }
@@ -583,19 +638,21 @@ async function fetchValidatedTrafficMetrics(
     // Try SEO analytics first (contains organic traffic data)
     const { data: seoData, error: seoError } = await supabase
       .from("seo_analytics")
-      .select(`
+      .select(
+        `
         content_id,
         project_id,
         metrics,
         quality_score,
         timestamp
-      `)
+      `
+      )
       .in("project_id", projectIds)
       .gte("timestamp", getTimeRangeStart(timeRange))
       .order("timestamp", { ascending: false });
 
     const validationErrors: string[] = [];
-    
+
     if (seoError) {
       console.error("SEO analytics fetch error:", seoError);
       validationErrors.push(`SEO analytics error: ${seoError.message}`);
@@ -607,19 +664,23 @@ async function fetchValidatedTrafficMetrics(
     if (trafficData.length === 0) {
       const { data: analyticsData, error: analyticsError } = await supabase
         .from("content_analytics")
-        .select(`
+        .select(
+          `
           content_id,
           project_id,
           metrics,
           quality_score,
           timestamp
-        `)
+        `
+        )
         .in("project_id", projectIds)
         .gte("timestamp", getTimeRangeStart(timeRange))
         .order("timestamp", { ascending: false });
-        
+
       if (analyticsError) {
-        validationErrors.push(`Analytics fallback error: ${analyticsError.message}`);
+        validationErrors.push(
+          `Analytics fallback error: ${analyticsError.message}`
+        );
       } else {
         trafficData = analyticsData || [];
       }
@@ -632,43 +693,56 @@ async function fetchValidatedTrafficMetrics(
         conversionRate: 0,
         trends: [],
         qualityScore: 0,
-        validationErrors: [...validationErrors, 'No traffic data available']
+        validationErrors: [...validationErrors, "No traffic data available"],
       };
     }
 
     // Validate traffic data using analytics validation
     const validatedData = [];
     let totalQualityScore = 0;
-    
+
     for (const item of trafficData) {
       // Map metrics to analytics format for validation
       const analyticsMetrics = {
         pageviews: item.metrics.organic_clicks || item.metrics.pageviews || 0,
-        unique_visitors: item.metrics.organic_impressions || item.metrics.unique_visitors || 0,
+        unique_visitors:
+          item.metrics.organic_impressions || item.metrics.unique_visitors || 0,
         bounce_rate: (1 - (item.metrics.click_through_rate || 0)) * 100,
         session_duration: item.metrics.session_duration || 0,
-        conversion_rate: item.metrics.click_through_rate || item.metrics.conversion_rate || 0
+        conversion_rate:
+          item.metrics.click_through_rate || item.metrics.conversion_rate || 0,
       };
-      
-      const validation = dataValidationService.validateDataPoint('analytics', analyticsMetrics);
+
+      const validation = dataValidationService.validateDataPoint(
+        "analytics",
+        analyticsMetrics
+      );
       if (validation.isValid && validation.quality.overall >= 70) {
         validatedData.push({
           ...item,
-          validatedMetrics: analyticsMetrics
+          validatedMetrics: analyticsMetrics,
         });
         totalQualityScore += validation.quality.overall;
       } else {
-        validationErrors.push(`Traffic item ${item.content_id} failed validation`);
+        validationErrors.push(
+          `Traffic item ${item.content_id} failed validation`
+        );
       }
     }
 
     const hasData = validatedData.length > 0;
     const totalViews = hasData
-      ? validatedData.reduce((sum, item) => sum + item.validatedMetrics.pageviews, 0)
+      ? validatedData.reduce(
+          (sum, item) => sum + item.validatedMetrics.pageviews,
+          0
+        )
       : 0;
-    
+
     const avgConversionRate = hasData
-      ? validatedData.reduce((sum, item) => sum + item.validatedMetrics.conversion_rate, 0) / validatedData.length
+      ? validatedData.reduce(
+          (sum, item) => sum + item.validatedMetrics.conversion_rate,
+          0
+        ) / validatedData.length
       : 0;
 
     const trends = calculateTrafficTrends(validatedData, timeRange);
@@ -680,7 +754,7 @@ async function fetchValidatedTrafficMetrics(
       conversionRate: Math.round(avgConversionRate * 100 * 100) / 100, // Convert to percentage
       trends,
       qualityScore,
-      validationErrors
+      validationErrors,
     };
   } catch (error) {
     console.error("Error in fetchValidatedTrafficMetrics:", error);
@@ -690,7 +764,9 @@ async function fetchValidatedTrafficMetrics(
       conversionRate: 0,
       trends: [],
       qualityScore: 0,
-      validationErrors: [`Traffic metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`]
+      validationErrors: [
+        `Traffic metrics fetch failed: ${error instanceof Error ? error.message : String(error)}`,
+      ],
     };
   }
 }
@@ -706,58 +782,62 @@ async function generateStatisticalPredictions(data: {
 }): Promise<AnalyticsPredictions> {
   try {
     const { contentData, performanceData, trafficData, timeRange } = data;
-    
+
     // Calculate traffic prediction using linear regression on historical data
     const trafficPrediction = calculateTrafficPrediction(trafficData.trends, 7); // 7 days ahead
-    const performancePrediction = calculatePerformancePrediction(performanceData.trends, 30); // 30 days ahead
-    
+    const performancePrediction = calculatePerformancePrediction(
+      performanceData.trends,
+      30
+    ); // 30 days ahead
+
     // Calculate quarterly progress based on actual metrics
     const quarterlyProgress = calculateQuarterlyProgress({
       contentGrowth: contentData.totalContent,
       performanceImprovement: performanceData.avgScore,
-      trafficGrowth: trafficData.totalViews
+      trafficGrowth: trafficData.totalViews,
     });
-    
+
     return {
       nextWeek: {
         traffic: trafficPrediction.predicted,
         confidence: trafficPrediction.confidence,
-        confidenceInterval: trafficPrediction.interval
+        confidenceInterval: trafficPrediction.interval,
       },
       nextMonth: {
         performance: performancePrediction.predicted,
         confidence: performancePrediction.confidence,
-        confidenceInterval: performancePrediction.interval
+        confidenceInterval: performancePrediction.interval,
       },
       quarterlyGoals: {
         onTrack: quarterlyProgress.onTrack,
         progress: quarterlyProgress.progress,
-        projectedCompletion: quarterlyProgress.projectedCompletion
+        projectedCompletion: quarterlyProgress.projectedCompletion,
       },
-      methodology: "Linear regression with confidence intervals based on historical data",
-      lastUpdated: new Date().toISOString()
+      methodology:
+        "Linear regression with confidence intervals based on historical data",
+      lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    console.error('Error generating statistical predictions:', error);
+    console.error("Error generating statistical predictions:", error);
     // Return conservative predictions on error
     return {
       nextWeek: {
         traffic: 0,
         confidence: 0,
-        confidenceInterval: [0, 0]
+        confidenceInterval: [0, 0],
       },
       nextMonth: {
         performance: 0,
         confidence: 0,
-        confidenceInterval: [0, 0]
+        confidenceInterval: [0, 0],
       },
       quarterlyGoals: {
         onTrack: false,
         progress: 0,
-        projectedCompletion: "Insufficient data for projection"
+        projectedCompletion: "Insufficient data for projection",
       },
       methodology: "Insufficient data for statistical prediction",
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
   }
 }
@@ -771,7 +851,7 @@ function calculateTrafficTrends(
 ): Array<{ date: string; views: number; conversions: number }> {
   const days = getTimeRangeDays(timeRange);
   const trendsMap = new Map<string, { views: number; conversions: number }>();
-  
+
   // Initialize all days with zero values
   for (let i = 0; i < days; i++) {
     const date = new Date();
@@ -779,24 +859,26 @@ function calculateTrafficTrends(
     const dateKey = date.toISOString().split("T")[0]!;
     trendsMap.set(dateKey, { views: 0, conversions: 0 });
   }
-  
+
   // Aggregate validated data by date
   for (const item of validatedData) {
     const date = new Date(item.timestamp).toISOString().split("T")[0]!;
     const existing = trendsMap.get(date) || { views: 0, conversions: 0 };
-    
+
     existing.views += item.validatedMetrics?.pageviews || 0;
-    existing.conversions += Math.round((item.validatedMetrics?.conversion_rate || 0) * existing.views);
-    
+    existing.conversions += Math.round(
+      (item.validatedMetrics?.conversion_rate || 0) * existing.views
+    );
+
     trendsMap.set(date, existing);
   }
-  
+
   // Convert to array format
   return Array.from(trendsMap.entries())
     .map(([date, metrics]) => ({
       date,
       views: metrics.views,
-      conversions: metrics.conversions
+      conversions: metrics.conversions,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -810,7 +892,7 @@ function calculatePerformanceTrends(
 ): Array<{ date: string; score: number; vitals: number }> {
   const days = getTimeRangeDays(timeRange);
   const trendsMap = new Map<string, { scores: number[]; vitals: number[] }>();
-  
+
   // Initialize all days
   for (let i = 0; i < days; i++) {
     const date = new Date();
@@ -818,28 +900,34 @@ function calculatePerformanceTrends(
     const dateKey = date.toISOString().split("T")[0]!;
     trendsMap.set(dateKey, { scores: [], vitals: [] });
   }
-  
+
   // Aggregate performance data by date
   for (const item of validatedData) {
     const date = new Date(item.timestamp).toISOString().split("T")[0]!;
     const existing = trendsMap.get(date);
-    
+
     if (existing) {
       existing.scores.push(item.metrics.lighthouse_score || 0);
       existing.vitals.push(item.metrics.core_web_vitals_score || 0);
     }
   }
-  
+
   // Calculate averages for each day
   return Array.from(trendsMap.entries())
     .map(([date, data]) => ({
       date,
-      score: data.scores.length > 0 
-        ? Math.round(data.scores.reduce((sum, s) => sum + s, 0) / data.scores.length)
-        : 0,
-      vitals: data.vitals.length > 0
-        ? Math.round(data.vitals.reduce((sum, v) => sum + v, 0) / data.vitals.length)
-        : 0
+      score:
+        data.scores.length > 0
+          ? Math.round(
+              data.scores.reduce((sum, s) => sum + s, 0) / data.scores.length
+            )
+          : 0,
+      vitals:
+        data.vitals.length > 0
+          ? Math.round(
+              data.vitals.reduce((sum, v) => sum + v, 0) / data.vitals.length
+            )
+          : 0,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -853,7 +941,7 @@ function calculateContentTrends(
 ): Array<{ date: string; published: number; optimized: number }> {
   const days = getTimeRangeDays(timeRange);
   const trendsMap = new Map<string, { published: number; optimized: number }>();
-  
+
   // Initialize all days
   for (let i = 0; i < days; i++) {
     const date = new Date();
@@ -861,12 +949,12 @@ function calculateContentTrends(
     const dateKey = date.toISOString().split("T")[0]!;
     trendsMap.set(dateKey, { published: 0, optimized: 0 });
   }
-  
+
   // Count content by date
   for (const item of validatedData) {
     const date = new Date(item.timestamp).toISOString().split("T")[0]!;
     const existing = trendsMap.get(date);
-    
+
     if (existing) {
       existing.published += 1;
       // Consider content optimized if SEO score > 75
@@ -875,12 +963,12 @@ function calculateContentTrends(
       }
     }
   }
-  
+
   return Array.from(trendsMap.entries())
     .map(([date, metrics]) => ({
       date,
       published: metrics.published,
-      optimized: metrics.optimized
+      optimized: metrics.optimized,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -942,18 +1030,21 @@ function calculateTrafficPrediction(
 
   const values = trends.map(t => t.views);
   const n = values.length;
-  
+
   // Simple linear regression
   const sumX = values.reduce((sum, _, i) => sum + i, 0);
   const sumY = values.reduce((sum, val) => sum + val, 0);
   const sumXY = values.reduce((sum, val, i) => sum + i * val, 0);
   const sumXX = values.reduce((sum, _, i) => sum + i * i, 0);
-  
+
   const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
   const intercept = (sumY - slope * sumX) / n;
-  
-  const predicted = Math.max(0, Math.round(slope * (n + daysAhead - 1) + intercept));
-  
+
+  const predicted = Math.max(
+    0,
+    Math.round(slope * (n + daysAhead - 1) + intercept)
+  );
+
   // Calculate R-squared for confidence
   const yMean = sumY / n;
   const ssRes = values.reduce((sum, val, i) => {
@@ -962,14 +1053,17 @@ function calculateTrafficPrediction(
   }, 0);
   const ssTot = values.reduce((sum, val) => sum + Math.pow(val - yMean, 2), 0);
   const rSquared = ssTot === 0 ? 0 : Math.max(0, 1 - ssRes / ssTot);
-  
+
   const confidence = Math.min(1, rSquared * 0.9); // Conservative confidence
   const margin = predicted * (1 - confidence) * 0.5;
-  
+
   return {
     predicted,
     confidence: Math.round(confidence * 100) / 100,
-    interval: [Math.max(0, Math.round(predicted - margin)), Math.round(predicted + margin)]
+    interval: [
+      Math.max(0, Math.round(predicted - margin)),
+      Math.round(predicted + margin),
+    ],
   };
 }
 
@@ -988,32 +1082,39 @@ function calculatePerformancePrediction(
   if (scores.length === 0) {
     return { predicted: 0, confidence: 0, interval: [0, 0] };
   }
-  
+
   // Calculate moving average trend
   const recentScores = scores.slice(-7); // Last 7 data points
-  const average = recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
-  
+  const average =
+    recentScores.reduce((sum, score) => sum + score, 0) / recentScores.length;
+
   // Calculate trend (simple slope)
-  const trend = scores.length > 1 
-    ? (scores[scores.length - 1] - scores[0]) / scores.length
-    : 0;
-  
-  const predicted = Math.max(0, Math.min(100, Math.round(average + trend * daysAhead)));
-  
+  const trend =
+    scores.length > 1
+      ? ((scores[scores.length - 1] ?? 0) - (scores[0] ?? 0)) / scores.length
+      : 0;
+
+  const predicted = Math.max(
+    0,
+    Math.min(100, Math.round(average + trend * daysAhead))
+  );
+
   // Confidence based on data consistency
-  const variance = recentScores.reduce((sum, score) => sum + Math.pow(score - average, 2), 0) / recentScores.length;
+  const variance =
+    recentScores.reduce((sum, score) => sum + Math.pow(score - average, 2), 0) /
+    recentScores.length;
   const standardDev = Math.sqrt(variance);
   const confidence = Math.max(0.1, Math.min(1, 1 - standardDev / 50)); // Normalize to 0-1
-  
+
   const margin = standardDev * 0.5;
-  
+
   return {
     predicted,
     confidence: Math.round(confidence * 100) / 100,
     interval: [
       Math.max(0, Math.round(predicted - margin)),
-      Math.min(100, Math.round(predicted + margin))
-    ]
+      Math.min(100, Math.round(predicted + margin)),
+    ],
   };
 }
 
@@ -1033,34 +1134,54 @@ function calculateQuarterlyProgress(metrics: {
   const targets = {
     contentTarget: 100, // pieces of content
     performanceTarget: 90, // performance score
-    trafficTarget: 10000 // total views
+    trafficTarget: 10000, // total views
   };
-  
-  const contentProgress = Math.min(1, metrics.contentGrowth / targets.contentTarget);
-  const performanceProgress = Math.min(1, metrics.performanceImprovement / targets.performanceTarget);
-  const trafficProgress = Math.min(1, metrics.trafficGrowth / targets.trafficTarget);
-  
-  const overallProgress = (contentProgress + performanceProgress + trafficProgress) / 3;
-  
+
+  const contentProgress = Math.min(
+    1,
+    metrics.contentGrowth / targets.contentTarget
+  );
+  const performanceProgress = Math.min(
+    1,
+    metrics.performanceImprovement / targets.performanceTarget
+  );
+  const trafficProgress = Math.min(
+    1,
+    metrics.trafficGrowth / targets.trafficTarget
+  );
+
+  const overallProgress =
+    (contentProgress + performanceProgress + trafficProgress) / 3;
+
   // Calculate projected completion date
-  const currentQuarter = Math.floor((new Date().getMonth()) / 3) + 1;
+  const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
   const currentYear = new Date().getFullYear();
   const quarterEndMonth = currentQuarter * 3;
   const quarterEnd = new Date(currentYear, quarterEndMonth, 0);
-  
-  const daysIntoQuarter = Math.floor((Date.now() - new Date(currentYear, (currentQuarter - 1) * 3, 1).getTime()) / (1000 * 60 * 60 * 24));
+
+  const daysIntoQuarter = Math.floor(
+    (Date.now() -
+      new Date(currentYear, (currentQuarter - 1) * 3, 1).getTime()) /
+      (1000 * 60 * 60 * 24)
+  );
   const totalQuarterDays = 90; // Approximate
   const progressRate = overallProgress / (daysIntoQuarter / totalQuarterDays);
-  
-  const projectedDays = overallProgress < 1 ? Math.ceil((1 - overallProgress) / (progressRate / totalQuarterDays)) : 0;
-  const projectedCompletion = projectedDays > 0 
-    ? new Date(Date.now() + projectedDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!
-    : 'On schedule';
-  
+
+  const projectedDays =
+    overallProgress < 1
+      ? Math.ceil((1 - overallProgress) / (progressRate / totalQuarterDays))
+      : 0;
+  const projectedCompletion =
+    projectedDays > 0
+      ? new Date(Date.now() + projectedDays * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0]!
+      : "On schedule";
+
   return {
     onTrack: overallProgress >= (daysIntoQuarter / totalQuarterDays) * 0.9, // 90% of expected pace
     progress: Math.round(overallProgress * 100) / 100,
-    projectedCompletion
+    projectedCompletion,
   };
 }
 
@@ -1070,26 +1191,26 @@ function calculateQuarterlyProgress(metrics: {
 function calculateDataCompleteness(analytics: AnalyticsData): number {
   const overview = analytics.overview;
   const trends = analytics.trends;
-  
+
   let completenessScore = 0;
   let totalFields = 0;
-  
+
   // Check overview completeness
   const overviewFields = Object.values(overview);
   totalFields += overviewFields.length;
   completenessScore += overviewFields.filter(val => val > 0).length;
-  
+
   // Check trends completeness
   const trendFields = [trends.traffic, trends.performance, trends.content];
   totalFields += trendFields.length;
   completenessScore += trendFields.filter(trend => trend.length > 0).length;
-  
+
   // Check predictions completeness
   const predictions = analytics.predictions;
   totalFields += 3; // nextWeek, nextMonth, quarterlyGoals
   if (predictions.nextWeek.traffic > 0) completenessScore += 1;
   if (predictions.nextMonth.performance > 0) completenessScore += 1;
   if (predictions.quarterlyGoals.progress > 0) completenessScore += 1;
-  
+
   return totalFields > 0 ? completenessScore / totalFields : 0;
 }

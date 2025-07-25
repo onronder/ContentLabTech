@@ -18,14 +18,17 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = `health-${startTime}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   try {
     // Log health check request
     enterpriseLogger.info(
       "Enterprise health check requested",
       {
-        userAgent: request.headers.get("user-agent"),
-        ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
+        userAgent: request.headers.get("user-agent") || undefined,
+        ip:
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          undefined,
         correlationId,
       },
       ["health-check", "enterprise", "request"]
@@ -92,21 +95,17 @@ export async function GET(request: NextRequest) {
         headers,
       }
     );
-
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    
+
     // Track error with enterprise error tracker
     const errorId = await enterpriseErrorTracker.trackEnterpriseError(
       error as Error,
       {
-        correlationId,
         endpoint: "/api/health/enterprise",
         method: "GET",
-        businessContext: {
-          feature: "health-monitoring",
-          criticalPath: true,
-        },
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "production",
       }
     );
 
@@ -169,7 +168,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const startTime = Date.now();
   const correlationId = `health-action-${startTime}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   try {
     const body = await request.json();
     const { action, parameters } = body;
@@ -180,8 +179,11 @@ export async function POST(request: NextRequest) {
         action,
         parameters,
         correlationId,
-        userAgent: request.headers.get("user-agent"),
-        ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
+        userAgent: request.headers.get("user-agent") || undefined,
+        ip:
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          undefined,
       },
       ["health-check", "enterprise", "action", action]
     );
@@ -254,20 +256,16 @@ export async function POST(request: NextRequest) {
         },
       }
     );
-
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    
+
     const errorId = await enterpriseErrorTracker.trackEnterpriseError(
       error as Error,
       {
-        correlationId,
         endpoint: "/api/health/enterprise",
         method: "POST",
-        businessContext: {
-          feature: "health-monitoring",
-          criticalPath: true,
-        },
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || "production",
       }
     );
 

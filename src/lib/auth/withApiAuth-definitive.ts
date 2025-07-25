@@ -16,6 +16,7 @@ import { cookies } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 import { createHash } from "crypto";
 import { z } from "zod";
+import { enterpriseLogger } from "../monitoring/enterprise-logger";
 
 export interface AuthContext {
   user: User;
@@ -64,10 +65,32 @@ class SecurityAuditLogger {
       this.events = this.events.slice(-this.maxEvents);
     }
 
-    // Log to console in production for external monitoring
-    if (process.env.NODE_ENV === "production") {
-      console.log(`[SECURITY_AUDIT] ${JSON.stringify(event)}`);
-    }
+    // Log security audit events using enterprise logger
+    enterpriseLogger.security(
+      `Security audit: ${event.event}`,
+      {
+        actionType: "security_event",
+        result:
+          event.event.includes("FAILED") || event.event.includes("ERROR")
+            ? "failure"
+            : "success",
+        resourceType: "api",
+        sourceIp: event.clientIp,
+        userAgent: event.userAgent,
+        threatLevel: event.event.includes("CRITICAL")
+          ? "critical"
+          : event.event.includes("ERROR") || event.event.includes("FAILED")
+            ? "high"
+            : "low",
+      },
+      {
+        requestId: event.requestId,
+        userId: event.userId,
+        endpoint: event.endpoint,
+        timestamp: event.timestamp,
+        ...event.details,
+      }
+    );
   }
 
   getEvents(limit = 100): SecurityAuditEvent[] {
@@ -98,7 +121,7 @@ export function withApiAuth<T extends any[]>(
       .update(request.url + Date.now() + Math.random())
       .digest("hex")
       .substring(0, 16);
-    
+
     const clientIp = getClientIp(request);
     const userAgent = request.headers.get("user-agent");
     const endpoint = new URL(request.url).pathname;
@@ -116,7 +139,7 @@ export function withApiAuth<T extends any[]>(
           event: "INPUT_VALIDATION_FAILED",
           details: { reason: validationResult.reason },
         });
-        
+
         return createSecureErrorResponse(
           "Bad Request",
           400,
@@ -151,7 +174,11 @@ export function withApiAuth<T extends any[]>(
 
       // Additional JWT validation for sensitive operations
       if (options?.requiredRole) {
-        const roleValidation = await validateUserRole(supabase, user.id, options.requiredRole);
+        const roleValidation = await validateUserRole(
+          supabase,
+          user.id,
+          options.requiredRole
+        );
         if (!roleValidation.valid) {
           auditLogger.log({
             timestamp: new Date().toISOString(),
@@ -161,7 +188,10 @@ export function withApiAuth<T extends any[]>(
             userAgent,
             endpoint,
             event: "INSUFFICIENT_PERMISSIONS",
-            details: { requiredRole: options.requiredRole, userRole: roleValidation.userRole },
+            details: {
+              requiredRole: options.requiredRole,
+              userRole: roleValidation.userRole,
+            },
           });
 
           return createSecureErrorResponse(
@@ -196,7 +226,7 @@ export function withApiAuth<T extends any[]>(
       // Execute authenticated handler with error boundary
       const handlerStartTime = Date.now();
       let response: Response;
-      
+
       try {
         response = await handler(request, context, ...args);
       } catch (handlerError) {
@@ -208,9 +238,14 @@ export function withApiAuth<T extends any[]>(
           userAgent,
           endpoint,
           event: "HANDLER_ERROR",
-          details: { error: handlerError instanceof Error ? handlerError.message : String(handlerError) },
+          details: {
+            error:
+              handlerError instanceof Error
+                ? handlerError.message
+                : String(handlerError),
+          },
         });
-        
+
         return createSecureErrorResponse(
           "Internal server error",
           500,
@@ -218,7 +253,7 @@ export function withApiAuth<T extends any[]>(
           requestId
         );
       }
-      
+
       const handlerDuration = Date.now() - handlerStartTime;
       const totalDuration = Date.now() - startTime;
 
@@ -248,15 +283,17 @@ export function withApiAuth<T extends any[]>(
       secureResponse.headers.set("X-Response-Time", `${totalDuration}ms`);
       secureResponse.headers.set("X-Content-Type-Options", "nosniff");
       secureResponse.headers.set("X-Frame-Options", "DENY");
-      
+
       // Secure CORS handling
       const origin = request.headers.get("origin");
       const trustedOrigins = [
         "http://localhost:3000",
         "https://contentlab-nexus.vercel.app",
-        process.env["VERCEL_URL"] ? `https://${process.env["VERCEL_URL"]}` : null,
+        process.env["VERCEL_URL"]
+          ? `https://${process.env["VERCEL_URL"]}`
+          : null,
       ].filter(Boolean);
-      
+
       if (origin && trustedOrigins.includes(origin)) {
         secureResponse.headers.set("Access-Control-Allow-Origin", origin);
         secureResponse.headers.set("Access-Control-Allow-Credentials", "true");
@@ -278,16 +315,21 @@ export function withApiAuth<T extends any[]>(
       });
 
       // In production, don't leak error details
-      const errorMessage = process.env.NODE_ENV === "production" 
-        ? "Authentication system error" 
-        : error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        process.env.NODE_ENV === "production"
+          ? "Authentication system error"
+          : error instanceof Error
+            ? error.message
+            : String(error);
 
       return createSecureErrorResponse(
         "Authentication system error",
         500,
         "AUTH_SYSTEM_ERROR",
         requestId,
-        process.env.NODE_ENV !== "production" ? { error: errorMessage } : undefined
+        process.env.NODE_ENV !== "production"
+          ? { error: errorMessage }
+          : undefined
       );
     }
   };
@@ -298,22 +340,24 @@ function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   const realIp = request.headers.get("x-real-ip");
   const cfConnectingIp = request.headers.get("cf-connecting-ip");
-  
+
   if (forwarded) {
     const firstIp = forwarded.split(",")[0];
     if (firstIp && firstIp.trim()) {
       return firstIp.trim();
     }
   }
-  
+
   return cfConnectingIp || realIp || "127.0.0.1";
 }
 
 // Input validation function
-async function validateRequestInput(request: NextRequest): Promise<{ valid: boolean; reason?: string }> {
+async function validateRequestInput(
+  request: NextRequest
+): Promise<{ valid: boolean; reason?: string }> {
   const url = request.url;
   const method = request.method;
-  
+
   // SQL injection and XSS patterns
   const maliciousPatterns = [
     /('|(\-\-)|(;)|(\||\|)|(\*|\*))/i,
@@ -327,20 +371,21 @@ async function validateRequestInput(request: NextRequest): Promise<{ valid: bool
     /update\s+set/gi,
     /drop\s+table/gi,
   ];
-  
+
   // Check URL for malicious patterns
   for (const pattern of maliciousPatterns) {
     if (pattern.test(url)) {
       return { valid: false, reason: "Malicious pattern detected" };
     }
   }
-  
+
   // Validate request size
   const contentLength = request.headers.get("content-length");
-  if (contentLength && parseInt(contentLength) > 1048576) { // 1MB limit
+  if (contentLength && parseInt(contentLength) > 1048576) {
+    // 1MB limit
     return { valid: false, reason: "Request too large" };
   }
-  
+
   return { valid: true };
 }
 
@@ -356,15 +401,16 @@ async function validateUserRole(
       .select("role")
       .eq("user_id", userId)
       .single();
-    
+
     if (!membership) {
       return { valid: false };
     }
-    
+
     const roleHierarchy = { owner: 3, admin: 2, member: 1 };
-    const userLevel = roleHierarchy[membership.role as keyof typeof roleHierarchy] || 0;
+    const userLevel =
+      roleHierarchy[membership.role as keyof typeof roleHierarchy] || 0;
     const requiredLevel = roleHierarchy[requiredRole] || 0;
-    
+
     return {
       valid: userLevel >= requiredLevel,
       userRole: membership.role,
@@ -438,7 +484,10 @@ export async function validateTeamAccess(
 ): Promise<{ hasAccess: boolean; userRole?: string; error?: string }> {
   try {
     // Validate input parameters
-    if (!z.string().uuid().safeParse(userId).success || !z.string().uuid().safeParse(teamId).success) {
+    if (
+      !z.string().uuid().safeParse(userId).success ||
+      !z.string().uuid().safeParse(teamId).success
+    ) {
       return {
         hasAccess: false,
         error: "Invalid user or team ID format",
@@ -465,7 +514,7 @@ export async function validateTeamAccess(
           details: { teamId, error: error?.message },
         });
       }
-      
+
       return {
         hasAccess: false,
         error: "Team membership not found",
@@ -492,7 +541,7 @@ export async function validateTeamAccess(
       roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
 
     const hasAccess = userLevel >= requiredLevel;
-    
+
     // Log access validation
     if (requestContext) {
       auditLogger.log({
@@ -519,10 +568,13 @@ export async function validateTeamAccess(
         clientIp: requestContext.clientIp,
         endpoint: requestContext.endpoint,
         event: "TEAM_ACCESS_ERROR",
-        details: { teamId, error: error instanceof Error ? error.message : String(error) },
+        details: {
+          teamId,
+          error: error instanceof Error ? error.message : String(error),
+        },
       });
     }
-    
+
     return {
       hasAccess: false,
       error: "Failed to validate team access",

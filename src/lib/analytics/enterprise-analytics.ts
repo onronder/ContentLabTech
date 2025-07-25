@@ -11,7 +11,7 @@ export interface CohortAnalysisConfig {
   cohortId: string;
   name: string;
   description: string;
-  
+
   // Cohort definition
   cohortDefinition: {
     timeColumn: string; // Column to define cohort (e.g., 'first_visit', 'signup_date')
@@ -19,23 +19,23 @@ export interface CohortAnalysisConfig {
     valueColumn?: string; // Optional value column for revenue cohorts
     userIdColumn: string; // User identifier column
   };
-  
+
   // Time parameters
-  cohortPeriod: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  cohortPeriod: "daily" | "weekly" | "monthly" | "quarterly";
   analysisPeriods: number; // Number of periods to analyze (e.g., 12 months)
-  
+
   // Filters
   filters?: Record<string, unknown>;
   segmentBy?: string[]; // Additional segmentation dimensions
-  
+
   // Metrics to calculate
   metrics: CohortMetric[];
 }
 
 export interface CohortMetric {
   name: string;
-  type: 'retention' | 'revenue' | 'frequency' | 'custom';
-  aggregation: 'count' | 'sum' | 'avg' | 'median' | 'unique';
+  type: "retention" | "revenue" | "frequency" | "custom";
+  aggregation: "count" | "sum" | "avg" | "median" | "unique";
   formula?: string; // For custom metrics
 }
 
@@ -52,7 +52,7 @@ export interface CohortAnalysisResult {
   insights: {
     bestPerformingCohort: string;
     worstPerformingCohort: string;
-    retentionTrend: 'improving' | 'declining' | 'stable';
+    retentionTrend: "improving" | "declining" | "stable";
     recommendations: string[];
   };
   generatedAt: string;
@@ -71,7 +71,7 @@ export interface ForecastConfig {
   forecastId: string;
   name: string;
   description: string;
-  
+
   // Data source
   dataSource: {
     table: string;
@@ -79,16 +79,16 @@ export interface ForecastConfig {
     valueColumn: string;
     filters?: Record<string, unknown>;
   };
-  
+
   // Forecast parameters
   forecastHorizon: number; // Number of periods to forecast
-  forecastFrequency: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+  forecastFrequency: "daily" | "weekly" | "monthly" | "quarterly";
   confidence: number[]; // Confidence intervals (e.g., [0.8, 0.95])
-  
+
   // Model configuration
-  models: ('linear' | 'exponential' | 'seasonal' | 'arima')[];
+  models: ("linear" | "exponential" | "seasonal" | "arima")[];
   seasonalityPeriod?: number; // For seasonal models
-  
+
   // Validation
   holdoutPeriods: number; // Periods to hold out for validation
 }
@@ -99,13 +99,13 @@ export interface ForecastResult {
   accuracy: {
     mape: number; // Mean Absolute Percentage Error
     rmse: number; // Root Mean Square Error
-    mae: number;  // Mean Absolute Error
-    r2: number;   // R-squared
+    mae: number; // Mean Absolute Error
+    r2: number; // R-squared
   };
-  
+
   forecast: ForecastPoint[];
   historical: ForecastPoint[];
-  
+
   confidence: {
     level: number;
     intervals: Array<{
@@ -114,15 +114,15 @@ export interface ForecastResult {
       upper: number;
     }>;
   }[];
-  
+
   insights: {
-    trend: 'increasing' | 'decreasing' | 'stable';
+    trend: "increasing" | "decreasing" | "stable";
     seasonality: boolean;
     changePoints: string[];
     risks: string[];
     opportunities: string[];
   };
-  
+
   generatedAt: string;
   nextUpdate: string;
 }
@@ -139,7 +139,7 @@ export interface CustomMetricConfig {
   name: string;
   description: string;
   category: string;
-  
+
   // Calculation definition
   formula: string; // SQL-like formula or expression
   dataSource: {
@@ -150,15 +150,15 @@ export interface CustomMetricConfig {
     }>;
     filters?: Record<string, unknown>;
   };
-  
+
   // Aggregation
-  aggregation: 'sum' | 'avg' | 'count' | 'median' | 'percentile' | 'custom';
+  aggregation: "sum" | "avg" | "count" | "median" | "percentile" | "custom";
   dimensions?: string[]; // Grouping dimensions
-  
+
   // Refresh settings
   refreshInterval: number; // Minutes
   dependencies?: string[]; // Other metrics this depends on
-  
+
   // Validation
   expectedRange?: [number, number];
   alertThresholds?: {
@@ -187,31 +187,31 @@ export interface RealTimeStreamConfig {
   streamId: string;
   name: string;
   description: string;
-  
+
   // Data source
   source: {
-    type: 'webhook' | 'database' | 'queue' | 'file';
+    type: "webhook" | "database" | "queue" | "file";
     endpoint?: string;
     table?: string;
     pollInterval?: number; // For database/file sources
   };
-  
+
   // Processing rules
   transformations: Array<{
-    type: 'filter' | 'aggregate' | 'enrich' | 'validate';
+    type: "filter" | "aggregate" | "enrich" | "validate";
     config: Record<string, unknown>;
   }>;
-  
+
   // Output targets
   outputs: Array<{
-    type: 'dashboard' | 'alert' | 'webhook' | 'database';
+    type: "dashboard" | "alert" | "webhook" | "database";
     config: Record<string, unknown>;
   }>;
-  
+
   // Processing settings
   batchSize: number;
   bufferTime: number; // Milliseconds
-  errorHandling: 'retry' | 'skip' | 'alert';
+  errorHandling: "retry" | "skip" | "alert";
 }
 
 export class EnterpriseAnalytics {
@@ -235,29 +235,34 @@ export class EnterpriseAnalytics {
   /**
    * Perform cohort analysis
    */
-  public async performCohortAnalysis(config: CohortAnalysisConfig): Promise<CohortAnalysisResult> {
+  public async performCohortAnalysis(
+    config: CohortAnalysisConfig
+  ): Promise<CohortAnalysisResult> {
     console.log(`Starting cohort analysis: ${config.name}`);
-    
+
     // Build cohort query
     const cohortQuery = this.buildCohortQuery(config);
-    
+
     // Execute cohort analysis
-    const { data: cohortData, error } = await this.supabase.rpc('analyze_cohorts', {
-      query: cohortQuery,
-      config: config
-    });
+    const { data: cohortData, error } = await this.supabase.rpc(
+      "analyze_cohorts",
+      {
+        query: cohortQuery,
+        config: config,
+      }
+    );
 
     if (error) {
-      console.error('Cohort analysis failed:', error);
+      console.error("Cohort analysis failed:", error);
       throw new Error(`Cohort analysis failed: ${error.message}`);
     }
 
     // Process and structure cohort data
     const cohortTable = this.processCohortData(cohortData, config);
-    
+
     // Calculate summary statistics
     const cohortSummary = this.calculateCohortSummary(cohortTable);
-    
+
     // Generate insights
     const insights = this.generateCohortInsights(cohortTable, cohortSummary);
 
@@ -266,21 +271,25 @@ export class EnterpriseAnalytics {
       cohortTable,
       cohortSummary,
       insights,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
     };
   }
 
   /**
    * Generate forecast with multiple models
    */
-  public async generateForecast(config: ForecastConfig): Promise<ForecastResult> {
+  public async generateForecast(
+    config: ForecastConfig
+  ): Promise<ForecastResult> {
     console.log(`Generating forecast: ${config.name}`);
-    
+
     // Get historical data
     const historicalData = await this.getHistoricalData(config);
-    
+
     if (historicalData.length < 10) {
-      throw new Error('Insufficient historical data for forecasting (minimum 10 periods required)');
+      throw new Error(
+        "Insufficient historical data for forecasting (minimum 10 periods required)"
+      );
     }
 
     // Split data for validation
@@ -289,21 +298,23 @@ export class EnterpriseAnalytics {
 
     // Train and evaluate multiple models
     const modelResults = await Promise.all(
-      config.models.map(modelType => this.trainForecastModel(modelType, trainData, testData, config))
+      config.models.map(modelType =>
+        this.trainForecastModel(modelType, trainData, testData, config)
+      )
     );
 
     // Select best model based on accuracy
-    const bestModel = modelResults.reduce((best, current) => 
+    const bestModel = modelResults.reduce((best, current) =>
       current.accuracy.mape < best.accuracy.mape ? current : best
     );
 
     // Generate forecast with best model
     const forecast = await this.generateForecastPoints(bestModel, config);
-    
+
     // Calculate confidence intervals
     const confidenceIntervals = config.confidence.map(level => ({
       level,
-      intervals: this.calculateConfidenceIntervals(forecast, level)
+      intervals: this.calculateConfidenceIntervals(forecast, level),
     }));
 
     // Generate insights
@@ -318,23 +329,28 @@ export class EnterpriseAnalytics {
       confidence: confidenceIntervals,
       insights,
       generatedAt: new Date().toISOString(),
-      nextUpdate: this.calculateNextUpdate(config.forecastFrequency)
+      nextUpdate: this.calculateNextUpdate(config.forecastFrequency),
     };
   }
 
   /**
    * Calculate custom metric
    */
-  public async calculateCustomMetric(config: CustomMetricConfig): Promise<CustomMetricResult> {
+  public async calculateCustomMetric(
+    config: CustomMetricConfig
+  ): Promise<CustomMetricResult> {
     console.log(`Calculating custom metric: ${config.name}`);
-    
+
     try {
       // Build and execute query
       const query = this.buildCustomMetricQuery(config);
-      const { data, error } = await this.supabase.rpc('calculate_custom_metric', {
-        query,
-        config
-      });
+      const { data, error } = await this.supabase.rpc(
+        "calculate_custom_metric",
+        {
+          query,
+          config,
+        }
+      );
 
       if (error) {
         throw new Error(`Custom metric calculation failed: ${error.message}`);
@@ -342,7 +358,7 @@ export class EnterpriseAnalytics {
 
       // Validate result
       const validation = this.validateCustomMetricResult(data, config);
-      
+
       // Get historical values for trend analysis
       const historicalValues = await this.getMetricHistory(config.metricId);
 
@@ -352,10 +368,10 @@ export class EnterpriseAnalytics {
         dimensions: data.dimensions,
         calculatedAt: new Date().toISOString(),
         dataQuality: validation,
-        historicalValues
+        historicalValues,
       };
     } catch (error) {
-      console.error('Custom metric calculation failed:', error);
+      console.error("Custom metric calculation failed:", error);
       throw error;
     }
   }
@@ -363,20 +379,20 @@ export class EnterpriseAnalytics {
   /**
    * Setup real-time analytics stream
    */
-  public async setupRealTimeStream(config: RealTimeStreamConfig): Promise<void> {
+  public async setupRealTimeStream(
+    config: RealTimeStreamConfig
+  ): Promise<void> {
     console.log(`Setting up real-time stream: ${config.name}`);
-    
+
     // Store stream configuration
-    const { error } = await this.supabase
-      .from('realtime_streams')
-      .upsert({
-        stream_id: config.streamId,
-        name: config.name,
-        description: config.description,
-        config: config,
-        status: 'active',
-        created_at: new Date().toISOString()
-      });
+    const { error } = await this.supabase.from("realtime_streams").upsert({
+      stream_id: config.streamId,
+      name: config.name,
+      description: config.description,
+      config: config,
+      status: "active",
+      created_at: new Date().toISOString(),
+    });
 
     if (error) {
       throw new Error(`Failed to setup stream: ${error.message}`);
@@ -384,16 +400,16 @@ export class EnterpriseAnalytics {
 
     // Initialize stream processor based on source type
     switch (config.source.type) {
-      case 'webhook':
+      case "webhook":
         await this.setupWebhookStream(config);
         break;
-      case 'database':
+      case "database":
         await this.setupDatabaseStream(config);
         break;
-      case 'queue':
+      case "queue":
         await this.setupQueueStream(config);
         break;
-      case 'file':
+      case "file":
         await this.setupFileStream(config);
         break;
     }
@@ -410,9 +426,9 @@ export class EnterpriseAnalytics {
   ): Promise<void> {
     // Get stream configuration
     const { data: streamConfig } = await this.supabase
-      .from('realtime_streams')
-      .select('config')
-      .eq('stream_id', streamId)
+      .from("realtime_streams")
+      .select("config")
+      .eq("stream_id", streamId)
       .single();
 
     if (!streamConfig) {
@@ -420,16 +436,22 @@ export class EnterpriseAnalytics {
     }
 
     const config = streamConfig.config as RealTimeStreamConfig;
-    
+
     // Apply transformations
     let processedData = data;
     for (const transformation of config.transformations) {
-      processedData = await this.applyTransformation(processedData, transformation);
+      processedData = await this.applyTransformation(
+        processedData,
+        transformation
+      );
     }
 
     // Validate processed data
     const validData = processedData.filter(record => {
-      const validation = dataValidationService.validateDataPoint('analytics', record);
+      const validation = dataValidationService.validateDataPoint(
+        "analytics",
+        record
+      );
       return validation.isValid;
     });
 
@@ -443,7 +465,7 @@ export class EnterpriseAnalytics {
       processed: data.length,
       valid: validData.length,
       invalid: data.length - validData.length,
-      lastProcessed: new Date().toISOString()
+      lastProcessed: new Date().toISOString(),
     });
   }
 
@@ -451,7 +473,7 @@ export class EnterpriseAnalytics {
 
   private buildCohortQuery(config: CohortAnalysisConfig): string {
     const { cohortDefinition, cohortPeriod, analysisPeriods } = config;
-    
+
     // This would build a complex SQL query for cohort analysis
     // Simplified version here
     return `
@@ -460,15 +482,15 @@ export class EnterpriseAnalytics {
           ${this.formatCohortPeriod(cohortDefinition.timeColumn, cohortPeriod)} as cohort_period,
           ${cohortDefinition.userIdColumn} as user_id,
           MIN(${cohortDefinition.timeColumn}) as first_event
-        FROM ${config.cohortDefinition.timeColumn.split('.')[0]}
+        FROM ${config.cohortDefinition.timeColumn.split(".")[0]}
         GROUP BY cohort_period, user_id
       ),
       events AS (
         SELECT 
           ${cohortDefinition.userIdColumn} as user_id,
           ${this.formatCohortPeriod(cohortDefinition.eventColumn, cohortPeriod)} as event_period,
-          ${cohortDefinition.valueColumn || '1'} as event_value
-        FROM ${config.cohortDefinition.eventColumn.split('.')[0]}
+          ${cohortDefinition.valueColumn || "1"} as event_value
+        FROM ${config.cohortDefinition.eventColumn.split(".")[0]}
       )
       SELECT 
         c.cohort_period,
@@ -485,40 +507,44 @@ export class EnterpriseAnalytics {
 
   private formatCohortPeriod(column: string, period: string): string {
     switch (period) {
-      case 'daily':
+      case "daily":
         return `DATE(${column})`;
-      case 'weekly':
+      case "weekly":
         return `DATE_TRUNC('week', ${column})`;
-      case 'monthly':
+      case "monthly":
         return `DATE_TRUNC('month', ${column})`;
-      case 'quarterly':
+      case "quarterly":
         return `DATE_TRUNC('quarter', ${column})`;
       default:
         return `DATE(${column})`;
     }
   }
 
-  private processCohortData(rawData: any[], config: CohortAnalysisConfig): CohortData[][] {
+  private processCohortData(
+    rawData: any[],
+    config: CohortAnalysisConfig
+  ): CohortData[][] {
     // Group data by cohort period and analysis period
     const cohortMap = new Map<string, Map<number, CohortData>>();
 
     rawData.forEach(row => {
       const cohortPeriod = row.cohort_period;
       const analysisPeriod = row.period_number;
-      
+
       if (!cohortMap.has(cohortPeriod)) {
         cohortMap.set(cohortPeriod, new Map());
       }
-      
-      const retentionRate = row.user_count / (row.cohort_size || row.user_count);
-      
+
+      const retentionRate =
+        row.user_count / (row.cohort_size || row.user_count);
+
       cohortMap.get(cohortPeriod)!.set(analysisPeriod, {
         cohortPeriod,
         analysisPeriod,
         userCount: row.user_count,
         retentionRate: Math.round(retentionRate * 10000) / 100,
         value: row.total_value || 0,
-        percentage: retentionRate * 100
+        percentage: retentionRate * 100,
       });
     });
 
@@ -529,25 +555,32 @@ export class EnterpriseAnalytics {
     return cohortPeriods.map(cohortPeriod => {
       const cohortData = cohortMap.get(cohortPeriod)!;
       const row: CohortData[] = [];
-      
+
       for (let period = 0; period <= maxPeriods; period++) {
-        row.push(cohortData.get(period) || {
-          cohortPeriod,
-          analysisPeriod: period,
-          userCount: 0,
-          retentionRate: 0,
-          value: 0,
-          percentage: 0
-        });
+        row.push(
+          cohortData.get(period) || {
+            cohortPeriod,
+            analysisPeriod: period,
+            userCount: 0,
+            retentionRate: 0,
+            value: 0,
+            percentage: 0,
+          }
+        );
       }
-      
+
       return row;
     });
   }
 
-  private calculateCohortSummary(cohortTable: CohortData[][]): CohortAnalysisResult['cohortSummary'] {
+  private calculateCohortSummary(
+    cohortTable: CohortData[][]
+  ): CohortAnalysisResult["cohortSummary"] {
     const totalCohorts = cohortTable.length;
-    const totalUsers = cohortTable.reduce((sum, cohort) => sum + (cohort[0]?.userCount || 0), 0);
+    const totalUsers = cohortTable.reduce(
+      (sum, cohort) => sum + (cohort[0]?.userCount || 0),
+      0
+    );
     const avgCohortSize = totalCohorts > 0 ? totalUsers / totalCohorts : 0;
 
     // Calculate average retention rates by period
@@ -558,11 +591,12 @@ export class EnterpriseAnalytics {
       const rates = cohortTable
         .map(cohort => cohort[period]?.retentionRate || 0)
         .filter(rate => rate > 0);
-      
-      const avgRate = rates.length > 0 
-        ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length 
-        : 0;
-      
+
+      const avgRate =
+        rates.length > 0
+          ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length
+          : 0;
+
       retentionRates.push(Math.round(avgRate * 100) / 100);
     }
 
@@ -570,97 +604,129 @@ export class EnterpriseAnalytics {
       totalCohorts,
       totalUsers,
       avgCohortSize: Math.round(avgCohortSize),
-      retentionRates
+      retentionRates,
     };
   }
 
   private generateCohortInsights(
     cohortTable: CohortData[][],
-    summary: CohortAnalysisResult['cohortSummary']
-  ): CohortAnalysisResult['insights'] {
+    summary: CohortAnalysisResult["cohortSummary"]
+  ): CohortAnalysisResult["insights"] {
     // Find best and worst performing cohorts
     const cohortPerformance = cohortTable.map((cohort, index) => ({
       index,
       cohortPeriod: cohort[0].cohortPeriod,
-      avgRetention: cohort.slice(1, 4).reduce((sum, period) => sum + period.retentionRate, 0) / 3
+      avgRetention:
+        cohort
+          .slice(1, 4)
+          .reduce((sum, period) => sum + period.retentionRate, 0) / 3,
     }));
 
     cohortPerformance.sort((a, b) => b.avgRetention - a.avgRetention);
 
-    const bestPerformingCohort = cohortPerformance[0]?.cohortPeriod || 'None';
-    const worstPerformingCohort = cohortPerformance[cohortPerformance.length - 1]?.cohortPeriod || 'None';
+    const bestPerformingCohort = cohortPerformance[0]?.cohortPeriod || "None";
+    const worstPerformingCohort =
+      cohortPerformance[cohortPerformance.length - 1]?.cohortPeriod || "None";
 
     // Analyze retention trend
     const retentionTrend = this.analyzeRetentionTrend(summary.retentionRates);
 
     // Generate recommendations
-    const recommendations = this.generateCohortRecommendations(cohortTable, summary, retentionTrend);
+    const recommendations = this.generateCohortRecommendations(
+      cohortTable,
+      summary,
+      retentionTrend
+    );
 
     return {
       bestPerformingCohort,
       worstPerformingCohort,
       retentionTrend,
-      recommendations
+      recommendations,
     };
   }
 
-  private analyzeRetentionTrend(retentionRates: number[]): 'improving' | 'declining' | 'stable' {
-    if (retentionRates.length < 3) return 'stable';
+  private analyzeRetentionTrend(
+    retentionRates: number[]
+  ): "improving" | "declining" | "stable" {
+    if (retentionRates.length < 3) return "stable";
 
     const recent = retentionRates.slice(-3);
     const earlier = retentionRates.slice(0, 3);
 
-    const recentAvg = recent.reduce((sum, rate) => sum + rate, 0) / recent.length;
-    const earlierAvg = earlier.reduce((sum, rate) => sum + rate, 0) / earlier.length;
+    const recentAvg =
+      recent.reduce((sum, rate) => sum + rate, 0) / recent.length;
+    const earlierAvg =
+      earlier.reduce((sum, rate) => sum + rate, 0) / earlier.length;
 
     const change = (recentAvg - earlierAvg) / earlierAvg;
 
-    if (change > 0.05) return 'improving';
-    if (change < -0.05) return 'declining';
-    return 'stable';
+    if (change > 0.05) return "improving";
+    if (change < -0.05) return "declining";
+    return "stable";
   }
 
   private generateCohortRecommendations(
     cohortTable: CohortData[][],
-    summary: CohortAnalysisResult['cohortSummary'],
-    trend: 'improving' | 'declining' | 'stable'
+    summary: CohortAnalysisResult["cohortSummary"],
+    trend: "improving" | "declining" | "stable"
   ): string[] {
     const recommendations: string[] = [];
 
     // Retention rate recommendations
     if (summary.retentionRates[1] < 20) {
-      recommendations.push('Early retention is low. Focus on improving onboarding experience.');
+      recommendations.push(
+        "Early retention is low. Focus on improving onboarding experience."
+      );
     }
 
-    if (trend === 'declining') {
-      recommendations.push('Retention trend is declining. Investigate recent product changes or market factors.');
+    if (trend === "declining") {
+      recommendations.push(
+        "Retention trend is declining. Investigate recent product changes or market factors."
+      );
     }
 
     // Cohort size recommendations
     if (summary.avgCohortSize < 100) {
-      recommendations.push('Small cohort sizes may limit statistical significance. Consider longer analysis periods.');
+      recommendations.push(
+        "Small cohort sizes may limit statistical significance. Consider longer analysis periods."
+      );
     }
 
     // Performance variation recommendations
     const retentionVariation = this.calculateRetentionVariation(cohortTable);
     if (retentionVariation > 0.3) {
-      recommendations.push('High variation in cohort performance. Analyze external factors affecting different time periods.');
+      recommendations.push(
+        "High variation in cohort performance. Analyze external factors affecting different time periods."
+      );
     }
 
     return recommendations;
   }
 
   private calculateRetentionVariation(cohortTable: CohortData[][]): number {
-    const firstPeriodRates = cohortTable.map(cohort => cohort[1]?.retentionRate || 0);
-    const mean = firstPeriodRates.reduce((sum, rate) => sum + rate, 0) / firstPeriodRates.length;
-    const variance = firstPeriodRates.reduce((sum, rate) => sum + Math.pow(rate - mean, 2), 0) / firstPeriodRates.length;
+    const firstPeriodRates = cohortTable.map(
+      cohort => cohort[1]?.retentionRate || 0
+    );
+    const mean =
+      firstPeriodRates.reduce((sum, rate) => sum + rate, 0) /
+      firstPeriodRates.length;
+    const variance =
+      firstPeriodRates.reduce(
+        (sum, rate) => sum + Math.pow(rate - mean, 2),
+        0
+      ) / firstPeriodRates.length;
     return Math.sqrt(variance) / mean; // Coefficient of variation
   }
 
-  private async getHistoricalData(config: ForecastConfig): Promise<ForecastPoint[]> {
+  private async getHistoricalData(
+    config: ForecastConfig
+  ): Promise<ForecastPoint[]> {
     const { data, error } = await this.supabase
       .from(config.dataSource.table)
-      .select(`${config.dataSource.dateColumn}, ${config.dataSource.valueColumn}`)
+      .select(
+        `${config.dataSource.dateColumn}, ${config.dataSource.valueColumn}`
+      )
       .order(config.dataSource.dateColumn, { ascending: true });
 
     if (error) {
@@ -670,7 +736,7 @@ export class EnterpriseAnalytics {
     return (data || []).map(row => ({
       period: row[config.dataSource.dateColumn],
       actual: row[config.dataSource.valueColumn],
-      predicted: row[config.dataSource.valueColumn] // Same as actual for historical data
+      predicted: row[config.dataSource.valueColumn], // Same as actual for historical data
     }));
   }
 
@@ -679,7 +745,11 @@ export class EnterpriseAnalytics {
     trainData: ForecastPoint[],
     testData: ForecastPoint[],
     config: ForecastConfig
-  ): Promise<{ type: string; accuracy: ForecastResult['accuracy']; model: any }> {
+  ): Promise<{
+    type: string;
+    accuracy: ForecastResult["accuracy"];
+    model: any;
+  }> {
     // Extract values for training
     const trainValues = trainData.map(point => point.actual!);
     const testValues = testData.map(point => point.actual!);
@@ -688,38 +758,45 @@ export class EnterpriseAnalytics {
     let model: any = {};
 
     switch (modelType) {
-      case 'linear':
+      case "linear":
         // Linear trend model
         const linearRegression = statisticalEngine.performLinearRegression(
           Array.from({ length: trainValues.length }, (_, i) => i),
           trainValues
         );
         model = linearRegression;
-        
+
         // Generate predictions
-        predictions = testData.map((_, i) => 
-          linearRegression.slope * (trainValues.length + i) + linearRegression.intercept
+        predictions = testData.map(
+          (_, i) =>
+            linearRegression.slope * (trainValues.length + i) +
+            linearRegression.intercept
         );
         break;
 
-      case 'exponential':
+      case "exponential":
         // Exponential smoothing
         model = this.trainExponentialSmoothing(trainValues);
         predictions = this.predictExponentialSmoothing(model, testData.length);
         break;
 
-      case 'seasonal':
+      case "seasonal":
         // Seasonal decomposition with trend
-        model = this.trainSeasonalModel(trainValues, config.seasonalityPeriod || 12);
+        model = this.trainSeasonalModel(
+          trainValues,
+          config.seasonalityPeriod || 12
+        );
         predictions = this.predictSeasonalModel(model, testData.length);
         break;
 
       default:
         // Simple moving average as fallback
         const windowSize = Math.min(5, trainValues.length);
-        const movingAvg = trainValues.slice(-windowSize).reduce((sum, val) => sum + val, 0) / windowSize;
+        const movingAvg =
+          trainValues.slice(-windowSize).reduce((sum, val) => sum + val, 0) /
+          windowSize;
         predictions = testData.map(() => movingAvg);
-        model = { type: 'moving_average', value: movingAvg };
+        model = { type: "moving_average", value: movingAvg };
     }
 
     // Calculate accuracy metrics
@@ -728,11 +805,14 @@ export class EnterpriseAnalytics {
     return {
       type: modelType,
       accuracy,
-      model
+      model,
     };
   }
 
-  private trainExponentialSmoothing(data: number[]): { alpha: number; level: number } {
+  private trainExponentialSmoothing(data: number[]): {
+    alpha: number;
+    level: number;
+  } {
     // Simple exponential smoothing
     const alpha = 0.3; // Smoothing parameter
     let level = data[0];
@@ -744,24 +824,32 @@ export class EnterpriseAnalytics {
     return { alpha, level };
   }
 
-  private predictExponentialSmoothing(model: { alpha: number; level: number }, periods: number): number[] {
+  private predictExponentialSmoothing(
+    model: { alpha: number; level: number },
+    periods: number
+  ): number[] {
     // For simple exponential smoothing, forecast is flat
     return Array(periods).fill(model.level);
   }
 
-  private trainSeasonalModel(data: number[], seasonPeriod: number): {
+  private trainSeasonalModel(
+    data: number[],
+    seasonPeriod: number
+  ): {
     trend: number;
     seasonal: number[];
     level: number;
   } {
     // Simplified seasonal decomposition
     const level = data.reduce((sum, val) => sum + val, 0) / data.length;
-    
+
     // Calculate trend
     const firstHalf = data.slice(0, Math.floor(data.length / 2));
     const secondHalf = data.slice(Math.floor(data.length / 2));
-    const firstAvg = firstHalf.reduce((sum, val) => sum + val, 0) / firstHalf.length;
-    const secondAvg = secondHalf.reduce((sum, val) => sum + val, 0) / secondHalf.length;
+    const firstAvg =
+      firstHalf.reduce((sum, val) => sum + val, 0) / firstHalf.length;
+    const secondAvg =
+      secondHalf.reduce((sum, val) => sum + val, 0) / secondHalf.length;
     const trend = (secondAvg - firstAvg) / (data.length / 2);
 
     // Calculate seasonal factors
@@ -771,7 +859,9 @@ export class EnterpriseAnalytics {
       for (let i = s; i < data.length; i += seasonPeriod) {
         seasonalValues.push(data[i]);
       }
-      const seasonalAvg = seasonalValues.reduce((sum, val) => sum + val, 0) / seasonalValues.length;
+      const seasonalAvg =
+        seasonalValues.reduce((sum, val) => sum + val, 0) /
+        seasonalValues.length;
       seasonal.push(seasonalAvg / level); // Multiplicative seasonal factor
     }
 
@@ -783,7 +873,7 @@ export class EnterpriseAnalytics {
     periods: number
   ): number[] {
     const predictions: number[] = [];
-    
+
     for (let i = 0; i < periods; i++) {
       const seasonalIndex = i % model.seasonal.length;
       const seasonalFactor = model.seasonal[seasonalIndex];
@@ -794,39 +884,55 @@ export class EnterpriseAnalytics {
     return predictions;
   }
 
-  private calculateForecastAccuracy(actual: number[], predicted: number[]): ForecastResult['accuracy'] {
+  private calculateForecastAccuracy(
+    actual: number[],
+    predicted: number[]
+  ): ForecastResult["accuracy"] {
     if (actual.length !== predicted.length || actual.length === 0) {
       return { mape: 100, rmse: 0, mae: 0, r2: 0 };
     }
 
     // Mean Absolute Percentage Error
-    const mape = actual.reduce((sum, act, i) => {
-      const error = Math.abs(act - predicted[i]) / Math.abs(act || 1);
-      return sum + error;
-    }, 0) / actual.length * 100;
+    const mape =
+      (actual.reduce((sum, act, i) => {
+        const error = Math.abs(act - predicted[i]) / Math.abs(act || 1);
+        return sum + error;
+      }, 0) /
+        actual.length) *
+      100;
 
     // Root Mean Square Error
-    const mse = actual.reduce((sum, act, i) => {
-      return sum + Math.pow(act - predicted[i], 2);
-    }, 0) / actual.length;
+    const mse =
+      actual.reduce((sum, act, i) => {
+        return sum + Math.pow(act - predicted[i], 2);
+      }, 0) / actual.length;
     const rmse = Math.sqrt(mse);
 
     // Mean Absolute Error
-    const mae = actual.reduce((sum, act, i) => {
-      return sum + Math.abs(act - predicted[i]);
-    }, 0) / actual.length;
+    const mae =
+      actual.reduce((sum, act, i) => {
+        return sum + Math.abs(act - predicted[i]);
+      }, 0) / actual.length;
 
     // R-squared
-    const actualMean = actual.reduce((sum, val) => sum + val, 0) / actual.length;
-    const totalSumSquares = actual.reduce((sum, val) => sum + Math.pow(val - actualMean, 2), 0);
-    const residualSumSquares = actual.reduce((sum, act, i) => sum + Math.pow(act - predicted[i], 2), 0);
-    const r2 = totalSumSquares === 0 ? 0 : 1 - residualSumSquares / totalSumSquares;
+    const actualMean =
+      actual.reduce((sum, val) => sum + val, 0) / actual.length;
+    const totalSumSquares = actual.reduce(
+      (sum, val) => sum + Math.pow(val - actualMean, 2),
+      0
+    );
+    const residualSumSquares = actual.reduce(
+      (sum, act, i) => sum + Math.pow(act - predicted[i], 2),
+      0
+    );
+    const r2 =
+      totalSumSquares === 0 ? 0 : 1 - residualSumSquares / totalSumSquares;
 
     return {
       mape: Math.round(mape * 100) / 100,
       rmse: Math.round(rmse * 100) / 100,
       mae: Math.round(mae * 100) / 100,
-      r2: Math.round(r2 * 10000) / 10000
+      r2: Math.round(r2 * 10000) / 10000,
     };
   }
 
@@ -836,66 +942,68 @@ export class EnterpriseAnalytics {
   ): Promise<ForecastPoint[]> {
     const forecast: ForecastPoint[] = [];
     const startDate = new Date();
-    
+
     for (let i = 0; i < config.forecastHorizon; i++) {
       const forecastDate = new Date(startDate);
-      
+
       switch (config.forecastFrequency) {
-        case 'daily':
+        case "daily":
           forecastDate.setDate(startDate.getDate() + i);
           break;
-        case 'weekly':
+        case "weekly":
           forecastDate.setDate(startDate.getDate() + i * 7);
           break;
-        case 'monthly':
+        case "monthly":
           forecastDate.setMonth(startDate.getMonth() + i);
           break;
-        case 'quarterly':
+        case "quarterly":
           forecastDate.setMonth(startDate.getMonth() + i * 3);
           break;
       }
-      
+
       // Generate prediction based on model type
       let predicted = 0;
       switch (bestModel.type) {
-        case 'linear':
+        case "linear":
           predicted = bestModel.model.slope * i + bestModel.model.intercept;
           break;
-        case 'exponential':
+        case "exponential":
           predicted = bestModel.model.level;
           break;
-        case 'seasonal':
+        case "seasonal":
           const seasonalIndex = i % bestModel.model.seasonal.length;
-          predicted = (bestModel.model.level + bestModel.model.trend * i) * 
-                     bestModel.model.seasonal[seasonalIndex];
+          predicted =
+            (bestModel.model.level + bestModel.model.trend * i) *
+            bestModel.model.seasonal[seasonalIndex];
           break;
         default:
           predicted = bestModel.model.value || 0;
       }
-      
+
       forecast.push({
-        period: forecastDate.toISOString().split('T')[0],
-        predicted: Math.max(0, Math.round(predicted * 100) / 100)
+        period: forecastDate.toISOString().split("T")[0],
+        predicted: Math.max(0, Math.round(predicted * 100) / 100),
       });
     }
-    
+
     return forecast;
   }
 
   private calculateConfidenceIntervals(
     forecast: ForecastPoint[],
     confidenceLevel: number
-  ): ForecastResult['confidence'][0]['intervals'] {
+  ): ForecastResult["confidence"][0]["intervals"] {
     // Simplified confidence interval calculation
     // In production, this would use proper statistical methods
-    const zScore = confidenceLevel === 0.95 ? 1.96 : confidenceLevel === 0.8 ? 1.28 : 1.64;
-    
+    const zScore =
+      confidenceLevel === 0.95 ? 1.96 : confidenceLevel === 0.8 ? 1.28 : 1.64;
+
     return forecast.map(point => {
       const margin = point.predicted * 0.1 * zScore; // 10% base uncertainty
       return {
         period: point.period,
         lower: Math.max(0, Math.round((point.predicted - margin) * 100) / 100),
-        upper: Math.round((point.predicted + margin) * 100) / 100
+        upper: Math.round((point.predicted + margin) * 100) / 100,
       };
     });
   }
@@ -903,20 +1011,22 @@ export class EnterpriseAnalytics {
   private generateForecastInsights(
     historical: ForecastPoint[],
     forecast: ForecastPoint[]
-  ): ForecastResult['insights'] {
+  ): ForecastResult["insights"] {
     // Analyze trend
     const recentValues = historical.slice(-5).map(p => p.actual!);
     const forecastValues = forecast.slice(0, 5).map(p => p.predicted);
-    
-    const historicalAvg = recentValues.reduce((sum, val) => sum + val, 0) / recentValues.length;
-    const forecastAvg = forecastValues.reduce((sum, val) => sum + val, 0) / forecastValues.length;
-    
+
+    const historicalAvg =
+      recentValues.reduce((sum, val) => sum + val, 0) / recentValues.length;
+    const forecastAvg =
+      forecastValues.reduce((sum, val) => sum + val, 0) / forecastValues.length;
+
     const trendChange = (forecastAvg - historicalAvg) / historicalAvg;
-    
-    let trend: 'increasing' | 'decreasing' | 'stable';
-    if (trendChange > 0.05) trend = 'increasing';
-    else if (trendChange < -0.05) trend = 'decreasing';
-    else trend = 'stable';
+
+    let trend: "increasing" | "decreasing" | "stable";
+    if (trendChange > 0.05) trend = "increasing";
+    else if (trendChange < -0.05) trend = "decreasing";
+    else trend = "stable";
 
     // Detect seasonality (simplified)
     const seasonality = this.detectSeasonality(historical.map(p => p.actual!));
@@ -925,14 +1035,16 @@ export class EnterpriseAnalytics {
     const risks: string[] = [];
     const opportunities: string[] = [];
 
-    if (trend === 'decreasing') {
-      risks.push('Forecast shows declining trend');
+    if (trend === "decreasing") {
+      risks.push("Forecast shows declining trend");
     }
-    if (trend === 'increasing') {
-      opportunities.push('Forecast indicates growth opportunity');
+    if (trend === "increasing") {
+      opportunities.push("Forecast indicates growth opportunity");
     }
     if (seasonality) {
-      opportunities.push('Seasonal patterns detected - optimize for peak periods');
+      opportunities.push(
+        "Seasonal patterns detected - optimize for peak periods"
+      );
     }
 
     return {
@@ -940,34 +1052,34 @@ export class EnterpriseAnalytics {
       seasonality,
       changePoints: [], // Would be calculated from actual change point detection
       risks,
-      opportunities
+      opportunities,
     };
   }
 
   private detectSeasonality(data: number[]): boolean {
     // Simple seasonality detection using autocorrelation
     if (data.length < 24) return false;
-    
+
     const periods = [7, 12, 24]; // Weekly, monthly, yearly patterns
-    
+
     for (const period of periods) {
       if (data.length < period * 2) continue;
-      
+
       const correlation = this.calculateAutocorrelation(data, period);
       if (Math.abs(correlation) > 0.3) {
         return true;
       }
     }
-    
+
     return false;
   }
 
   private calculateAutocorrelation(data: number[], lag: number): number {
     if (data.length <= lag) return 0;
-    
+
     const x = data.slice(0, -lag);
     const y = data.slice(lag);
-    
+
     return statisticalEngine.calculatePearsonCorrelation(x, y).value;
   }
 
@@ -975,39 +1087,40 @@ export class EnterpriseAnalytics {
     // Build SQL query from configuration
     // This is a simplified version - production would have full SQL parsing
     let query = `SELECT ${config.formula} as value`;
-    
+
     if (config.dimensions && config.dimensions.length > 0) {
-      query += `, ${config.dimensions.join(', ')}`;
+      query += `, ${config.dimensions.join(", ")}`;
     }
-    
-    query += ` FROM ${config.dataSource.tables.join(', ')}`;
-    
+
+    query += ` FROM ${config.dataSource.tables.join(", ")}`;
+
     if (config.dataSource.joins) {
       config.dataSource.joins.forEach(join => {
         query += ` JOIN ${join.table} ON ${join.condition}`;
       });
     }
-    
+
     if (config.dataSource.filters) {
-      const filterConditions = Object.entries(config.dataSource.filters)
-        .map(([key, value]) => `${key} = '${value}'`);
-      query += ` WHERE ${filterConditions.join(' AND ')}`;
+      const filterConditions = Object.entries(config.dataSource.filters).map(
+        ([key, value]) => `${key} = '${value}'`
+      );
+      query += ` WHERE ${filterConditions.join(" AND ")}`;
     }
-    
+
     if (config.dimensions && config.dimensions.length > 0) {
-      query += ` GROUP BY ${config.dimensions.join(', ')}`;
+      query += ` GROUP BY ${config.dimensions.join(", ")}`;
     }
-    
+
     return query;
   }
 
   private validateCustomMetricResult(
     data: any,
     config: CustomMetricConfig
-  ): CustomMetricResult['dataQuality'] {
+  ): CustomMetricResult["dataQuality"] {
     let completeness = 100;
     let accuracy = 100;
-    let freshness = 0; // Assume real-time for now
+    const freshness = 0; // Assume real-time for now
 
     // Check expected range
     if (config.expectedRange) {
@@ -1026,16 +1139,18 @@ export class EnterpriseAnalytics {
     return {
       completeness,
       freshness,
-      accuracy
+      accuracy,
     };
   }
 
-  private async getMetricHistory(metricId: string): Promise<CustomMetricResult['historicalValues']> {
+  private async getMetricHistory(
+    metricId: string
+  ): Promise<CustomMetricResult["historicalValues"]> {
     const { data } = await this.supabase
-      .from('custom_metric_history')
-      .select('period, value')
-      .eq('metric_id', metricId)
-      .order('period', { ascending: false })
+      .from("custom_metric_history")
+      .select("period, value")
+      .eq("metric_id", metricId)
+      .order("period", { ascending: false })
       .limit(30);
 
     return data || [];
@@ -1044,16 +1159,16 @@ export class EnterpriseAnalytics {
   private calculateNextUpdate(frequency: string): string {
     const now = new Date();
     switch (frequency) {
-      case 'daily':
+      case "daily":
         now.setDate(now.getDate() + 1);
         break;
-      case 'weekly':
+      case "weekly":
         now.setDate(now.getDate() + 7);
         break;
-      case 'monthly':
+      case "monthly":
         now.setMonth(now.getMonth() + 1);
         break;
-      case 'quarterly':
+      case "quarterly":
         now.setMonth(now.getMonth() + 3);
         break;
     }
@@ -1062,13 +1177,17 @@ export class EnterpriseAnalytics {
 
   // Real-time stream processing methods
 
-  private async setupWebhookStream(config: RealTimeStreamConfig): Promise<void> {
+  private async setupWebhookStream(
+    config: RealTimeStreamConfig
+  ): Promise<void> {
     // Setup webhook endpoint to receive data
     console.log(`Setting up webhook stream for ${config.streamId}`);
     // Implementation would setup actual webhook endpoint
   }
 
-  private async setupDatabaseStream(config: RealTimeStreamConfig): Promise<void> {
+  private async setupDatabaseStream(
+    config: RealTimeStreamConfig
+  ): Promise<void> {
     // Setup database polling
     console.log(`Setting up database stream for ${config.streamId}`);
     // Implementation would setup polling mechanism
@@ -1088,23 +1207,30 @@ export class EnterpriseAnalytics {
 
   private async applyTransformation(
     data: Record<string, unknown>[],
-    transformation: RealTimeStreamConfig['transformations'][0]
+    transformation: RealTimeStreamConfig["transformations"][0]
   ): Promise<Record<string, unknown>[]> {
     switch (transformation.type) {
-      case 'filter':
-        return data.filter(record => this.applyFilter(record, transformation.config));
-      case 'aggregate':
+      case "filter":
+        return data.filter(record =>
+          this.applyFilter(record, transformation.config)
+        );
+      case "aggregate":
         return this.applyAggregation(data, transformation.config);
-      case 'enrich':
+      case "enrich":
         return await this.applyEnrichment(data, transformation.config);
-      case 'validate':
-        return data.filter(record => this.validateRecord(record, transformation.config));
+      case "validate":
+        return data.filter(record =>
+          this.validateRecord(record, transformation.config)
+        );
       default:
         return data;
     }
   }
 
-  private applyFilter(record: Record<string, unknown>, config: Record<string, unknown>): boolean {
+  private applyFilter(
+    record: Record<string, unknown>,
+    config: Record<string, unknown>
+  ): boolean {
     // Apply filter conditions
     for (const [key, value] of Object.entries(config)) {
       if (record[key] !== value) {
@@ -1121,50 +1247,57 @@ export class EnterpriseAnalytics {
     // Simple aggregation implementation
     const groupBy = config.groupBy as string[];
     const aggregate = config.aggregate as Record<string, string>;
-    
+
     const groups = new Map<string, Record<string, unknown>[]>();
-    
+
     // Group data
     data.forEach(record => {
-      const key = groupBy.map(field => record[field]).join('|');
+      const key = groupBy.map(field => record[field]).join("|");
       if (!groups.has(key)) {
         groups.set(key, []);
       }
       groups.get(key)!.push(record);
     });
-    
+
     // Apply aggregations
     return Array.from(groups.entries()).map(([key, records]) => {
       const result: Record<string, unknown> = {};
-      
+
       // Add grouping fields
       groupBy.forEach((field, index) => {
-        result[field] = key.split('|')[index];
+        result[field] = key.split("|")[index];
       });
-      
+
       // Apply aggregation functions
       Object.entries(aggregate).forEach(([field, func]) => {
-        const values = records.map(r => r[field] as number).filter(v => typeof v === 'number');
-        
+        const values = records
+          .map(r => r[field] as number)
+          .filter(v => typeof v === "number");
+
         switch (func) {
-          case 'sum':
+          case "sum":
             result[`${field}_sum`] = values.reduce((sum, val) => sum + val, 0);
             break;
-          case 'avg':
-            result[`${field}_avg`] = values.length > 0 ? values.reduce((sum, val) => sum + val, 0) / values.length : 0;
+          case "avg":
+            result[`${field}_avg`] =
+              values.length > 0
+                ? values.reduce((sum, val) => sum + val, 0) / values.length
+                : 0;
             break;
-          case 'count':
+          case "count":
             result[`${field}_count`] = records.length;
             break;
-          case 'max':
-            result[`${field}_max`] = values.length > 0 ? Math.max(...values) : 0;
+          case "max":
+            result[`${field}_max`] =
+              values.length > 0 ? Math.max(...values) : 0;
             break;
-          case 'min':
-            result[`${field}_min`] = values.length > 0 ? Math.min(...values) : 0;
+          case "min":
+            result[`${field}_min`] =
+              values.length > 0 ? Math.min(...values) : 0;
             break;
         }
       });
-      
+
       return result;
     });
   }
@@ -1179,33 +1312,38 @@ export class EnterpriseAnalytics {
       ...record,
       enriched_at: new Date().toISOString(),
       // Add other enrichment fields based on config
-      ...(config.additionalFields as Record<string, unknown> || {})
+      ...((config.additionalFields as Record<string, unknown>) || {}),
     }));
   }
 
-  private validateRecord(record: Record<string, unknown>, config: Record<string, unknown>): boolean {
-    const requiredFields = config.requiredFields as string[] || [];
-    return requiredFields.every(field => record[field] !== null && record[field] !== undefined);
+  private validateRecord(
+    record: Record<string, unknown>,
+    config: Record<string, unknown>
+  ): boolean {
+    const requiredFields = (config.requiredFields as string[]) || [];
+    return requiredFields.every(
+      field => record[field] !== null && record[field] !== undefined
+    );
   }
 
   private async sendToOutput(
     data: Record<string, unknown>[],
-    output: RealTimeStreamConfig['outputs'][0]
+    output: RealTimeStreamConfig["outputs"][0]
   ): Promise<void> {
     switch (output.type) {
-      case 'dashboard':
+      case "dashboard":
         // Send to real-time dashboard
         console.log(`Sending ${data.length} records to dashboard`);
         break;
-      case 'alert':
+      case "alert":
         // Check alert conditions and send notifications
         await this.checkAlertConditions(data, output.config);
         break;
-      case 'webhook':
+      case "webhook":
         // Send to external webhook
         await this.sendWebhook(data, output.config);
         break;
-      case 'database':
+      case "database":
         // Store in database
         await this.storeInDatabase(data, output.config);
         break;
@@ -1223,32 +1361,34 @@ export class EnterpriseAnalytics {
       value: number;
       severity: string;
     }>;
-    
+
     data.forEach(record => {
       conditions.forEach(condition => {
         const fieldValue = record[condition.field] as number;
         let triggered = false;
-        
+
         switch (condition.operator) {
-          case '>':
+          case ">":
             triggered = fieldValue > condition.value;
             break;
-          case '<':
+          case "<":
             triggered = fieldValue < condition.value;
             break;
-          case '>=':
+          case ">=":
             triggered = fieldValue >= condition.value;
             break;
-          case '<=':
+          case "<=":
             triggered = fieldValue <= condition.value;
             break;
-          case '==':
+          case "==":
             triggered = fieldValue === condition.value;
             break;
         }
-        
+
         if (triggered) {
-          console.log(`Alert triggered: ${condition.field} ${condition.operator} ${condition.value} (${condition.severity})`);
+          console.log(
+            `Alert triggered: ${condition.field} ${condition.operator} ${condition.value} (${condition.severity})`
+          );
           // In production, would send actual alerts via email, Slack, etc.
         }
       });
@@ -1260,23 +1400,25 @@ export class EnterpriseAnalytics {
     config: Record<string, unknown>
   ): Promise<void> {
     const url = config.url as string;
-    const headers = config.headers as Record<string, string> || {};
-    
+    const headers = (config.headers as Record<string, string>) || {};
+
     try {
       const response = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          ...headers
+          "Content-Type": "application/json",
+          ...headers,
         },
-        body: JSON.stringify({ data })
+        body: JSON.stringify({ data }),
       });
-      
+
       if (!response.ok) {
-        console.error(`Webhook failed: ${response.status} ${response.statusText}`);
+        console.error(
+          `Webhook failed: ${response.status} ${response.statusText}`
+        );
       }
     } catch (error) {
-      console.error('Webhook error:', error);
+      console.error("Webhook error:", error);
     }
   }
 
@@ -1285,13 +1427,11 @@ export class EnterpriseAnalytics {
     config: Record<string, unknown>
   ): Promise<void> {
     const table = config.table as string;
-    
-    const { error } = await this.supabase
-      .from(table)
-      .insert(data);
-    
+
+    const { error } = await this.supabase.from(table).insert(data);
+
     if (error) {
-      console.error('Database storage error:', error);
+      console.error("Database storage error:", error);
     }
   }
 
@@ -1304,13 +1444,11 @@ export class EnterpriseAnalytics {
       lastProcessed: string;
     }
   ): Promise<void> {
-    await this.supabase
-      .from('realtime_stream_metrics')
-      .upsert({
-        stream_id: streamId,
-        ...metrics,
-        updated_at: new Date().toISOString()
-      });
+    await this.supabase.from("realtime_stream_metrics").upsert({
+      stream_id: streamId,
+      ...metrics,
+      updated_at: new Date().toISOString(),
+    });
   }
 }
 

@@ -5,6 +5,7 @@
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { enterpriseLogger } from "./lib/monitoring/enterprise-logger";
 
 // Rate limiting store (in-memory for development, use Redis in production)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -111,7 +112,13 @@ function validateCSRFToken(request: NextRequest): boolean {
 
   // Skip CSRF for all API routes (they use production-grade authentication)
   if (request.nextUrl.pathname.startsWith("/api/")) {
-    console.log(`🛡️ CSRF skipped for API route: ${request.nextUrl.pathname}`);
+    enterpriseLogger.debug(
+      `CSRF skipped for API route: ${request.nextUrl.pathname}`,
+      {
+        pathname: request.nextUrl.pathname,
+        method: request.method,
+      }
+    );
     return true;
   }
 
@@ -184,12 +191,20 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 }
 
 export async function middleware(request: NextRequest) {
+  const startTime = Date.now();
   const clientIp = getClientIp(request);
+  const userAgent = request.headers.get("user-agent") || "unknown";
   const { pathname } = request.nextUrl;
 
   // Apply rate limiting (except for static assets)
   if (!pathname.startsWith("/_next/") && !pathname.startsWith("/api/auth/")) {
     if (!checkRateLimit(clientIp)) {
+      enterpriseLogger.warn("Rate limit exceeded", {
+        clientIp,
+        pathname,
+        userAgent,
+        rateLimitRequests: SECURITY_CONFIG.RATE_LIMIT_REQUESTS,
+      });
       return new NextResponse("Too Many Requests", {
         status: 429,
         headers: {
@@ -206,6 +221,12 @@ export async function middleware(request: NextRequest) {
 
   // CSRF Protection - disabled for auth pages to prevent blocking
   if (!pathname.startsWith("/auth/") && !validateCSRFToken(request)) {
+    enterpriseLogger.warn("CSRF token validation failed", {
+      clientIp,
+      pathname,
+      userAgent,
+      method: request.method,
+    });
     return new NextResponse("CSRF Token Mismatch", {
       status: 403,
       headers: {
@@ -299,10 +320,15 @@ export async function middleware(request: NextRequest) {
 
   // If user is not authenticated and trying to access a protected route
   if (!session && !isPublicRoute) {
+    enterpriseLogger.info("Unauthenticated access to protected route", {
+      clientIp,
+      pathname,
+      userAgent,
+    });
     const redirectUrl = new URL("/auth/signin", request.url);
     redirectUrl.searchParams.set("redirectTo", pathname);
     const redirectResponse = NextResponse.redirect(redirectUrl);
-    return addSecurityHeaders(redirectResponse, request);
+    return addSecurityHeaders(redirectResponse);
   }
 
   // If user is authenticated and trying to access auth pages, redirect to dashboard
@@ -311,32 +337,57 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/auth/") &&
     pathname !== "/auth/callback"
   ) {
+    enterpriseLogger.debug("Authenticated user redirected from auth page", {
+      pathname,
+      userId: session.user?.id,
+    });
     const redirectResponse = NextResponse.redirect(
       new URL("/dashboard", request.url)
     );
-    return addSecurityHeaders(redirectResponse, request);
+    return addSecurityHeaders(redirectResponse);
   }
 
   // If user is authenticated and on root path, redirect to dashboard
   if (session && pathname === "/") {
+    enterpriseLogger.debug(
+      "Authenticated user redirected from root to dashboard",
+      {
+        userId: session.user?.id,
+      }
+    );
     const redirectResponse = NextResponse.redirect(
       new URL("/dashboard", request.url)
     );
-    return addSecurityHeaders(redirectResponse, request);
+    return addSecurityHeaders(redirectResponse);
   }
 
   // Add comprehensive security headers to all responses
-  const secureResponse = addSecurityHeaders(response, request);
-  
+  const secureResponse = addSecurityHeaders(response);
+
   // Add performance and security metrics
   const processingTime = Date.now() - startTime;
   secureResponse.headers.set("X-Response-Time", `${processingTime}ms`);
-  
-  // Log security events for monitoring (production only)
-  if (process.env.NODE_ENV === "production" && processingTime > 1000) {
-    logSecurityEvent(clientIp, "SLOW_REQUEST", userAgent);
+
+  // Log security events for monitoring
+  if (processingTime > 1000) {
+    enterpriseLogger.warn("Slow middleware request", {
+      clientIp,
+      pathname,
+      userAgent,
+      processingTime,
+      isProduction: process.env.NODE_ENV === "production",
+    });
   }
-  
+
+  // Log successful authentication events
+  if (session) {
+    enterpriseLogger.debug("Middleware authentication successful", {
+      userId: session.user?.id,
+      pathname,
+      processingTime,
+    });
+  }
+
   return secureResponse;
 }
 

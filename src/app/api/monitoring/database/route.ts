@@ -4,9 +4,16 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { withDatabaseConnection, connectionPool } from "@/lib/database/connection-pool";
+import {
+  withDatabaseConnection,
+  connectionPool,
+} from "@/lib/database/connection-pool";
 import { cache } from "@/lib/cache/redis-cache";
-import { getQueryMetrics, getSlowQueries } from "@/lib/database/optimized-queries";
+import {
+  getQueryMetrics,
+  getSlowQueries,
+} from "@/lib/database/optimized-queries";
+import { enterpriseLogger } from "@/lib/monitoring/enterprise-logger";
 
 interface DatabaseMetrics {
   connectionPool: {
@@ -34,10 +41,10 @@ export async function GET(request: NextRequest) {
     const includeDetails = searchParams.get("details") === "true";
     const timeframe = searchParams.get("timeframe") || "1h";
 
-    console.log("📊 Database monitoring request received", {
+    enterpriseLogger.info("Database monitoring request received", {
       includeDetails,
       timeframe,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
 
     // Get connection pool metrics
@@ -56,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     if (includeDetails) {
       try {
-        indexEfficiency = await withDatabaseConnection(async (client) => {
+        indexEfficiency = await withDatabaseConnection(async client => {
           const { data, error } = await client
             .from("index_efficiency_analysis")
             .select("*")
@@ -64,14 +71,18 @@ export async function GET(request: NextRequest) {
             .limit(50);
 
           if (error) {
-            console.error("❌ Error fetching index efficiency:", error);
+            enterpriseLogger.error(
+              "Error fetching index efficiency",
+              new Error(error.message),
+              { includeDetails, timeframe }
+            );
             return [];
           }
 
           return data || [];
         });
 
-        tablePerformance = await withDatabaseConnection(async (client) => {
+        tablePerformance = await withDatabaseConnection(async client => {
           const { data, error } = await client
             .from("table_performance_metrics")
             .select("*")
@@ -79,14 +90,22 @@ export async function GET(request: NextRequest) {
             .limit(20);
 
           if (error) {
-            console.error("❌ Error fetching table performance:", error);
+            enterpriseLogger.error(
+              "Error fetching table performance",
+              new Error(error.message),
+              { includeDetails, timeframe }
+            );
             return [];
           }
 
           return data || [];
         });
       } catch (error) {
-        console.error("❌ Error fetching detailed metrics:", error);
+        enterpriseLogger.error(
+          "Error fetching detailed metrics",
+          error instanceof Error ? error : new Error(String(error)),
+          { includeDetails, timeframe }
+        );
         indexEfficiency = [];
         tablePerformance = [];
       }
@@ -110,9 +129,11 @@ export async function GET(request: NextRequest) {
       queryPerformance: {
         totalQueries: queryMetrics.length,
         slowQueries: slowQueries.slice(0, 10), // Top 10 slowest
-        averageResponseTime: queryMetrics.length > 0
-          ? queryMetrics.reduce((sum, q) => sum + q.executionTime, 0) / queryMetrics.length
-          : 0,
+        averageResponseTime:
+          queryMetrics.length > 0
+            ? queryMetrics.reduce((sum, q) => sum + q.executionTime, 0) /
+              queryMetrics.length
+            : 0,
       },
       indexEfficiency,
       tablePerformance,
@@ -120,12 +141,12 @@ export async function GET(request: NextRequest) {
       systemHealth,
     };
 
-    console.log("✅ Database monitoring completed", {
+    enterpriseLogger.info("Database monitoring completed", {
       poolStatus: poolMetrics.poolStatus,
       totalQueries: queryMetrics.length,
       slowQueriesCount: slowQueries.length,
       cacheHitRate: cacheMetrics.metrics?.hitRate || 0,
-      systemStatus: systemHealth.status
+      systemStatus: systemHealth.status,
     });
 
     return NextResponse.json({
@@ -134,16 +155,22 @@ export async function GET(request: NextRequest) {
       timeframe,
       metrics,
     });
-
   } catch (error) {
-    console.error("❌ Database monitoring error:", error);
-    
-    return NextResponse.json({
-      success: false,
-      error: "Failed to fetch database metrics",
-      details: error instanceof Error ? error.message : "Unknown error",
-      timestamp: new Date().toISOString(),
-    }, { status: 500 });
+    enterpriseLogger.error(
+      "Database monitoring error",
+      error instanceof Error ? error : new Error(String(error)),
+      { timeframe: request.url }
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch database metrics",
+        details: error instanceof Error ? error.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -170,25 +197,33 @@ function analyzeSystemHealth(
     status = "critical";
   } else if (poolMetrics.poolStatus === "degraded") {
     issues.push("Connection pool performance is degraded");
-    recommendations.push("Monitor connection usage patterns and optimize queries");
+    recommendations.push(
+      "Monitor connection usage patterns and optimize queries"
+    );
     if (status === "healthy") status = "degraded";
   }
 
   // High connection usage
   if (poolMetrics.activeConnections / poolMetrics.totalConnections > 0.8) {
     issues.push("High connection pool utilization (>80%)");
-    recommendations.push("Consider increasing max connections or optimizing connection usage");
+    recommendations.push(
+      "Consider increasing max connections or optimizing connection usage"
+    );
     if (status === "healthy") status = "degraded";
   }
 
   // Slow queries
-  const recentSlowQueries = slowQueries.filter(q => 
-    Date.now() - new Date(q.timestamp || 0).getTime() < 300000 // Last 5 minutes
+  const recentSlowQueries = slowQueries.filter(
+    q => Date.now() - new Date(q.timestamp || 0).getTime() < 300000 // Last 5 minutes
   );
 
   if (recentSlowQueries.length > 10) {
-    issues.push(`${recentSlowQueries.length} slow queries detected in last 5 minutes`);
-    recommendations.push("Analyze and optimize slow queries, add missing indexes");
+    issues.push(
+      `${recentSlowQueries.length} slow queries detected in last 5 minutes`
+    );
+    recommendations.push(
+      "Analyze and optimize slow queries, add missing indexes"
+    );
     status = "critical";
   } else if (recentSlowQueries.length > 5) {
     issues.push(`${recentSlowQueries.length} slow queries detected`);
@@ -197,9 +232,11 @@ function analyzeSystemHealth(
   }
 
   // Average query time
-  const avgQueryTime = queryMetrics.length > 0
-    ? queryMetrics.reduce((sum, q) => sum + q.executionTime, 0) / queryMetrics.length
-    : 0;
+  const avgQueryTime =
+    queryMetrics.length > 0
+      ? queryMetrics.reduce((sum, q) => sum + q.executionTime, 0) /
+        queryMetrics.length
+      : 0;
 
   if (avgQueryTime > 500) {
     issues.push(`High average query time: ${Math.round(avgQueryTime)}ms`);
@@ -210,7 +247,7 @@ function analyzeSystemHealth(
   // Cache performance
   if (cacheMetrics.connected && cacheMetrics.metrics) {
     const hitRate = cacheMetrics.metrics.hitRate || 0;
-    
+
     if (hitRate < 50) {
       issues.push(`Low cache hit rate: ${Math.round(hitRate)}%`);
       recommendations.push("Review cache strategy and TTL settings");
@@ -230,50 +267,62 @@ function analyzeSystemHealth(
 
   // Index efficiency (if detailed metrics available)
   if (indexEfficiency.length > 0) {
-    const unusedIndexes = indexEfficiency.filter(idx => 
-      idx.times_used === 0 || idx.efficiency_status === "UNUSED"
+    const unusedIndexes = indexEfficiency.filter(
+      idx => idx.times_used === 0 || idx.efficiency_status === "UNUSED"
     );
-    
+
     if (unusedIndexes.length > 5) {
       issues.push(`${unusedIndexes.length} unused indexes detected`);
-      recommendations.push("Review and remove unused indexes to improve write performance");
+      recommendations.push(
+        "Review and remove unused indexes to improve write performance"
+      );
     }
 
-    const lowEfficiencyIndexes = indexEfficiency.filter(idx => 
-      idx.efficiency_status === "LOW_EFFICIENCY"
+    const lowEfficiencyIndexes = indexEfficiency.filter(
+      idx => idx.efficiency_status === "LOW_EFFICIENCY"
     );
-    
+
     if (lowEfficiencyIndexes.length > 3) {
-      issues.push(`${lowEfficiencyIndexes.length} low-efficiency indexes detected`);
+      issues.push(
+        `${lowEfficiencyIndexes.length} low-efficiency indexes detected`
+      );
       recommendations.push("Analyze and optimize low-efficiency indexes");
     }
   }
 
   // Table performance (if detailed metrics available)
   if (tablePerformance.length > 0) {
-    const highDeadTupleTables = tablePerformance.filter(table => 
-      parseFloat(table.dead_tuple_percentage || "0") > 20
+    const highDeadTupleTables = tablePerformance.filter(
+      table => parseFloat(table.dead_tuple_percentage || "0") > 20
     );
-    
+
     if (highDeadTupleTables.length > 0) {
-      issues.push(`${highDeadTupleTables.length} tables with high dead tuple percentage`);
+      issues.push(
+        `${highDeadTupleTables.length} tables with high dead tuple percentage`
+      );
       recommendations.push("Run VACUUM ANALYZE on affected tables");
     }
 
-    const highSeqScanTables = tablePerformance.filter(table => 
-      table.seq_scan > 1000 && table.idx_scan < table.seq_scan
+    const highSeqScanTables = tablePerformance.filter(
+      table => table.seq_scan > 1000 && table.idx_scan < table.seq_scan
     );
-    
+
     if (highSeqScanTables.length > 0) {
-      issues.push(`${highSeqScanTables.length} tables with high sequential scan ratio`);
+      issues.push(
+        `${highSeqScanTables.length} tables with high sequential scan ratio`
+      );
       recommendations.push("Add missing indexes for frequently scanned tables");
     }
   }
 
   // Failed connections
   if (poolMetrics.failedConnections > 5) {
-    issues.push(`High failed connection count: ${poolMetrics.failedConnections}`);
-    recommendations.push("Check database availability and network connectivity");
+    issues.push(
+      `High failed connection count: ${poolMetrics.failedConnections}`
+    );
+    recommendations.push(
+      "Check database availability and network connectivity"
+    );
     if (status === "healthy") status = "degraded";
   }
 
@@ -285,12 +334,12 @@ export async function HEAD(request: NextRequest) {
   try {
     const poolMetrics = connectionPool.getMetrics();
     const cacheInfo = await cache.getCacheInfo();
-    
+
     // Simple health check - return 200 if basic services are healthy
     if (poolMetrics.poolStatus === "critical" || !cacheInfo.connected) {
       return new NextResponse(null, { status: 503 }); // Service Unavailable
     }
-    
+
     return new NextResponse(null, { status: 200 });
   } catch (error) {
     return new NextResponse(null, { status: 503 });

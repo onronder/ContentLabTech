@@ -11,8 +11,12 @@ import {
   getSecurityAuditEvents,
   type AuthContext,
 } from "@/lib/auth/withApiAuth-definitive";
-import { validateQueryParams, securitySchemas } from "@/lib/security/validation";
+import {
+  validateQueryParams,
+  securitySchemas,
+} from "@/lib/security/validation";
 import { z } from "zod";
+import { enterpriseLogger } from "@/lib/monitoring/enterprise-logger";
 
 // Query parameter schema
 const auditQuerySchema = z.object({
@@ -28,8 +32,11 @@ export const GET = withApiAuth(
     try {
       // Validate query parameters
       const { searchParams } = new URL(request.url);
-      const queryValidation = validateQueryParams(searchParams, auditQuerySchema);
-      
+      const queryValidation = validateQueryParams(
+        searchParams,
+        auditQuerySchema
+      );
+
       if (!queryValidation.success) {
         return new Response(
           JSON.stringify({
@@ -40,7 +47,8 @@ export const GET = withApiAuth(
         );
       }
 
-      const { limit, severity, eventType, startDate, endDate } = queryValidation.data;
+      const { limit, severity, eventType, startDate, endDate } =
+        queryValidation.data;
 
       // Check if user has admin access to security data
       const { data: userProfile, error: profileError } = await context.supabase
@@ -67,28 +75,28 @@ export const GET = withApiAuth(
       let filteredEvents = auditEvents;
 
       if (severity) {
-        filteredEvents = filteredEvents.filter(event => 
-          event.details?.severity === severity
+        filteredEvents = filteredEvents.filter(
+          event => event.details?.severity === severity
         );
       }
 
       if (eventType) {
-        filteredEvents = filteredEvents.filter(event => 
+        filteredEvents = filteredEvents.filter(event =>
           event.event.toLowerCase().includes(eventType.toLowerCase())
         );
       }
 
       if (startDate) {
         const start = new Date(startDate);
-        filteredEvents = filteredEvents.filter(event => 
-          new Date(event.timestamp) >= start
+        filteredEvents = filteredEvents.filter(
+          event => new Date(event.timestamp) >= start
         );
       }
 
       if (endDate) {
         const end = new Date(endDate);
-        filteredEvents = filteredEvents.filter(event => 
-          new Date(event.timestamp) <= end
+        filteredEvents = filteredEvents.filter(
+          event => new Date(event.timestamp) <= end
         );
       }
 
@@ -100,7 +108,15 @@ export const GET = withApiAuth(
         .limit(limit);
 
       if (dbError) {
-        console.error("Error fetching database audit logs:", dbError);
+        enterpriseLogger.error(
+          "Error fetching database audit logs",
+          new Error(dbError.message),
+          {
+            requestId: context.requestId,
+            userId: context.user.id,
+            limit,
+          }
+        );
       }
 
       // Combine and format events
@@ -121,21 +137,31 @@ export const GET = withApiAuth(
           source: "database",
         })),
       ]
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        )
         .slice(0, limit);
 
       // Generate security statistics
       const stats = {
         totalEvents: combinedEvents.length,
         severityBreakdown: {
-          critical: combinedEvents.filter(e => e.details?.severity === "critical").length,
-          high: combinedEvents.filter(e => e.details?.severity === "high").length,
-          medium: combinedEvents.filter(e => e.details?.severity === "medium").length,
+          critical: combinedEvents.filter(
+            e => e.details?.severity === "critical"
+          ).length,
+          high: combinedEvents.filter(e => e.details?.severity === "high")
+            .length,
+          medium: combinedEvents.filter(e => e.details?.severity === "medium")
+            .length,
           low: combinedEvents.filter(e => e.details?.severity === "low").length,
         },
         topEvents: getTopEventTypes(combinedEvents),
         timeRange: {
-          start: combinedEvents.length > 0 ? combinedEvents[combinedEvents.length - 1].timestamp : null,
+          start:
+            combinedEvents.length > 0
+              ? combinedEvents[combinedEvents.length - 1].timestamp
+              : null,
           end: combinedEvents.length > 0 ? combinedEvents[0].timestamp : null,
         },
       };
@@ -151,9 +177,16 @@ export const GET = withApiAuth(
           endDate,
         },
       });
-
     } catch (error) {
-      console.error("Security audit API error:", error);
+      enterpriseLogger.error(
+        "Security audit API error",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          requestId: context.requestId,
+          userId: context.user.id,
+          endpoint: request.url,
+        }
+      );
       return new Response(
         JSON.stringify({
           error: "Failed to retrieve security audit data",
@@ -172,12 +205,17 @@ export const GET = withApiAuth(
 /**
  * Get top event types for statistics
  */
-function getTopEventTypes(events: any[]): Array<{ type: string; count: number }> {
-  const eventCounts = events.reduce((acc, event) => {
-    const type = event.event_type || "unknown";
-    acc[type] = (acc[type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+function getTopEventTypes(
+  events: any[]
+): Array<{ type: string; count: number }> {
+  const eventCounts = events.reduce(
+    (acc, event) => {
+      const type = event.event_type || "unknown";
+      acc[type] = (acc[type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
 
   return Object.entries(eventCounts)
     .map(([type, count]) => ({ type, count: count as number }))
@@ -245,7 +283,16 @@ export const POST = withApiAuth(
         .single();
 
       if (logError) {
-        console.error("Failed to log security event:", logError);
+        enterpriseLogger.error(
+          "Failed to log security event",
+          new Error(logError.message),
+          {
+            requestId: context.requestId,
+            userId: context.user.id,
+            eventType,
+            severity,
+          }
+        );
         return new Response(
           JSON.stringify({
             error: "Failed to log security event",
@@ -260,9 +307,16 @@ export const POST = withApiAuth(
         eventId: logEntry.id,
         timestamp: logEntry.timestamp,
       });
-
     } catch (error) {
-      console.error("Security event logging error:", error);
+      enterpriseLogger.error(
+        "Security event logging error",
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          requestId: context.requestId,
+          userId: context.user.id,
+          endpoint: request.url,
+        }
+      );
       return new Response(
         JSON.stringify({
           error: "Failed to log security event",

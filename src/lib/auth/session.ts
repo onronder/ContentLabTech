@@ -66,7 +66,7 @@ export async function createClient() {
           },
           set(name: string, value: string, options: CookieOptions) {
             if (name.includes("supabase")) {
-              console.log("🍪 createClient: Setting Supabase cookie", {
+              enterpriseLogger.debug("Setting Supabase cookie", {
                 name,
                 valueLength: value.length,
                 options: {

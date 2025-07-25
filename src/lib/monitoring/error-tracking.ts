@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetch } from "@/lib/utils/fetch";
+import { enterpriseLogger } from "./enterprise-logger";
 
 interface ErrorContext {
   userId?: string;
@@ -304,7 +305,10 @@ class ErrorTracker {
       // Clear queue on successful sync
       this.errorQueue = [];
     } catch (error) {
-      console.warn("Failed to sync errors:", error);
+      enterpriseLogger.warn("Failed to sync error queue", {
+        error: error instanceof Error ? error.message : String(error),
+        queueSize: this.errorQueue.length,
+      });
       // Keep errors in queue for retry
     }
   }
@@ -345,7 +349,11 @@ class ErrorTracker {
 
   private triggerNetworkRetry(error: ErrorDetails): void {
     // Implementation would depend on your specific network layer
-    console.log("Attempting network retry for:", error.message);
+    enterpriseLogger.info("Attempting network retry", {
+      errorId: error.id,
+      message: error.message,
+      recoveryAttempts: error.recoveryAttempts,
+    });
   }
 
   private triggerReAuthentication(): void {
@@ -361,7 +369,9 @@ class ErrorTracker {
         });
       }
     } catch (error) {
-      console.warn("Cache clearing failed:", error);
+      enterpriseLogger.warn("Cache clearing failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -431,7 +441,9 @@ class ErrorTracker {
       try {
         callback(error);
       } catch (err) {
-        console.warn("Error in error tracking subscriber:", err);
+        enterpriseLogger.warn("Error in error tracking subscriber", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     });
   }

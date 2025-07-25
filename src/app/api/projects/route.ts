@@ -5,10 +5,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { authenticatedApiHandler } from "@/lib/auth/api-handler";
-import { 
+import supabaseAdmin from "@/lib/supabase/server";
+import {
   getProjectsWithDetailsForTeam,
   getTeamsByUserOptimized,
-  withQueryMetrics 
+  withQueryMetrics,
 } from "@/lib/database/optimized-queries";
 import { withCache, CacheKeys, CacheTags } from "@/lib/cache/redis-cache";
 
@@ -64,6 +65,7 @@ export async function POST(request: NextRequest) {
 
       // Parse JSON from text
       let body: CreateProjectRequest;
+      const supabase = supabaseAdmin;
       try {
         body = JSON.parse(requestText);
       } catch (parseError) {
@@ -452,28 +454,31 @@ export async function GET(request: NextRequest) {
     console.log("📋 Request headers (sanitized):", sanitizedHeaders);
 
     try {
-      console.log("📊 Attempting to fetch projects for user with optimized queries");
+      console.log(
+        "📊 Attempting to fetch projects for user with optimized queries"
+      );
 
       // Use cached user teams lookup with optimized query
-      const userTeams = await withQueryMetrics(
-        "getUserTeams",
-        () => withCache(
+      const userTeams = await withQueryMetrics("getUserTeams", () =>
+        withCache(
           CacheKeys.userTeams(user.id),
           () => getTeamsByUserOptimized(user.id),
           {
             ttl: 300, // 5 minutes cache
-            tags: [CacheTags.user(user.id)]
+            tags: [CacheTags.user(user.id)],
           }
         )
       );
 
-      console.log("📊 User teams fetched:", { 
+      console.log("📊 User teams fetched:", {
         teamCount: userTeams.length,
-        cached: true 
+        cached: true,
       });
 
       if (userTeams.length === 0) {
-        console.log("✅ No accessible teams found for user, returning empty projects");
+        console.log(
+          "✅ No accessible teams found for user, returning empty projects"
+        );
         return NextResponse.json({ projects: [] }, { status: 200 });
       }
 
@@ -482,7 +487,10 @@ export async function GET(request: NextRequest) {
       if (teamId) {
         const hasAccess = userTeams.some(team => team.id === teamId);
         if (!hasAccess) {
-          console.log("❌ User does not have access to requested team:", teamId);
+          console.log(
+            "❌ User does not have access to requested team:",
+            teamId
+          );
           return NextResponse.json(
             { error: "Access denied to requested team" },
             { status: 403 }
@@ -494,31 +502,33 @@ export async function GET(request: NextRequest) {
 
       // Get projects with full details using optimized query
       let allProjects: any[] = [];
-      
+
       for (const team of filteredTeams) {
-        const cacheKey = teamId 
-          ? CacheKeys.project(teamId) 
+        const cacheKey = teamId
+          ? CacheKeys.project(teamId)
           : `${CacheKeys.userProjects(user.id)}:team:${team.id}`;
 
         const teamProjects = await withQueryMetrics(
           `getProjectsForTeam:${team.id}`,
-          () => withCache(
-            cacheKey,
-            () => getProjectsWithDetailsForTeam(team.id, user.id, {
-              status,
-              search,
-              limit: limitNum,
-              offset: offsetNum
-            }),
-            {
-              ttl: 180, // 3 minutes cache
-              tags: [
-                CacheTags.team(team.id),
-                CacheTags.user(user.id),
-                CacheTags.project(`team:${team.id}`)
-              ]
-            }
-          )
+          () =>
+            withCache(
+              cacheKey,
+              () =>
+                getProjectsWithDetailsForTeam(team.id, user.id, {
+                  status: status || undefined,
+                  search: search || undefined,
+                  limit: limitNum,
+                  offset: offsetNum,
+                }),
+              {
+                ttl: 180, // 3 minutes cache
+                tags: [
+                  CacheTags.team(team.id),
+                  CacheTags.user(user.id),
+                  CacheTags.project(`team:${team.id}`),
+                ],
+              }
+            )
         );
 
         allProjects.push(...teamProjects);
@@ -527,8 +537,9 @@ export async function GET(request: NextRequest) {
       // Apply global filters and pagination if not team-specific
       if (!teamId) {
         // Sort by updated_at desc
-        allProjects.sort((a, b) => 
-          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        allProjects.sort(
+          (a, b) =>
+            new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
         );
 
         // Apply pagination
@@ -541,7 +552,7 @@ export async function GET(request: NextRequest) {
         projectCount: allProjects.length,
         teamsProcessed: filteredTeams.length,
         cacheEnabled: true,
-        filters: { status, search, limit: limitNum, offset: offsetNum }
+        filters: { status, search, limit: limitNum, offset: offsetNum },
       });
 
       return NextResponse.json({ projects: allProjects }, { status: 200 });

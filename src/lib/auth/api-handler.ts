@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server-auth";
+import { enterpriseLogger } from "@/lib/monitoring/enterprise-logger";
 
 export type ApiHandlerFunction = (
   user: any,
@@ -93,7 +94,15 @@ export async function authenticatedApiHandler(
     // Call the handler with authenticated context
     return await handler(user, team, request);
   } catch (error) {
-    console.error("Error in authenticatedApiHandler:", error);
+    enterpriseLogger.error(
+      "Error in authenticated API handler",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        requestUrl: request.url,
+        method: request.method,
+        userAgent: request.headers.get("user-agent") || "unknown",
+      }
+    );
     return NextResponse.json(
       {
         success: false,

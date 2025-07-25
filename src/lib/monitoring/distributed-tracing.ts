@@ -70,17 +70,17 @@ export interface InstrumentationLibrary {
 }
 
 export enum SpanKind {
-  INTERNAL = 'internal',
-  SERVER = 'server',
-  CLIENT = 'client',
-  PRODUCER = 'producer',
-  CONSUMER = 'consumer',
+  INTERNAL = "internal",
+  SERVER = "server",
+  CLIENT = "client",
+  PRODUCER = "producer",
+  CONSUMER = "consumer",
 }
 
 export enum SpanStatus {
-  UNSET = 'unset',
-  OK = 'ok',
-  ERROR = 'error',
+  UNSET = "unset",
+  OK = "ok",
+  ERROR = "error",
 }
 
 // Performance monitoring interfaces
@@ -90,7 +90,7 @@ export interface PerformanceMetric {
   unit: string;
   timestamp: number;
   tags: Record<string, string>;
-  type: 'counter' | 'gauge' | 'histogram' | 'summary';
+  type: "counter" | "gauge" | "histogram" | "summary";
 }
 
 export interface PerformanceBenchmark {
@@ -129,10 +129,10 @@ export interface ServiceMap {
 
 export interface ServiceNode {
   name: string;
-  type: 'service' | 'database' | 'cache' | 'external';
+  type: "service" | "database" | "cache" | "external";
   version: string;
   environment: string;
-  health: 'healthy' | 'degraded' | 'unhealthy';
+  health: "healthy" | "degraded" | "unhealthy";
   instances: number;
   endpoints: string[];
 }
@@ -140,7 +140,7 @@ export interface ServiceNode {
 export interface ServiceDependency {
   from: string;
   to: string;
-  type: 'http' | 'grpc' | 'database' | 'queue' | 'cache';
+  type: "http" | "grpc" | "database" | "queue" | "cache";
   latency: number;
   errorRate: number;
   throughput: number;
@@ -148,7 +148,7 @@ export interface ServiceDependency {
 
 // Sampling strategies
 export interface SamplingStrategy {
-  type: 'probabilistic' | 'rate_limiting' | 'adaptive' | 'custom';
+  type: "probabilistic" | "rate_limiting" | "adaptive" | "custom";
   config: Record<string, any>;
 }
 
@@ -176,20 +176,20 @@ export class DistributedTracer {
       serviceInstance: process.env.INSTANCE_ID || process.pid.toString(),
       environment: config.environment,
       attributes: {
-        'host.name': process.env.HOSTNAME || 'unknown',
-        'os.type': process.platform,
-        'process.pid': process.pid,
-        'node.version': process.version,
+        "host.name": process.env.HOSTNAME || "unknown",
+        "os.type": process.platform,
+        "process.pid": process.pid,
+        "node.version": process.version,
       },
     };
 
     this.instrumentationLibrary = {
-      name: '@contentlab/distributed-tracing',
-      version: '1.0.0',
+      name: "@contentlab/distributed-tracing",
+      version: "1.0.0",
     };
 
     this.samplingStrategy = config.samplingStrategy || {
-      type: 'probabilistic',
+      type: "probabilistic",
       config: { rate: 0.1 }, // 10% sampling
     };
 
@@ -228,10 +228,10 @@ export class DistributedTracer {
       startTime: now,
       status: SpanStatus.UNSET,
       tags: {
-        'service.name': this.resource.serviceName,
-        'service.version': this.resource.serviceVersion,
-        'service.instance': this.resource.serviceInstance,
-        'environment': this.resource.environment,
+        "service.name": this.resource.serviceName,
+        "service.version": this.resource.serviceVersion,
+        "service.instance": this.resource.serviceInstance,
+        environment: this.resource.environment,
         ...options.tags,
       },
       logs: [],
@@ -257,7 +257,7 @@ export class DistributedTracer {
     };
 
     enterpriseLogger.performance(
-      'Span started',
+      "Span started",
       { duration: 0 },
       {
         traceId,
@@ -301,14 +301,14 @@ export class DistributedTracer {
     // Handle errors
     if (options.error) {
       span.status = SpanStatus.ERROR;
-      span.tags['error'] = true;
-      span.tags['error.type'] = options.error.constructor.name;
-      span.tags['error.message'] = options.error.message;
-      
-      this.addSpanEvent(spanId, 'exception', {
-        'exception.type': options.error.constructor.name,
-        'exception.message': options.error.message,
-        'exception.stacktrace': options.error.stack,
+      span.tags["error"] = true;
+      span.tags["error.type"] = options.error.constructor.name;
+      span.tags["error.message"] = options.error.message;
+
+      this.addSpanEvent(spanId, "exception", {
+        "exception.type": options.error.constructor.name,
+        "exception.message": options.error.message,
+        "exception.stacktrace": options.error.stack,
       });
     }
 
@@ -326,7 +326,7 @@ export class DistributedTracer {
     this.checkPerformanceRegression(span);
 
     enterpriseLogger.performance(
-      'Span finished',
+      "Span finished",
       {
         duration: span.duration!,
       },
@@ -361,7 +361,11 @@ export class DistributedTracer {
   /**
    * Add an event to a span
    */
-  addSpanEvent(spanId: string, name: string, attributes: Record<string, any> = {}): void {
+  addSpanEvent(
+    spanId: string,
+    name: string,
+    attributes: Record<string, any> = {}
+  ): void {
     const span = this.activeSpans.get(spanId);
     if (!span) return;
 
@@ -437,7 +441,7 @@ export class DistributedTracer {
   /**
    * Get performance metrics
    */
-  getPerformanceMetrics(timeWindow: number = 3600000): PerformanceMetric[] {
+  getPerformanceMetrics(timeWindow = 3600000): PerformanceMetric[] {
     const cutoff = Date.now() - timeWindow;
     return this.metrics.filter(metric => metric.timestamp > cutoff);
   }
@@ -474,7 +478,9 @@ export class DistributedTracer {
 
       // Identify dependencies
       if (span.parentSpanId) {
-        const parentSpan = this.completedSpans.find(s => s.spanId === span.parentSpanId);
+        const parentSpan = this.completedSpans.find(
+          s => s.spanId === span.parentSpanId
+        );
         if (parentSpan && parentSpan.serviceName !== span.serviceName) {
           const depKey = `${parentSpan.serviceName}->${span.serviceName}`;
           if (!dependencies.has(depKey)) {
@@ -494,17 +500,22 @@ export class DistributedTracer {
     // Convert to percentages and averages
     for (const service of services) {
       const totalRequests = throughput[service] || 1;
-      errorRates[service] = (errorRates[service] || 0) / totalRequests * 100;
+      errorRates[service] = ((errorRates[service] || 0) / totalRequests) * 100;
       latencies[service] = (latencies[service] || 0) / totalRequests;
     }
 
     return {
       services: Array.from(services).map(name => ({
         name,
-        type: 'service',
+        type: "service",
         version: this.resource.serviceVersion,
         environment: this.resource.environment,
-        health: errorRates[name] > 5 ? 'unhealthy' : errorRates[name] > 1 ? 'degraded' : 'healthy',
+        health:
+          errorRates[name] > 5
+            ? "unhealthy"
+            : errorRates[name] > 1
+              ? "degraded"
+              : "healthy",
         instances: 1,
         endpoints: this.getServiceEndpoints(name),
       })),
@@ -522,7 +533,7 @@ export class DistributedTracer {
     name: string,
     value: number,
     unit: string,
-    type: 'counter' | 'gauge' | 'histogram' | 'summary',
+    type: "counter" | "gauge" | "histogram" | "summary",
     tags: Record<string, string> = {}
   ): void {
     const metric: PerformanceMetric = {
@@ -565,32 +576,32 @@ export class DistributedTracer {
     // Shutdown exporters
     await Promise.all(this.exporters.map(exporter => exporter.shutdown()));
 
-    enterpriseLogger.info('Distributed tracer shutdown completed');
+    enterpriseLogger.info("Distributed tracer shutdown completed");
   }
 
   // Private methods
   private generateTraceId(): string {
-    return crypto.randomBytes(16).toString('hex');
+    return crypto.randomBytes(16).toString("hex");
   }
 
   private generateSpanId(): string {
-    return crypto.randomBytes(8).toString('hex');
+    return crypto.randomBytes(8).toString("hex");
   }
 
   private shouldSample(traceId: string, operationName: string): boolean {
     switch (this.samplingStrategy.type) {
-      case 'probabilistic':
+      case "probabilistic":
         const rate = this.samplingStrategy.config.rate || 0.1;
         return Math.random() < rate;
-      
-      case 'rate_limiting':
+
+      case "rate_limiting":
         // Implement rate limiting logic
         return true; // Simplified
-      
-      case 'adaptive':
+
+      case "adaptive":
         // Implement adaptive sampling based on service load
         return true; // Simplified
-      
+
       default:
         return true;
     }
@@ -601,11 +612,10 @@ export class DistributedTracer {
       try {
         exporter.export([span]);
       } catch (error) {
-        enterpriseLogger.error(
-          'Failed to export span',
-          error as Error,
-          { spanId: span.spanId, exporter: exporter.constructor.name }
-        );
+        enterpriseLogger.error("Failed to export span", error as Error, {
+          spanId: span.spanId,
+          exporter: exporter.constructor.name,
+        });
       }
     }
   }
@@ -613,10 +623,10 @@ export class DistributedTracer {
   private collectSpanMetrics(span: Span): void {
     // Record response time
     this.recordMetric(
-      'span.duration',
+      "span.duration",
       span.duration!,
-      'milliseconds',
-      'histogram',
+      "milliseconds",
+      "histogram",
       {
         operation: span.operationName,
         service: span.serviceName,
@@ -626,108 +636,112 @@ export class DistributedTracer {
     );
 
     // Record request count
-    this.recordMetric(
-      'span.requests',
-      1,
-      'count',
-      'counter',
-      {
-        operation: span.operationName,
-        service: span.serviceName,
-        status: span.status,
-        kind: span.kind,
-      }
-    );
+    this.recordMetric("span.requests", 1, "count", "counter", {
+      operation: span.operationName,
+      service: span.serviceName,
+      status: span.status,
+      kind: span.kind,
+    });
 
     // Record error count
     if (span.status === SpanStatus.ERROR) {
-      this.recordMetric(
-        'span.errors',
-        1,
-        'count',
-        'counter',
-        {
-          operation: span.operationName,
-          service: span.serviceName,
-          kind: span.kind,
-        }
-      );
+      this.recordMetric("span.errors", 1, "count", "counter", {
+        operation: span.operationName,
+        service: span.serviceName,
+        kind: span.kind,
+      });
     }
   }
 
   private checkPerformanceRegression(span: Span): void {
     const key = `${span.serviceName}.${span.operationName}`;
     const baseline = this.performanceBaselines.get(key);
-    
+
     if (baseline && span.duration) {
       const degradationThreshold = baseline.baseline.p95 * 1.5; // 50% slower than p95
-      
+
       if (span.duration > degradationThreshold) {
         enterpriseAlertingSystem.createAlert({
-          title: 'Performance Regression Detected',
+          title: "Performance Regression Detected",
           description: `Operation ${span.operationName} is significantly slower than baseline`,
-          severity: 'warning',
-          source: 'performance',
-          category: 'latency',
-          tags: ['performance', 'regression', 'latency'],
+          severity: "warning",
+          source: "performance",
+          category: "latency",
+          tags: ["performance", "regression", "latency"],
           correlationId: span.traceId,
           metadata: {
             operationName: span.operationName,
             serviceName: span.serviceName,
             currentDuration: span.duration,
             baselineP95: baseline.baseline.p95,
-            degradationPercent: ((span.duration - baseline.baseline.p95) / baseline.baseline.p95) * 100,
+            degradationPercent:
+              ((span.duration - baseline.baseline.p95) /
+                baseline.baseline.p95) *
+              100,
           },
         });
       }
     }
   }
 
-  private inferDependencyType(span: Span): 'http' | 'grpc' | 'database' | 'queue' | 'cache' {
+  private inferDependencyType(
+    span: Span
+  ): "http" | "grpc" | "database" | "queue" | "cache" {
     const operation = span.operationName.toLowerCase();
-    
-    if (operation.includes('http') || operation.includes('api')) return 'http';
-    if (operation.includes('grpc')) return 'grpc';
-    if (operation.includes('db') || operation.includes('sql') || operation.includes('query')) return 'database';
-    if (operation.includes('queue') || operation.includes('message')) return 'queue';
-    if (operation.includes('cache') || operation.includes('redis')) return 'cache';
-    
-    return 'http'; // Default
+
+    if (operation.includes("http") || operation.includes("api")) return "http";
+    if (operation.includes("grpc")) return "grpc";
+    if (
+      operation.includes("db") ||
+      operation.includes("sql") ||
+      operation.includes("query")
+    )
+      return "database";
+    if (operation.includes("queue") || operation.includes("message"))
+      return "queue";
+    if (operation.includes("cache") || operation.includes("redis"))
+      return "cache";
+
+    return "http"; // Default
   }
 
   private getServiceEndpoints(serviceName: string): string[] {
     const endpoints = new Set<string>();
-    
+
     for (const span of this.completedSpans.slice(-1000)) {
-      if (span.serviceName === serviceName && span.tags['http.route']) {
-        endpoints.add(span.tags['http.route']);
+      if (span.serviceName === serviceName && span.tags["http.route"]) {
+        endpoints.add(span.tags["http.route"]);
       }
     }
-    
+
     return Array.from(endpoints);
   }
 
   private initializeExporters(): void {
     // Add console exporter for development
-    if (process.env.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === "development") {
       this.addExporter(new ConsoleTraceExporter());
     }
 
     // Add OTLP exporter for production
     if (process.env.OTLP_ENDPOINT) {
-      this.addExporter(new OTLPTraceExporter({
-        endpoint: process.env.OTLP_ENDPOINT,
-        headers: {
-          'x-api-key': process.env.OTLP_API_KEY || '',
-        },
-      }));
+      this.addExporter(
+        new OTLPTraceExporter({
+          endpoint: process.env.OTLP_ENDPOINT,
+          headers: {
+            "x-api-key": process.env.OTLP_API_KEY || "",
+          },
+        })
+      );
     }
 
     // Add Jaeger exporter
     if (process.env.JAEGER_ENDPOINT) {
-      this.addExporter(new JaegerTraceExporter({
-        endpoint: process.env.JAEGER_ENDPOINT,
-      }));
+      this.addExporter(
+        new JaegerTraceExporter({
+          endpoint: process.env.JAEGER_ENDPOINT,
+        })
+      );
     }
   }
 
@@ -742,22 +756,49 @@ export class DistributedTracer {
     const cpuUsage = process.cpuUsage();
 
     // Memory metrics
-    this.recordMetric('system.memory.heap_used', memoryUsage.heapUsed, 'bytes', 'gauge');
-    this.recordMetric('system.memory.heap_total', memoryUsage.heapTotal, 'bytes', 'gauge');
-    this.recordMetric('system.memory.rss', memoryUsage.rss, 'bytes', 'gauge');
+    this.recordMetric(
+      "system.memory.heap_used",
+      memoryUsage.heapUsed,
+      "bytes",
+      "gauge"
+    );
+    this.recordMetric(
+      "system.memory.heap_total",
+      memoryUsage.heapTotal,
+      "bytes",
+      "gauge"
+    );
+    this.recordMetric("system.memory.rss", memoryUsage.rss, "bytes", "gauge");
 
     // CPU metrics
-    this.recordMetric('system.cpu.user', cpuUsage.user / 1000000, 'milliseconds', 'counter');
-    this.recordMetric('system.cpu.system', cpuUsage.system / 1000000, 'milliseconds', 'counter');
+    this.recordMetric(
+      "system.cpu.user",
+      cpuUsage.user / 1000000,
+      "milliseconds",
+      "counter"
+    );
+    this.recordMetric(
+      "system.cpu.system",
+      cpuUsage.system / 1000000,
+      "milliseconds",
+      "counter"
+    );
 
     // Active spans count
-    this.recordMetric('tracer.active_spans', this.activeSpans.size, 'count', 'gauge');
+    this.recordMetric(
+      "tracer.active_spans",
+      this.activeSpans.size,
+      "count",
+      "gauge"
+    );
   }
 
   private loadPerformanceBaselines(): void {
     // In a real implementation, this would load from a database or configuration
     // For now, we'll just initialize empty baselines
-    enterpriseLogger.info('Performance baselines loaded', { count: this.performanceBaselines.size });
+    enterpriseLogger.info("Performance baselines loaded", {
+      count: this.performanceBaselines.size,
+    });
   }
 }
 
@@ -770,7 +811,7 @@ export abstract class TraceExporter {
 export class ConsoleTraceExporter extends TraceExporter {
   async export(spans: Span[]): Promise<void> {
     for (const span of spans) {
-      console.log('Trace:', {
+      enterpriseLogger.debug("Trace exported", {
         traceId: span.traceId,
         spanId: span.spanId,
         operation: span.operationName,
@@ -786,24 +827,26 @@ export class ConsoleTraceExporter extends TraceExporter {
 }
 
 export class OTLPTraceExporter extends TraceExporter {
-  constructor(private config: { endpoint: string; headers?: Record<string, string> }) {
+  constructor(
+    private config: { endpoint: string; headers?: Record<string, string> }
+  ) {
     super();
   }
 
   async export(spans: Span[]): Promise<void> {
     try {
       const payload = this.formatOTLPPayload(spans);
-      
+
       await fetch(this.config.endpoint, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...this.config.headers,
         },
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      enterpriseLogger.error('OTLP export failed', error as Error);
+      enterpriseLogger.error("OTLP export failed", error as Error);
     }
   }
 
@@ -818,8 +861,8 @@ export class OTLPTraceExporter extends TraceExporter {
           scopeSpans: [
             {
               scope: {
-                name: spans[0]?.instrumentationLibrary.name || '',
-                version: spans[0]?.instrumentationLibrary.version || '',
+                name: spans[0]?.instrumentationLibrary.name || "",
+                version: spans[0]?.instrumentationLibrary.version || "",
               },
               spans: spans.map(span => ({
                 traceId: span.traceId,
@@ -839,10 +882,12 @@ export class OTLPTraceExporter extends TraceExporter {
                 events: span.events.map(event => ({
                   name: event.name,
                   timeUnixNano: event.timestamp * 1000000,
-                  attributes: Object.entries(event.attributes).map(([key, value]) => ({
-                    key,
-                    value: { stringValue: String(value) },
-                  })),
+                  attributes: Object.entries(event.attributes).map(
+                    ([key, value]) => ({
+                      key,
+                      value: { stringValue: String(value) },
+                    })
+                  ),
                 })),
               })),
             },
@@ -865,23 +910,23 @@ export class JaegerTraceExporter extends TraceExporter {
   async export(spans: Span[]): Promise<void> {
     try {
       const payload = this.formatJaegerPayload(spans);
-      
+
       await fetch(`${this.config.endpoint}/api/traces`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
     } catch (error) {
-      enterpriseLogger.error('Jaeger export failed', error as Error);
+      enterpriseLogger.error("Jaeger export failed", error as Error);
     }
   }
 
   private formatJaegerPayload(spans: Span[]): any {
     // Convert spans to Jaeger format
     const spansByTrace = new Map<string, Span[]>();
-    
+
     for (const span of spans) {
       if (!spansByTrace.has(span.traceId)) {
         spansByTrace.set(span.traceId, []);
@@ -890,7 +935,7 @@ export class JaegerTraceExporter extends TraceExporter {
     }
 
     const data: any[] = [];
-    
+
     for (const [traceId, traceSpans] of spansByTrace.entries()) {
       data.push({
         traceID: traceId,
@@ -903,16 +948,18 @@ export class JaegerTraceExporter extends TraceExporter {
           duration: (span.duration || 0) * 1000,
           tags: Object.entries(span.tags).map(([key, value]) => ({
             key,
-            type: 'string',
+            type: "string",
             value: String(value),
           })),
           process: {
             serviceName: span.serviceName,
-            tags: Object.entries(span.resource.attributes).map(([key, value]) => ({
-              key,
-              type: 'string',
-              value: String(value),
-            })),
+            tags: Object.entries(span.resource.attributes).map(
+              ([key, value]) => ({
+                key,
+                type: "string",
+                value: String(value),
+              })
+            ),
           },
           logs: span.logs.map(log => ({
             timestamp: log.timestamp * 1000,
@@ -935,16 +982,16 @@ export class JaegerTraceExporter extends TraceExporter {
 
 // Export singleton instance
 export const distributedTracer = new DistributedTracer({
-  serviceName: process.env.SERVICE_NAME || 'contentlab-nexus',
-  serviceVersion: process.env.npm_package_version || '1.0.0',
-  environment: process.env.NODE_ENV || 'production',
+  serviceName: process.env.SERVICE_NAME || "contentlab-nexus",
+  serviceVersion: process.env.npm_package_version || "1.0.0",
+  environment: process.env.NODE_ENV || "production",
   samplingStrategy: {
-    type: 'probabilistic',
-    config: { rate: parseFloat(process.env.TRACE_SAMPLE_RATE || '0.1') },
+    type: "probabilistic",
+    config: { rate: parseFloat(process.env.TRACE_SAMPLE_RATE || "0.1") },
   },
 });
 
 // Global access
-if (typeof globalThis !== 'undefined') {
+if (typeof globalThis !== "undefined") {
   globalThis.DistributedTracer = distributedTracer;
 }

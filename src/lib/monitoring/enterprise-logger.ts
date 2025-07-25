@@ -62,7 +62,12 @@ export interface BusinessLogContext {
 }
 
 export interface SecurityLogContext {
-  actionType: "authentication" | "authorization" | "data_access" | "configuration_change" | "security_event";
+  actionType:
+    | "authentication"
+    | "authorization"
+    | "data_access"
+    | "configuration_change"
+    | "security_event";
   resourceType?: string;
   resourceId?: string;
   permission?: string;
@@ -109,11 +114,27 @@ export interface LogSource {
   process?: string;
 }
 
-export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR" | "CRITICAL" | "AUDIT" | "SECURITY" | "PERFORMANCE" | "BUSINESS";
+export type LogLevel =
+  | "DEBUG"
+  | "INFO"
+  | "WARN"
+  | "ERROR"
+  | "CRITICAL"
+  | "AUDIT"
+  | "SECURITY"
+  | "PERFORMANCE"
+  | "BUSINESS";
 
 // Audit log entry for compliance
 export interface AuditLogEntry extends EnterpriseLogEntry {
-  auditType: "access" | "modification" | "deletion" | "creation" | "configuration" | "authentication" | "authorization";
+  auditType:
+    | "access"
+    | "modification"
+    | "deletion"
+    | "creation"
+    | "configuration"
+    | "authentication"
+    | "authorization";
   actor: {
     userId: string;
     userRole: string;
@@ -149,7 +170,15 @@ export interface EnterpriseLoggerConfig {
 }
 
 export interface LogOutput {
-  type: "console" | "file" | "elasticsearch" | "splunk" | "datadog" | "cloudwatch" | "syslog" | "webhook";
+  type:
+    | "console"
+    | "file"
+    | "elasticsearch"
+    | "splunk"
+    | "datadog"
+    | "cloudwatch"
+    | "syslog"
+    | "webhook";
   config: Record<string, any>;
   filters?: LogFilter[];
   formatters?: LogFormatter[];
@@ -229,7 +258,7 @@ export class EnterpriseLogger {
     this.complianceLogger = new ComplianceLogger(this);
     this.metricsCollector = new LogMetricsCollector();
     this.encryptionService = new LogEncryptionService(this.config.encryption);
-    
+
     this.initializeBuffering();
     this.initializeCorrelationTracking();
   }
@@ -251,8 +280,15 @@ export class EnterpriseLogger {
       complianceContext?: ComplianceLogContext;
     }
   ): void {
-    const entry = this.createLogEntry(level, message, error, metadata, tags, context);
-    
+    const entry = this.createLogEntry(
+      level,
+      message,
+      error,
+      metadata,
+      tags,
+      context
+    );
+
     // Apply sampling
     if (this.shouldSample(entry)) {
       this.processLogEntry(entry);
@@ -296,7 +332,9 @@ export class EnterpriseLogger {
     businessContext: BusinessLogContext,
     metadata: LogMetadata = {}
   ): void {
-    this.log("BUSINESS", event, undefined, metadata, ["business"], { businessContext });
+    this.log("BUSINESS", event, undefined, metadata, ["business"], {
+      businessContext,
+    });
   }
 
   /**
@@ -314,11 +352,21 @@ export class EnterpriseLogger {
     this.log("WARN", message, undefined, metadata, tags);
   }
 
-  error(message: string, error?: Error, metadata?: LogMetadata, tags?: string[]): void {
+  error(
+    message: string,
+    error?: Error,
+    metadata?: LogMetadata,
+    tags?: string[]
+  ): void {
     this.log("ERROR", message, error, metadata, tags);
   }
 
-  critical(message: string, error?: Error, metadata?: LogMetadata, tags?: string[]): void {
+  critical(
+    message: string,
+    error?: Error,
+    metadata?: LogMetadata,
+    tags?: string[]
+  ): void {
     this.log("CRITICAL", message, error, metadata, tags);
   }
 
@@ -363,8 +411,9 @@ export class EnterpriseLogger {
     context?: any
   ): EnterpriseLogEntry {
     const now = new Date();
-    const correlationId = context?.correlationId || this.generateCorrelationId();
-    
+    const correlationId =
+      context?.correlationId || this.generateCorrelationId();
+
     const entry: EnterpriseLogEntry = {
       id: crypto.randomUUID(),
       timestamp: now.toISOString(),
@@ -406,13 +455,17 @@ export class EnterpriseLogger {
 
   private generateFingerprint(message: string, error?: Error): string {
     const input = error ? `${error.name}:${error.message}` : message;
-    return crypto.createHash("sha256").update(input).digest("hex").substring(0, 16);
+    return crypto
+      .createHash("sha256")
+      .update(input)
+      .digest("hex")
+      .substring(0, 16);
   }
 
   private getLogSource(): LogSource {
     const stack = new Error().stack;
     const lines = stack?.split("\\n") || [];
-    
+
     // Find the first line that's not from this logger
     for (let i = 2; i < lines.length; i++) {
       const line = lines[i];
@@ -428,7 +481,7 @@ export class EnterpriseLogger {
         }
       }
     }
-    
+
     return {
       component: "unknown",
       process: process.pid.toString(),
@@ -437,13 +490,17 @@ export class EnterpriseLogger {
 
   private shouldSample(entry: EnterpriseLogEntry): boolean {
     if (!this.config.sampling?.enabled) return true;
-    
+
     // Always log critical events
-    if (this.config.sampling.criticalAlwaysLogged && 
-        (entry.level === "CRITICAL" || entry.level === "ERROR" || entry.level === "SECURITY")) {
+    if (
+      this.config.sampling.criticalAlwaysLogged &&
+      (entry.level === "CRITICAL" ||
+        entry.level === "ERROR" ||
+        entry.level === "SECURITY")
+    ) {
       return true;
     }
-    
+
     return Math.random() < this.config.sampling.rate;
   }
 
@@ -452,27 +509,29 @@ export class EnterpriseLogger {
     if (this.config.encryption?.enabled) {
       entry = this.encryptionService.encrypt(entry);
     }
-    
+
     // Add to buffer or process immediately
     if (this.config.buffering?.enabled) {
       this.addToBuffer(entry);
     } else {
       this.writeToOutputs(entry);
     }
-    
+
     // Update metrics
     this.metricsCollector.recordLog(entry);
-    
+
     // Check for critical events that need immediate flushing
-    if (this.config.buffering?.flushOnCritical && 
-        (entry.level === "CRITICAL" || entry.level === "ERROR")) {
+    if (
+      this.config.buffering?.flushOnCritical &&
+      (entry.level === "CRITICAL" || entry.level === "ERROR")
+    ) {
       this.flushBuffer();
     }
   }
 
   private addToBuffer(entry: EnterpriseLogEntry): void {
     this.buffer.push(entry);
-    
+
     if (this.buffer.length >= (this.config.buffering?.maxSize || 1000)) {
       this.flushBuffer();
     }
@@ -480,10 +539,10 @@ export class EnterpriseLogger {
 
   private async flushBuffer(): Promise<void> {
     if (this.buffer.length === 0) return;
-    
+
     const entries = [...this.buffer];
     this.buffer = [];
-    
+
     try {
       await Promise.all(entries.map(entry => this.writeToOutputs(entry)));
     } catch (error) {
@@ -494,27 +553,30 @@ export class EnterpriseLogger {
   }
 
   private async writeToOutputs(entry: EnterpriseLogEntry): Promise<void> {
-    const promises = this.config.outputs.map(async (output) => {
+    const promises = this.config.outputs.map(async output => {
       try {
         // Apply filters
         if (output.filters && !this.passesFilters(entry, output.filters)) {
           return;
         }
-        
+
         // Format entry
         const formatted = this.formatEntry(entry, output.formatters);
-        
+
         // Write to output
         await this.writeToOutput(output, formatted);
       } catch (error) {
         console.error(`Failed to write to output ${output.type}:`, error);
       }
     });
-    
+
     await Promise.allSettled(promises);
   }
 
-  private passesFilters(entry: EnterpriseLogEntry, filters: LogFilter[]): boolean {
+  private passesFilters(
+    entry: EnterpriseLogEntry,
+    filters: LogFilter[]
+  ): boolean {
     return filters.every(filter => {
       const value = this.getFieldValue(entry, filter.field);
       const matches = this.matchesFilter(value, filter);
@@ -525,7 +587,7 @@ export class EnterpriseLogger {
   private getFieldValue(entry: EnterpriseLogEntry, field: string): any {
     const parts = field.split(".");
     let value: any = entry;
-    
+
     for (const part of parts) {
       if (value && typeof value === "object") {
         value = value[part];
@@ -533,16 +595,16 @@ export class EnterpriseLogger {
         return undefined;
       }
     }
-    
+
     return value;
   }
 
   private matchesFilter(value: any, filter: LogFilter): boolean {
     if (value === undefined || value === null) return false;
-    
+
     const stringValue = String(value);
     const filterValue = String(filter.value);
-    
+
     switch (filter.operator) {
       case "equals":
         return stringValue === filterValue;
@@ -559,17 +621,20 @@ export class EnterpriseLogger {
     }
   }
 
-  private formatEntry(entry: EnterpriseLogEntry, formatters?: LogFormatter[]): any {
+  private formatEntry(
+    entry: EnterpriseLogEntry,
+    formatters?: LogFormatter[]
+  ): any {
     if (!formatters || formatters.length === 0) {
       return entry;
     }
-    
+
     let formatted = entry;
-    
+
     for (const formatter of formatters) {
       formatted = this.applyFormatter(formatted, formatter);
     }
-    
+
     return formatted;
   }
 
@@ -592,7 +657,7 @@ export class EnterpriseLogger {
     const service = entry.service;
     const correlationId = entry.correlationId.substring(0, 8);
     const message = entry.message;
-    
+
     return `${timestamp} [${level}] ${service} (${correlationId}) ${message}`;
   }
 
@@ -604,7 +669,7 @@ export class EnterpriseLogger {
       entry.correlationId,
       entry.message.replace(/"/g, '""'),
     ];
-    
+
     return fields.map(field => `"${field}"`).join(",");
   }
 
@@ -642,7 +707,9 @@ export class EnterpriseLogger {
     }
   }
 
-  private mergeConfig(userConfig: Partial<EnterpriseLoggerConfig>): EnterpriseLoggerConfig {
+  private mergeConfig(
+    userConfig: Partial<EnterpriseLoggerConfig>
+  ): EnterpriseLoggerConfig {
     return {
       level: userConfig.level || "INFO",
       outputs: userConfig.outputs || [
@@ -668,7 +735,11 @@ export class EnterpriseLogger {
         enabled: false,
         algorithm: "aes-256-gcm",
         keyId: "default",
-        fieldsToEncrypt: ["metadata.password", "metadata.token", "metadata.secret"],
+        fieldsToEncrypt: [
+          "metadata.password",
+          "metadata.token",
+          "metadata.secret",
+        ],
         ...userConfig.encryption,
       },
       retention: {
@@ -716,15 +787,18 @@ export class EnterpriseLogger {
 
   private initializeCorrelationTracking(): void {
     // Clean up old correlation contexts
-    setInterval(() => {
-      // Remove contexts older than 1 hour
-      const cutoff = Date.now() - 60 * 60 * 1000;
-      for (const [key, value] of this.correlationContext.entries()) {
-        if (value.timestamp && value.timestamp < cutoff) {
-          this.correlationContext.delete(key);
+    setInterval(
+      () => {
+        // Remove contexts older than 1 hour
+        const cutoff = Date.now() - 60 * 60 * 1000;
+        for (const [key, value] of this.correlationContext.entries()) {
+          if (value.timestamp && value.timestamp < cutoff) {
+            this.correlationContext.delete(key);
+          }
         }
-      }
-    }, 10 * 60 * 1000); // Every 10 minutes
+      },
+      10 * 60 * 1000
+    ); // Every 10 minutes
   }
 }
 
@@ -734,11 +808,14 @@ class AuditLogger {
 
   log(auditData: Partial<AuditLogEntry>): void {
     const entry: AuditLogEntry = {
-      ...this.enterpriseLogger["createLogEntry"]("AUDIT", auditData.action || "audit_event"),
+      ...this.enterpriseLogger["createLogEntry"](
+        "AUDIT",
+        auditData.action || "audit_event"
+      ),
       auditType: auditData.auditType || "access",
       actor: auditData.actor || {
         userId: "unknown",
-        userRole: "unknown", 
+        userRole: "unknown",
         sessionId: "unknown",
         ip: "unknown",
         userAgent: "unknown",
@@ -764,7 +841,11 @@ class AuditLogger {
 class SecurityLogger {
   constructor(private enterpriseLogger: EnterpriseLogger) {}
 
-  log(message: string, securityContext: SecurityLogContext, metadata: LogMetadata = {}): void {
+  log(
+    message: string,
+    securityContext: SecurityLogContext,
+    metadata: LogMetadata = {}
+  ): void {
     this.enterpriseLogger.log(
       "SECURITY",
       message,
@@ -779,9 +860,13 @@ class SecurityLogger {
 class PerformanceLogger {
   constructor(private enterpriseLogger: EnterpriseLogger) {}
 
-  log(operation: string, metrics: PerformanceLogMetrics, metadata: LogMetadata = {}): void {
+  log(
+    operation: string,
+    metrics: PerformanceLogMetrics,
+    metadata: LogMetadata = {}
+  ): void {
     const level = metrics.duration > 5000 ? "WARN" : "PERFORMANCE";
-    
+
     this.enterpriseLogger.log(
       level,
       `Performance: ${operation}`,
@@ -796,7 +881,11 @@ class PerformanceLogger {
 class ComplianceLogger {
   constructor(private enterpriseLogger: EnterpriseLogger) {}
 
-  log(event: string, complianceContext: ComplianceLogContext, metadata: LogMetadata = {}): void {
+  log(
+    event: string,
+    complianceContext: ComplianceLogContext,
+    metadata: LogMetadata = {}
+  ): void {
     this.enterpriseLogger.log(
       "AUDIT",
       event,
@@ -815,17 +904,17 @@ class LogMetricsCollector {
     this.incrementMetric(`logs.total`);
     this.incrementMetric(`logs.by_level.${entry.level.toLowerCase()}`);
     this.incrementMetric(`logs.by_service.${entry.service}`);
-    
+
     if (entry.businessContext?.feature) {
       this.incrementMetric(`logs.by_feature.${entry.businessContext.feature}`);
     }
-    
+
     if (entry.securityContext) {
       this.incrementMetric(`logs.security.${entry.securityContext.result}`);
     }
   }
 
-  private incrementMetric(key: string, value: number = 1): void {
+  private incrementMetric(key: string, value = 1): void {
     const current = this.metrics.get(key) || 0;
     this.metrics.set(key, current + value);
   }
@@ -844,16 +933,16 @@ class LogEncryptionService {
 
   encrypt(entry: EnterpriseLogEntry): EnterpriseLogEntry {
     if (!this.config?.enabled) return entry;
-    
+
     const encrypted = { ...entry };
-    
+
     for (const field of this.config.fieldsToEncrypt) {
       const value = this.getNestedValue(encrypted, field);
       if (value) {
         this.setNestedValue(encrypted, field, this.encryptValue(value));
       }
     }
-    
+
     return encrypted;
   }
 
@@ -864,7 +953,7 @@ class LogEncryptionService {
   private setNestedValue(obj: any, path: string, value: any): void {
     const keys = path.split(".");
     const lastKey = keys.pop()!;
-    const target = keys.reduce((current, key) => current[key] ||= {}, obj);
+    const target = keys.reduce((current, key) => (current[key] ||= {}), obj);
     target[lastKey] = value;
   }
 
@@ -876,14 +965,15 @@ class LogEncryptionService {
 
 // Export singleton instance
 export const enterpriseLogger = new EnterpriseLogger({
-  level: process.env.LOG_LEVEL as LogLevel || "INFO",
+  level: (process.env.LOG_LEVEL as LogLevel) || "INFO",
   outputs: [
     {
       type: "console",
       config: {},
-      formatters: process.env.NODE_ENV === "production" 
-        ? [{ type: "json", config: {} }]
-        : [{ type: "text", config: {} }],
+      formatters:
+        process.env.NODE_ENV === "production"
+          ? [{ type: "json", config: {} }]
+          : [{ type: "text", config: {} }],
     },
   ],
   sampling: {

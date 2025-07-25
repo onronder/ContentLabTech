@@ -10,7 +10,11 @@ import { createHash } from "crypto";
 export const securitySchemas = {
   // Basic types with security constraints
   id: z.string().uuid("Invalid ID format"),
-  slug: z.string().regex(/^[a-z0-9-]+$/, "Invalid slug format").min(1).max(100),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9-]+$/, "Invalid slug format")
+    .min(1)
+    .max(100),
   email: z.string().email("Invalid email format").max(255),
   url: z.string().url("Invalid URL format").max(2048),
   text: z.string().min(1).max(10000, "Text too long"),
@@ -19,22 +23,31 @@ export const securitySchemas = {
   number: z.number().int().min(0).max(2147483647),
   positiveNumber: z.number().int().min(1).max(2147483647),
   boolean: z.boolean(),
-  
+
   // Date validation
   dateString: z.string().datetime("Invalid date format"),
-  
+
   // File validation
-  filename: z.string().regex(/^[a-zA-Z0-9._-]+$/, "Invalid filename").max(255),
-  mimetype: z.string().regex(/^[a-zA-Z0-9-]+\/[a-zA-Z0-9-+.]+$/, "Invalid MIME type"),
-  
+  filename: z
+    .string()
+    .regex(/^[a-zA-Z0-9._-]+$/, "Invalid filename")
+    .max(255),
+  mimetype: z
+    .string()
+    .regex(/^[a-zA-Z0-9-]+\/[a-zA-Z0-9-+.]+$/, "Invalid MIME type"),
+
   // Content validation
   title: z.string().min(1, "Title required").max(200, "Title too long"),
   description: z.string().max(1000, "Description too long").optional(),
-  status: z.enum(["draft", "published", "archived"], { message: "Invalid status" }),
-  
+  status: z.enum(["draft", "published", "archived"], {
+    message: "Invalid status",
+  }),
+
   // Team and user validation
-  role: z.enum(["owner", "admin", "member", "viewer"], { message: "Invalid role" }),
-  
+  role: z.enum(["owner", "admin", "member", "viewer"], {
+    message: "Invalid role",
+  }),
+
   // Search and pagination
   searchQuery: z.string().max(100, "Search query too long").optional(),
   page: z.number().int().min(1).max(1000).default(1),
@@ -103,19 +116,30 @@ export function sanitizeInput(input: string): string {
 
   return input
     .trim()
-    .replace(/[\0\x08\x09\x1a\n\r"'\\%]/g, (char) => {
+    .replace(/[\0\x08\x09\x1a\n\r"'\\%]/g, char => {
       switch (char) {
-        case "\0": return "";
-        case "\x08": return "";
-        case "\x09": return "";
-        case "\x1a": return "";
-        case "\n": return "";
-        case "\r": return "";
-        case "\"": return "&quot;";
-        case "'": return "&#x27;";
-        case "\\": return "";
-        case "%": return "";
-        default: return char;
+        case "\0":
+          return "";
+        case "\x08":
+          return "";
+        case "\x09":
+          return "";
+        case "\x1a":
+          return "";
+        case "\n":
+          return "";
+        case "\r":
+          return "";
+        case '"':
+          return "&quot;";
+        case "'":
+          return "&#x27;";
+        case "\\":
+          return "";
+        case "%":
+          return "";
+        default:
+          return char;
       }
     })
     .substring(0, 10000); // Hard limit
@@ -130,7 +154,7 @@ export function detectMaliciousPatterns(input: string): {
   risk: "low" | "medium" | "high" | "critical";
 } {
   const detectedPatterns: string[] = [];
-  
+
   // Check SQL injection
   for (const pattern of SQL_INJECTION_PATTERNS) {
     if (pattern.test(input)) {
@@ -138,7 +162,7 @@ export function detectMaliciousPatterns(input: string): {
       break;
     }
   }
-  
+
   // Check XSS
   for (const pattern of XSS_PATTERNS) {
     if (pattern.test(input)) {
@@ -146,7 +170,7 @@ export function detectMaliciousPatterns(input: string): {
       break;
     }
   }
-  
+
   // Check path traversal
   for (const pattern of PATH_TRAVERSAL_PATTERNS) {
     if (pattern.test(input)) {
@@ -154,7 +178,7 @@ export function detectMaliciousPatterns(input: string): {
       break;
     }
   }
-  
+
   // Check command injection
   for (const pattern of COMMAND_INJECTION_PATTERNS) {
     if (pattern.test(input)) {
@@ -162,17 +186,20 @@ export function detectMaliciousPatterns(input: string): {
       break;
     }
   }
-  
+
   // Determine risk level
   let risk: "low" | "medium" | "high" | "critical" = "low";
-  if (detectedPatterns.includes("SQL_INJECTION") || detectedPatterns.includes("COMMAND_INJECTION")) {
+  if (
+    detectedPatterns.includes("SQL_INJECTION") ||
+    detectedPatterns.includes("COMMAND_INJECTION")
+  ) {
     risk = "critical";
   } else if (detectedPatterns.includes("XSS")) {
     risk = "high";
   } else if (detectedPatterns.includes("PATH_TRAVERSAL")) {
     risk = "medium";
   }
-  
+
   return {
     isMalicious: detectedPatterns.length > 0,
     detectedPatterns,
@@ -186,7 +213,9 @@ export function detectMaliciousPatterns(input: string): {
 export async function validateRequestBody<T>(
   request: Request,
   schema: z.ZodSchema<T>
-): Promise<{ success: true; data: T } | { success: false; error: string; details?: any }> {
+): Promise<
+  { success: true; data: T } | { success: false; error: string; details?: any }
+> {
   try {
     // Check content type
     const contentType = request.headers.get("content-type");
@@ -199,7 +228,8 @@ export async function validateRequestBody<T>(
 
     // Parse JSON with size limit
     const text = await request.text();
-    if (text.length > 1048576) { // 1MB limit
+    if (text.length > 1048576) {
+      // 1MB limit
       return {
         success: false,
         error: "Request body too large",
@@ -240,7 +270,6 @@ export async function validateRequestBody<T>(
       success: true,
       data: validation.data,
     };
-
   } catch (error) {
     return {
       success: false,
@@ -256,7 +285,9 @@ export async function validateRequestBody<T>(
 export function validateQueryParams<T>(
   searchParams: URLSearchParams,
   schema: z.ZodSchema<T>
-): { success: true; data: T } | { success: false; error: string; details?: any } {
+):
+  | { success: true; data: T }
+  | { success: false; error: string; details?: any } {
   try {
     // Convert URLSearchParams to object
     const params: Record<string, any> = {};
@@ -264,14 +295,14 @@ export function validateQueryParams<T>(
       // Check for malicious patterns
       const keyCheck = detectMaliciousPatterns(key);
       const valueCheck = detectMaliciousPatterns(value);
-      
+
       if (keyCheck.isMalicious || valueCheck.isMalicious) {
         return {
           success: false,
           error: "Malicious content detected in query parameters",
         };
       }
-      
+
       // Handle multiple values for same key
       if (key in params) {
         if (Array.isArray(params[key])) {
@@ -298,7 +329,6 @@ export function validateQueryParams<T>(
       success: true,
       data: validation.data,
     };
-
   } catch (error) {
     return {
       success: false,
@@ -329,8 +359,13 @@ export function validateFileUpload(
   filename: string,
   mimetype: string,
   size: number,
-  allowedTypes: string[] = ["image/jpeg", "image/png", "image/gif", "application/pdf"],
-  maxSize: number = 5242880 // 5MB
+  allowedTypes: string[] = [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "application/pdf",
+  ],
+  maxSize = 5242880 // 5MB
 ): { valid: boolean; error?: string } {
   // Validate filename
   const filenameValidation = securitySchemas.filename.safeParse(filename);
@@ -373,9 +408,10 @@ export function generateRateLimitKey(
  * Validate IP address format
  */
 export function validateIPAddress(ip: string): boolean {
-  const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  const ipv4Regex =
+    /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
   const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-  
+
   return ipv4Regex.test(ip) || ipv6Regex.test(ip);
 }
 
