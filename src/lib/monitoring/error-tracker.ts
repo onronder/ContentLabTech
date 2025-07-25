@@ -1,10 +1,30 @@
 /**
- * Error Tracking Infrastructure
- * Comprehensive error tracking with deduplication and context preservation
+ * Enterprise Error Tracking Infrastructure
+ * Comprehensive error tracking with deduplication, context preservation, and business impact analysis
  */
 
 import { logger } from "./logger";
 import crypto from "crypto";
+import { performance } from "perf_hooks";
+
+// Business impact tracking
+export interface BusinessImpact {
+  usersAffected: number;
+  revenueImpact: number;
+  criticalUserJourneys: string[];
+  serviceDowntime: number;
+  slaViolation: boolean;
+}
+
+// Enhanced correlation tracking
+export interface CorrelationContext {
+  correlationId: string;
+  parentSpanId?: string;
+  rootTraceId: string;
+  serviceName: string;
+  operationName: string;
+  tags: Record<string, string>;
+}
 
 export interface ErrorContext {
   userId?: string;

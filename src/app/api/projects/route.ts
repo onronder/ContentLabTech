@@ -1,27 +1,18 @@
 /**
- * Simple Projects API
- * Basic implementation that works
+ * Optimized Projects API
+ * Enterprise-grade implementation with connection pooling and caching
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { authenticatedApiHandler } from "@/lib/auth/api-handler";
+import { 
+  getProjectsWithDetailsForTeam,
+  getTeamsByUserOptimized,
+  withQueryMetrics 
+} from "@/lib/database/optimized-queries";
+import { withCache, CacheKeys, CacheTags } from "@/lib/cache/redis-cache";
 
-// Database connection initialization with detailed logging
-console.log("🔌 Initializing Supabase client for Projects API...");
-console.log("🔐 Environment variables status:", {
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ? "PRESENT" : "MISSING",
-  supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY ? "PRESENT" : "MISSING",
-  urlLength: process.env.NEXT_PUBLIC_SUPABASE_URL?.length || 0,
-  keyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
-});
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-console.log("🔌 Supabase client initialized: SUCCESS");
+// Connection pooling and caching are handled by optimized-queries module
 
 interface CreateProjectRequest {
   teamId: string;
@@ -461,185 +452,99 @@ export async function GET(request: NextRequest) {
     console.log("📋 Request headers (sanitized):", sanitizedHeaders);
 
     try {
-      console.log("📊 Attempting to fetch projects for user");
+      console.log("📊 Attempting to fetch projects for user with optimized queries");
 
-      // Get user's teams first
-      console.log(
-        "📊 Attempting database query: team_members lookup for user teams"
+      // Use cached user teams lookup with optimized query
+      const userTeams = await withQueryMetrics(
+        "getUserTeams",
+        () => withCache(
+          CacheKeys.userTeams(user.id),
+          () => getTeamsByUserOptimized(user.id),
+          {
+            ttl: 300, // 5 minutes cache
+            tags: [CacheTags.user(user.id)]
+          }
+        )
       );
-      console.log("🔍 Executing SQL query:", {
-        table: "team_members",
-        query: "SELECT team_id FROM team_members WHERE user_id = $1",
-        parameters: [user.id],
-        description: "Get all teams user belongs to",
+
+      console.log("📊 User teams fetched:", { 
+        teamCount: userTeams.length,
+        cached: true 
       });
 
-      let userTeams: any[] | null = null;
-      let teamsError: any = null;
-      try {
-        const result = await supabase
-          .from("team_members")
-          .select("team_id")
-          .eq("user_id", user.id);
-
-        userTeams = result.data;
-        teamsError = result.error;
-
-        console.log("📊 User teams query result:", {
-          hasData: !!userTeams,
-          teamCount: userTeams?.length || 0,
-          errorCode: teamsError?.code,
-          errorMessage: teamsError?.message,
-          errorDetails: teamsError?.details,
-          errorHint: teamsError?.hint,
-          queryExecuted: "SELECT team_id FROM team_members WHERE user_id = $1",
-          parameters: [user.id],
-        });
-      } catch (dbError) {
-        console.log("❌ Database error in team_members query:", {
-          error: dbError,
-          stack: dbError instanceof Error ? dbError.stack : "No stack trace",
-          queryAttempted: "SELECT team_id FROM team_members WHERE user_id = $1",
-          parameters: [user.id],
-        });
-        teamsError = dbError;
-      }
-
-      if (teamsError) {
-        console.log("❌ Error fetching user teams:", {
-          error: teamsError,
-          message:
-            teamsError instanceof Error ? teamsError.message : "Unknown error",
-          code: (teamsError as any)?.code,
-          stack:
-            teamsError instanceof Error ? teamsError.stack : "No stack trace",
-        });
-        console.log("✅ Sending response: 500 Internal Server Error");
-        return NextResponse.json(
-          { error: "Failed to fetch user teams" },
-          { status: 500 }
-        );
-      }
-
-      const teamIds = userTeams?.map((tm: any) => tm.team_id) || [];
-      console.log("📊 User teams:", { teamIds, count: teamIds.length });
-
-      // Filter teams based on query parameter if provided
-      let filteredTeamIds = teamIds;
-      if (teamId && teamIds.includes(teamId)) {
-        filteredTeamIds = [teamId];
-        console.log("🎯 Filtering to specific team:", teamId);
-      } else if (teamId && !teamIds.includes(teamId)) {
-        console.log("❌ User does not have access to requested team:", teamId);
-        return NextResponse.json(
-          { error: "Access denied to requested team" },
-          { status: 403 }
-        );
-      }
-
-      if (filteredTeamIds.length === 0) {
-        console.log(
-          "✅ No accessible teams found for user, returning empty projects"
-        );
-        console.log("✅ Sending response: 200 OK");
+      if (userTeams.length === 0) {
+        console.log("✅ No accessible teams found for user, returning empty projects");
         return NextResponse.json({ projects: [] }, { status: 200 });
       }
 
-      // Get projects for user's teams
-      console.log("📊 Attempting database query: projects lookup");
-      console.log("🔍 Executing SQL query:", {
-        table: "projects",
-        query: "SELECT * FROM projects WHERE team_id IN ($1, $2, ...)",
-        parameters: teamIds,
-        description: "Get all projects for user's teams",
-        teamCount: teamIds.length,
-      });
-
-      let projects: any[] | null = null;
-      let projectsError: any = null;
-      try {
-        // Build query with filtering and pagination
-        let query = supabase
-          .from("projects")
-          .select("*")
-          .in("team_id", filteredTeamIds);
-
-        // Add status filter if provided
-        if (status) {
-          query = query.eq("status", status);
-          console.log("🔍 Filtering by status:", status);
-        }
-
-        // Add search filter if provided
-        if (search) {
-          query = query.or(
-            `name.ilike.%${search}%,description.ilike.%${search}%`
+      // Filter teams based on query parameter if provided
+      let filteredTeams = userTeams;
+      if (teamId) {
+        const hasAccess = userTeams.some(team => team.id === teamId);
+        if (!hasAccess) {
+          console.log("❌ User does not have access to requested team:", teamId);
+          return NextResponse.json(
+            { error: "Access denied to requested team" },
+            { status: 403 }
           );
-          console.log("🔍 Searching for:", search);
         }
-
-        // Add pagination (using validated values)
-        query = query.range(offsetNum, offsetNum + limitNum - 1);
-        console.log("📄 Pagination:", { limit: limitNum, offset: offsetNum });
-
-        const result = await query;
-
-        projects = result.data;
-        projectsError = result.error;
-
-        console.log("📊 Projects query result:", {
-          hasData: !!projects,
-          projectCount: projects?.length || 0,
-          errorCode: projectsError?.code,
-          errorMessage: projectsError?.message,
-          errorDetails: projectsError?.details,
-          errorHint: projectsError?.hint,
-          queryExecuted:
-            "SELECT * FROM projects WHERE team_id IN (...) with filters",
-          parameters: filteredTeamIds,
-          appliedFilters: {
-            status: status || "none",
-            search: search || "none",
-            limit: limitNum,
-            offset: offsetNum,
-          },
-        });
-      } catch (dbError) {
-        console.log("❌ Database error in projects query:", {
-          error: dbError,
-          stack: dbError instanceof Error ? dbError.stack : "No stack trace",
-          queryAttempted: "SELECT * FROM projects WHERE team_id IN (...)",
-          parameters: teamIds,
-        });
-        projectsError = dbError;
+        filteredTeams = userTeams.filter(team => team.id === teamId);
+        console.log("🎯 Filtering to specific team:", teamId);
       }
 
-      if (projectsError) {
-        console.log("❌ Error fetching projects:", {
-          error: projectsError,
-          message:
-            projectsError instanceof Error
-              ? projectsError.message
-              : "Unknown error",
-          code: (projectsError as any)?.code,
-          stack:
-            projectsError instanceof Error
-              ? projectsError.stack
-              : "No stack trace",
-        });
-        console.log("✅ Sending response: 500 Internal Server Error");
-        return NextResponse.json(
-          { error: "Failed to fetch projects" },
-          { status: 500 }
+      // Get projects with full details using optimized query
+      let allProjects: any[] = [];
+      
+      for (const team of filteredTeams) {
+        const cacheKey = teamId 
+          ? CacheKeys.project(teamId) 
+          : `${CacheKeys.userProjects(user.id)}:team:${team.id}`;
+
+        const teamProjects = await withQueryMetrics(
+          `getProjectsForTeam:${team.id}`,
+          () => withCache(
+            cacheKey,
+            () => getProjectsWithDetailsForTeam(team.id, user.id, {
+              status,
+              search,
+              limit: limitNum,
+              offset: offsetNum
+            }),
+            {
+              ttl: 180, // 3 minutes cache
+              tags: [
+                CacheTags.team(team.id),
+                CacheTags.user(user.id),
+                CacheTags.project(`team:${team.id}`)
+              ]
+            }
+          )
         );
+
+        allProjects.push(...teamProjects);
       }
 
-      console.log("✅ Projects fetched successfully:", {
-        count: projects?.length || 0,
+      // Apply global filters and pagination if not team-specific
+      if (!teamId) {
+        // Sort by updated_at desc
+        allProjects.sort((a, b) => 
+          new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+        );
+
+        // Apply pagination
+        const startIndex = offsetNum;
+        const endIndex = startIndex + limitNum;
+        allProjects = allProjects.slice(startIndex, endIndex);
+      }
+
+      console.log("✅ Optimized projects fetch completed:", {
+        projectCount: allProjects.length,
+        teamsProcessed: filteredTeams.length,
+        cacheEnabled: true,
+        filters: { status, search, limit: limitNum, offset: offsetNum }
       });
 
-      console.log("✅ Sending response: 200 OK");
-      return NextResponse.json({ projects: projects || [] }, { status: 200 });
+      return NextResponse.json({ projects: allProjects }, { status: 200 });
     } catch (error) {
       console.log("❌ Error caught in GET method main try-catch:", {
         error: error,

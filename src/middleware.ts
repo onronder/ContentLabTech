@@ -302,7 +302,7 @@ export async function middleware(request: NextRequest) {
     const redirectUrl = new URL("/auth/signin", request.url);
     redirectUrl.searchParams.set("redirectTo", pathname);
     const redirectResponse = NextResponse.redirect(redirectUrl);
-    return addSecurityHeaders(redirectResponse);
+    return addSecurityHeaders(redirectResponse, request);
   }
 
   // If user is authenticated and trying to access auth pages, redirect to dashboard
@@ -314,7 +314,7 @@ export async function middleware(request: NextRequest) {
     const redirectResponse = NextResponse.redirect(
       new URL("/dashboard", request.url)
     );
-    return addSecurityHeaders(redirectResponse);
+    return addSecurityHeaders(redirectResponse, request);
   }
 
   // If user is authenticated and on root path, redirect to dashboard
@@ -322,11 +322,22 @@ export async function middleware(request: NextRequest) {
     const redirectResponse = NextResponse.redirect(
       new URL("/dashboard", request.url)
     );
-    return addSecurityHeaders(redirectResponse);
+    return addSecurityHeaders(redirectResponse, request);
   }
 
-  // Add security headers to all responses
-  return addSecurityHeaders(response);
+  // Add comprehensive security headers to all responses
+  const secureResponse = addSecurityHeaders(response, request);
+  
+  // Add performance and security metrics
+  const processingTime = Date.now() - startTime;
+  secureResponse.headers.set("X-Response-Time", `${processingTime}ms`);
+  
+  // Log security events for monitoring (production only)
+  if (process.env.NODE_ENV === "production" && processingTime > 1000) {
+    logSecurityEvent(clientIp, "SLOW_REQUEST", userAgent);
+  }
+  
+  return secureResponse;
 }
 
 export const config = {
