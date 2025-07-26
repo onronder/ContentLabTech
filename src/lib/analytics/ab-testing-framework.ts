@@ -9,6 +9,7 @@ import {
   type HypothesisTestResult,
 } from "./statistical-engine";
 import { dataValidationService } from "./data-validation";
+import { getSupabaseEnv } from "@/lib/supabase/env-helper";
 
 export interface ExperimentConfig {
   experimentId: string;
@@ -140,10 +141,8 @@ export class ABTestingFramework {
   private static instance: ABTestingFramework;
 
   private constructor() {
-    this.supabase = createClient(
-      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["SUPABASE_SECRET_KEY"]!
-    );
+    const env = getSupabaseEnv();
+    this.supabase = createClient(env.url, env.serviceRoleKey);
   }
 
   public static getInstance(): ABTestingFramework {

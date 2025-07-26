@@ -12,6 +12,7 @@ import {
   dataValidationService,
   type DataQualityMetrics,
 } from "./data-validation";
+import { getSupabaseEnv } from "@/lib/supabase/env-helper";
 
 export interface ModelPerformanceMonitor {
   modelId: string;
@@ -247,10 +248,8 @@ export class PerformanceMonitoringService {
   private monitoringInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
-    this.supabase = createClient(
-      process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-      process.env["SUPABASE_SECRET_KEY"]!
-    );
+    const env = getSupabaseEnv();
+    this.supabase = createClient(env.url, env.serviceRoleKey);
   }
 
   public static getInstance(): PerformanceMonitoringService {
