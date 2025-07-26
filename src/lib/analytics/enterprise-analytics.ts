@@ -258,7 +258,7 @@ export class EnterpriseAnalytics {
     }
 
     // Process and structure cohort data
-    const cohortTable = this.processCohortData(cohortData, config);
+    const cohortTable = this.processCohortData(cohortData as any[], config);
 
     // Calculate summary statistics
     const cohortSummary = this.calculateCohortSummary(cohortTable);
@@ -364,8 +364,8 @@ export class EnterpriseAnalytics {
 
       return {
         metricId: config.metricId,
-        value: data.value,
-        dimensions: data.dimensions,
+        value: (data as any).value,
+        dimensions: (data as any).dimensions,
         calculatedAt: new Date().toISOString(),
         dataQuality: validation,
         historicalValues,
@@ -615,7 +615,7 @@ export class EnterpriseAnalytics {
     // Find best and worst performing cohorts
     const cohortPerformance = cohortTable.map((cohort, index) => ({
       index,
-      cohortPeriod: cohort[0].cohortPeriod,
+      cohortPeriod: cohort[0]?.cohortPeriod || "",
       avgRetention:
         cohort
           .slice(1, 4)
@@ -674,7 +674,7 @@ export class EnterpriseAnalytics {
     const recommendations: string[] = [];
 
     // Retention rate recommendations
-    if (summary.retentionRates[1] < 20) {
+    if (summary.retentionRates[1] && summary.retentionRates[1] < 20) {
       recommendations.push(
         "Early retention is low. Focus on improving onboarding experience."
       );
@@ -733,7 +733,7 @@ export class EnterpriseAnalytics {
       throw new Error(`Failed to get historical data: ${error.message}`);
     }
 
-    return (data || []).map(row => ({
+    return (data || []).map((row: any) => ({
       period: row[config.dataSource.dateColumn],
       actual: row[config.dataSource.valueColumn],
       predicted: row[config.dataSource.valueColumn], // Same as actual for historical data
@@ -815,10 +815,10 @@ export class EnterpriseAnalytics {
   } {
     // Simple exponential smoothing
     const alpha = 0.3; // Smoothing parameter
-    let level = data[0];
+    let level = data[0] || 0;
 
     for (let i = 1; i < data.length; i++) {
-      level = alpha * data[i] + (1 - alpha) * level;
+      level = alpha * (data[i] || 0) + (1 - alpha) * level;
     }
 
     return { alpha, level };
@@ -855,13 +855,17 @@ export class EnterpriseAnalytics {
     // Calculate seasonal factors
     const seasonal: number[] = [];
     for (let s = 0; s < seasonPeriod; s++) {
-      const seasonalValues = [];
+      const seasonalValues: number[] = [];
       for (let i = s; i < data.length; i += seasonPeriod) {
-        seasonalValues.push(data[i]);
+        if (data[i] !== undefined) {
+          seasonalValues.push(data[i] as number);
+        }
       }
       const seasonalAvg =
-        seasonalValues.reduce((sum, val) => sum + val, 0) /
-        seasonalValues.length;
+        seasonalValues.length > 0
+          ? seasonalValues.reduce((sum: number, val: number) => sum + val, 0) /
+            seasonalValues.length
+          : 0;
       seasonal.push(seasonalAvg / level); // Multiplicative seasonal factor
     }
 
@@ -876,7 +880,7 @@ export class EnterpriseAnalytics {
 
     for (let i = 0; i < periods; i++) {
       const seasonalIndex = i % model.seasonal.length;
-      const seasonalFactor = model.seasonal[seasonalIndex];
+      const seasonalFactor = model.seasonal[seasonalIndex] || 1;
       const forecast = (model.level + model.trend * i) * seasonalFactor;
       predictions.push(forecast);
     }
@@ -895,7 +899,7 @@ export class EnterpriseAnalytics {
     // Mean Absolute Percentage Error
     const mape =
       (actual.reduce((sum, act, i) => {
-        const error = Math.abs(act - predicted[i]) / Math.abs(act || 1);
+        const error = Math.abs(act - (predicted[i] || 0)) / Math.abs(act || 1);
         return sum + error;
       }, 0) /
         actual.length) *
@@ -904,14 +908,14 @@ export class EnterpriseAnalytics {
     // Root Mean Square Error
     const mse =
       actual.reduce((sum, act, i) => {
-        return sum + Math.pow(act - predicted[i], 2);
+        return sum + Math.pow(act - (predicted[i] || 0), 2);
       }, 0) / actual.length;
     const rmse = Math.sqrt(mse);
 
     // Mean Absolute Error
     const mae =
       actual.reduce((sum, act, i) => {
-        return sum + Math.abs(act - predicted[i]);
+        return sum + Math.abs(act - (predicted[i] || 0));
       }, 0) / actual.length;
 
     // R-squared
@@ -922,7 +926,7 @@ export class EnterpriseAnalytics {
       0
     );
     const residualSumSquares = actual.reduce(
-      (sum, act, i) => sum + Math.pow(act - predicted[i], 2),
+      (sum, act, i) => sum + Math.pow(act - (predicted[i] || 0), 2),
       0
     );
     const r2 =
@@ -981,7 +985,7 @@ export class EnterpriseAnalytics {
       }
 
       forecast.push({
-        period: forecastDate.toISOString().split("T")[0],
+        period: forecastDate.toISOString().split("T")[0] || "",
         predicted: Math.max(0, Math.round(predicted * 100) / 100),
       });
     }
@@ -1153,7 +1157,7 @@ export class EnterpriseAnalytics {
       .order("period", { ascending: false })
       .limit(30);
 
-    return data || [];
+    return (data as { period: string; value: number }[]) || [];
   }
 
   private calculateNextUpdate(frequency: string): string {

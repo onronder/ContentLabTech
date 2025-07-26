@@ -325,6 +325,10 @@ export class PerformanceMonitoringService {
     const metrics: ModelMetrics = {
       modelId,
       timestamp: new Date().toISOString(),
+      accuracy: 0,
+      precision: 0,
+      recall: 0,
+      f1Score: 0,
       ...performanceMetrics,
       dataQuality,
       featureDistribution,
@@ -374,7 +378,7 @@ export class PerformanceMonitoringService {
       currentFeatures
     )) {
       const referenceValues = referenceData
-        .map(d => d.metrics.featureDistribution[featureName]?.mean)
+        .map(d => d.featureDistribution[featureName]?.mean)
         .filter(v => v !== undefined);
 
       if (referenceValues.length === 0) continue;
@@ -405,7 +409,7 @@ export class PerformanceMonitoringService {
 
     // Prediction drift detection
     const referencePredictions = referenceData
-      .map(d => d.metrics.predictionDistribution.mean)
+      .map(d => d.predictionDistribution.mean)
       .filter(v => v !== undefined);
 
     const predictionDrift = this.calculatePredictionDrift(
@@ -662,14 +666,14 @@ export class PerformanceMonitoringService {
     // Mean Absolute Error
     const mae =
       predictions.reduce(
-        (sum, pred, i) => sum + Math.abs(pred - actuals[i]),
+        (sum, pred, i) => sum + Math.abs(pred - (actuals[i] || 0)),
         0
       ) / n;
 
     // Root Mean Square Error
     const mse =
       predictions.reduce(
-        (sum, pred, i) => sum + Math.pow(pred - actuals[i], 2),
+        (sum, pred, i) => sum + Math.pow(pred - (actuals[i] || 0), 2),
         0
       ) / n;
     const rmse = Math.sqrt(mse);
@@ -681,7 +685,7 @@ export class PerformanceMonitoringService {
       0
     );
     const residualSumSquares = predictions.reduce(
-      (sum, pred, i) => sum + Math.pow(actuals[i] - pred, 2),
+      (sum, pred, i) => sum + Math.pow((actuals[i] || 0) - pred, 2),
       0
     );
     const r2 =
@@ -691,7 +695,8 @@ export class PerformanceMonitoringService {
     const tolerance = 0.1; // 10% tolerance
     const accurateCount = predictions.filter(
       (pred, i) =>
-        Math.abs(pred - actuals[i]) / Math.abs(actuals[i] || 1) <= tolerance
+        Math.abs(pred - (actuals[i] || 0)) / Math.abs(actuals[i] || 0 || 1) <=
+        tolerance
     ).length;
     const accuracy = accurateCount / n;
 
@@ -730,6 +735,8 @@ export class PerformanceMonitoringService {
 
     featureNames.forEach(featureName => {
       const values = features[featureName];
+
+      if (!values || values.length === 0) return;
 
       // Completeness: percentage of non-null values
       const nonNullCount = values.filter(
@@ -785,8 +792,8 @@ export class PerformanceMonitoringService {
     const sorted = [...values].sort((a, b) => a - b);
     const q1Index = Math.floor(sorted.length * 0.25);
     const q3Index = Math.floor(sorted.length * 0.75);
-    const q1 = sorted[q1Index];
-    const q3 = sorted[q3Index];
+    const q1 = sorted[q1Index] || 0;
+    const q3 = sorted[q3Index] || 0;
     const iqr = q3 - q1;
     const lowerBound = q1 - 1.5 * iqr;
     const upperBound = q3 + 1.5 * iqr;
@@ -849,8 +856,8 @@ export class PerformanceMonitoringService {
       distributions[featureName] = {
         mean: Math.round(mean * 10000) / 10000,
         std: Math.round(std * 10000) / 10000,
-        min: sorted[0],
-        max: sorted[sorted.length - 1],
+        min: sorted[0] || 0,
+        max: sorted[sorted.length - 1] || 0,
         percentiles,
       };
     });
@@ -860,7 +867,7 @@ export class PerformanceMonitoringService {
 
   private getPercentile(sortedValues: number[], percentile: number): number {
     const index = Math.floor(sortedValues.length * percentile);
-    return sortedValues[Math.min(index, sortedValues.length - 1)];
+    return sortedValues[Math.min(index, sortedValues.length - 1)] || 0;
   }
 
   private calculatePredictionDistribution(
@@ -931,7 +938,8 @@ export class PerformanceMonitoringService {
     const tolerance = 0.1; // 10%
     const errors = predictions.filter(
       (pred, i) =>
-        Math.abs(pred - actuals[i]) / Math.abs(actuals[i] || 1) > tolerance
+        Math.abs(pred - (actuals[i] || 0)) / Math.abs(actuals[i] || 0 || 1) >
+        tolerance
     ).length;
 
     return (errors / predictions.length) * 100;
@@ -1182,10 +1190,10 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
     // Assign ranks
     let rank = 1;
     combined.forEach((item, index) => {
-      item["rank"] = rank;
+      (item as any)["rank"] = rank;
       if (
         index < combined.length - 1 &&
-        combined[index + 1].value !== item.value
+        combined[index + 1]?.value !== item.value
       ) {
         rank = index + 2;
       }
@@ -1193,7 +1201,7 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
 
     const r1 = combined
       .filter(item => item.group === 1)
-      .reduce((sum, item) => sum + item["rank"], 0);
+      .reduce((sum, item) => sum + (item as any)["rank"], 0);
     const n1 = sample1.length;
     const n2 = sample2.length;
 
@@ -1486,7 +1494,7 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
     }
 
     const missingValues: Record<string, number> = {};
-    const columns = Object.keys(data[0]);
+    const columns = Object.keys(data[0] || {});
 
     columns.forEach(column => {
       const missingCount = data.filter(
@@ -1551,6 +1559,8 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
 
         const bothMissing = data.filter(
           row =>
+            col1 &&
+            col2 &&
             (row[col1] === null || row[col1] === undefined) &&
             (row[col2] === null || row[col2] === undefined)
         ).length;
@@ -1576,7 +1586,7 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
 
     const invalidValues: Record<string, number> = {};
     const constraintViolations: string[] = [];
-    const columns = Object.keys(data[0]);
+    const columns = Object.keys(data[0] || {});
 
     columns.forEach(column => {
       const values = data.map(row => row[column]);
@@ -1857,11 +1867,13 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
       groups.forEach((records, id) => {
         if (records.length > 1) {
           const firstRecord = records[0];
-          const inconsistentFields = Object.keys(firstRecord).filter(field => {
-            const values = records.map(r => r[field]);
-            const uniqueValues = new Set(values);
-            return uniqueValues.size > 1;
-          });
+          const inconsistentFields = Object.keys(firstRecord || {}).filter(
+            field => {
+              const values = records.map(r => r[field]);
+              const uniqueValues = new Set(values);
+              return uniqueValues.size > 1;
+            }
+          );
 
           if (inconsistentFields.length > 0) {
             contradictions.push(
@@ -1897,7 +1909,7 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
 
     const now = new Date();
     const timestamps = data
-      .map(row => new Date(row[timestampColumns[0]] as string))
+      .map(row => new Date(row[timestampColumns[0] || "timestamp"] as string))
       .filter(date => !isNaN(date.getTime()));
 
     if (timestamps.length === 0) {
@@ -1949,7 +1961,7 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
       return "stable";
     }
 
-    const scores = historicalReports.map(r => r.overall_score);
+    const scores = historicalReports.map(r => Number(r.overall_score) || 0);
     const recentAvg =
       scores.slice(0, 3).reduce((sum, score) => sum + score, 0) / 3;
     const olderAvg =
@@ -2055,7 +2067,9 @@ Metrics: Accuracy=${metrics.accuracy}, Quality=${metrics.dataQuality.overall}%`;
         }
 
         // Check if it's time to monitor this model
-        const lastChecked = new Date(monitor.last_checked || 0);
+        const lastChecked = new Date(
+          (monitor.last_checked as string) || new Date().toISOString()
+        );
         const nextCheck = new Date(
           lastChecked.getTime() + config.monitoring.checkInterval * 60 * 1000
         );
