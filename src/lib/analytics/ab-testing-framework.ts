@@ -267,7 +267,16 @@ export class ABTestingFramework {
       .single();
 
     if (existingAssignment) {
-      return existingAssignment as unknown as UserAssignment;
+      return {
+        userId: existingAssignment.user_id as string,
+        experimentId: existingAssignment.experiment_id as string,
+        treatmentId: existingAssignment.treatment_id as string,
+        assignedAt: existingAssignment.assigned_at as string,
+        sessionId: existingAssignment.session_id as string | undefined,
+        metadata: existingAssignment.metadata as
+          | Record<string, unknown>
+          | undefined,
+      };
     }
 
     // Check if user meets targeting criteria

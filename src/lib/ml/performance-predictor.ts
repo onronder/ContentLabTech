@@ -4,7 +4,11 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
-import { statisticalEngine, type RegressionResult, type CorrelationResult } from "@/lib/analytics/statistical-engine";
+import {
+  statisticalEngine,
+  type RegressionResult,
+  type CorrelationResult,
+} from "@/lib/analytics/statistical-engine";
 import { dataValidationService } from "@/lib/analytics/data-validation";
 
 const createDatabaseClient = () => {
@@ -350,40 +354,41 @@ class PerformancePredictionModel {
       this.computeFeatureScalers(validData);
 
       // Train using multiple algorithms with proper statistical validation
-      const [linearResult, randomForestResult, gradientBoostResult] = await Promise.all([
-        this.trainLinearRegression(validData),
-        this.trainRandomForest(validData),
-        this.trainGradientBoosting(validData),
-      ]);
+      const [linearResult, randomForestResult, gradientBoostResult] =
+        await Promise.all([
+          this.trainLinearRegression(validData),
+          this.trainRandomForest(validData),
+          this.trainGradientBoosting(validData),
+        ]);
 
       // Store training results with statistical metadata
-      console.log('Training Results:', {
+      console.log("Training Results:", {
         linearRegression: {
           rSquared: linearResult.qualityMetrics.rSquared,
           pValue: linearResult.qualityMetrics.pValue,
-          standardError: linearResult.qualityMetrics.standardError
+          standardError: linearResult.qualityMetrics.standardError,
         },
         randomForest: {
-          correlations: Array.from(randomForestResult.correlations.entries())
-            .map(([key, result]) => ({ 
-              feature: key, 
-              correlation: result.value, 
-              pValue: result.pValue,
-              strength: result.strength 
-            }))
-        }
+          correlations: Array.from(
+            randomForestResult.correlations.entries()
+          ).map(([key, result]) => ({
+            feature: key,
+            correlation: result.value,
+            pValue: result.pValue,
+            strength: result.strength,
+          })),
+        },
       });
 
       // Ensemble model weights with statistical weighting
-      this.computeStatisticalEnsembleWeights([
-        linearResult.weights,
-        randomForestResult.weights,
-        gradientBoostResult
-      ], [
-        linearResult.qualityMetrics.rSquared,
-        0.8, // Average importance for random forest
-        0.7  // Default weight for gradient boosting
-      ]);
+      this.computeStatisticalEnsembleWeights(
+        [linearResult.weights, randomForestResult.weights, gradientBoostResult],
+        [
+          linearResult.qualityMetrics.rSquared,
+          0.8, // Average importance for random forest
+          0.7, // Default weight for gradient boosting
+        ]
+      );
 
       // Evaluate model performance
       const metrics = this.evaluateModel(validData);
@@ -511,9 +516,7 @@ class PerformancePredictionModel {
     return scaled;
   }
 
-  private async trainLinearRegression(
-    data: TrainingDataPoint[]
-  ): Promise<{
+  private async trainLinearRegression(data: TrainingDataPoint[]): Promise<{
     weights: Map<string, number>;
     statistics: RegressionResult[];
     qualityMetrics: {
@@ -534,14 +537,14 @@ class PerformancePredictionModel {
           rSquared: 0,
           adjustedRSquared: 0,
           standardError: 0,
-          pValue: 1
-        }
+          pValue: 1,
+        },
       };
     }
 
     const featureKeys = Object.keys(data[0].features) as (keyof MLFeatures)[];
     const targetValues = data.map(d => d.targets.pageviews);
-    
+
     let bestRSquared = 0;
     let overallStats: RegressionResult | null = null;
 
@@ -550,8 +553,8 @@ class PerformancePredictionModel {
       try {
         const featureValues = data
           .map(d => d.features[featureKey] as number)
-          .filter(val => typeof val === 'number' && !isNaN(val));
-        
+          .filter(val => typeof val === "number" && !isNaN(val));
+
         if (featureValues.length < 3) continue;
 
         const regressionResult = statisticalEngine.performLinearRegression(
@@ -562,41 +565,44 @@ class PerformancePredictionModel {
 
         statistics.push(regressionResult);
         weights.set(featureKey as string, regressionResult.slope);
-        
+
         if (regressionResult.rSquared > bestRSquared) {
           bestRSquared = regressionResult.rSquared;
           overallStats = regressionResult;
         }
       } catch (error) {
-        console.warn(`Failed to train regression for feature ${featureKey as string}:`, error);
+        console.warn(
+          `Failed to train regression for feature ${featureKey as string}:`,
+          error
+        );
         weights.set(featureKey as string, 0);
       }
     }
 
     // Multiple regression would be implemented here in production
     // For now, use weighted combination of individual regressions
-    const qualityMetrics = overallStats ? {
-      rSquared: overallStats.rSquared,
-      adjustedRSquared: overallStats.adjustedRSquared,
-      standardError: overallStats.standardError,
-      pValue: overallStats.pValue
-    } : {
-      rSquared: 0,
-      adjustedRSquared: 0,
-      standardError: 0,
-      pValue: 1
-    };
+    const qualityMetrics = overallStats
+      ? {
+          rSquared: overallStats.rSquared,
+          adjustedRSquared: overallStats.adjustedRSquared,
+          standardError: overallStats.standardError,
+          pValue: overallStats.pValue,
+        }
+      : {
+          rSquared: 0,
+          adjustedRSquared: 0,
+          standardError: 0,
+          pValue: 1,
+        };
 
     return {
       weights,
       statistics,
-      qualityMetrics
+      qualityMetrics,
     };
   }
 
-  private async trainRandomForest(
-    data: TrainingDataPoint[]
-  ): Promise<{
+  private async trainRandomForest(data: TrainingDataPoint[]): Promise<{
     weights: Map<string, number>;
     correlations: Map<string, CorrelationResult>;
     featureImportance: Map<string, number>;
@@ -617,8 +623,8 @@ class PerformancePredictionModel {
       try {
         const featureValues = data
           .map(d => d.features[key] as number)
-          .filter(val => typeof val === 'number' && !isNaN(val));
-        
+          .filter(val => typeof val === "number" && !isNaN(val));
+
         if (featureValues.length < 3) continue;
 
         const correlationResult = statisticalEngine.calculatePearsonCorrelation(
@@ -628,15 +634,19 @@ class PerformancePredictionModel {
         );
 
         correlations.set(key as string, correlationResult);
-        
+
         // Feature importance based on correlation strength and statistical significance
-        const importance = Math.abs(correlationResult.value) * 
-          (correlationResult.pValue ? (1 - correlationResult.pValue) : 0.5);
-        
+        const importance =
+          Math.abs(correlationResult.value) *
+          (correlationResult.pValue ? 1 - correlationResult.pValue : 0.5);
+
         featureImportance.set(key as string, importance);
         weights.set(key as string, correlationResult.value);
       } catch (error) {
-        console.warn(`Failed to calculate correlation for feature ${key as string}:`, error);
+        console.warn(
+          `Failed to calculate correlation for feature ${key as string}:`,
+          error
+        );
         weights.set(key as string, 0);
         featureImportance.set(key as string, 0);
       }
@@ -689,26 +699,27 @@ class PerformancePredictionModel {
     if (models.length === 0) {
       return;
     }
-    
+
     const featureKeys = Array.from(models[0]?.keys() || []);
-    const totalQualityScore = qualityScores.reduce((sum, score) => {
-      return sum + (typeof score === 'number' ? score : 0.5);
+    const totalQualityScore = qualityScores.reduce((sum: number, score) => {
+      return sum + (typeof score === "number" ? score : 0.5);
     }, 0);
 
     featureKeys.forEach(key => {
       let weightedSum = 0;
       let totalWeight = 0;
-      
+
       models.forEach((model, index) => {
         const modelWeight = model.get(key) || 0;
-        const qualityWeight = typeof qualityScores[index] === 'number' 
-          ? qualityScores[index] as number
-          : (qualityScores[index] as Map<string, number>)?.get(key) || 0.5;
-        
+        const qualityWeight =
+          typeof qualityScores[index] === "number"
+            ? (qualityScores[index] as number)
+            : (qualityScores[index] as Map<string, number>)?.get(key) || 0.5;
+
         weightedSum += modelWeight * qualityWeight;
         totalWeight += qualityWeight;
       });
-      
+
       const ensembleWeight = totalWeight > 0 ? weightedSum / totalWeight : 0;
       this.modelWeights.set(key, ensembleWeight);
     });
@@ -716,7 +727,10 @@ class PerformancePredictionModel {
 
   private computeEnsembleWeights(models: Map<string, number>[]): void {
     // Legacy method - kept for compatibility
-    this.computeStatisticalEnsembleWeights(models, models.map(() => 1.0));
+    this.computeStatisticalEnsembleWeights(
+      models,
+      models.map(() => 1.0)
+    );
   }
 
   private evaluateModel(data: TrainingDataPoint[]): ModelPerformanceMetrics {
@@ -733,7 +747,7 @@ class PerformancePredictionModel {
         f1Score: 0,
         meanAbsoluteError: 0,
         meanSquaredError: 0,
-        rSquared: 0
+        rSquared: 0,
       };
     }
 
@@ -747,19 +761,22 @@ class PerformancePredictionModel {
 
       const mse = this.meanSquaredError(predictions, actuals);
       const mae = this.meanAbsoluteError(predictions, actuals);
-      const actualMean = actuals.reduce((sum, val) => sum + val, 0) / actuals.length;
-      
+      const actualMean =
+        actuals.reduce((sum, val) => sum + val, 0) / actuals.length;
+
       // Calculate accuracy as 1 - normalized MAE
       const accuracy = Math.max(0, 1 - mae / (actualMean || 1));
-      
+
       // Calculate precision and recall for regression (using residual analysis)
       const residuals = regressionResult.residuals;
       const threshold = mae; // Use MAE as threshold
-      
-      const withinThreshold = residuals.filter(r => Math.abs(r) <= threshold).length;
+
+      const withinThreshold = residuals.filter(
+        r => Math.abs(r) <= threshold
+      ).length;
       const precision = withinThreshold / residuals.length;
       const recall = precision; // For regression, precision ≈ recall
-      const f1Score = 2 * (precision * recall) / (precision + recall || 1);
+      const f1Score = (2 * (precision * recall)) / (precision + recall || 1);
 
       return {
         accuracy: Math.round(accuracy * 10000) / 10000,
@@ -768,10 +785,10 @@ class PerformancePredictionModel {
         f1Score: Math.round(f1Score * 10000) / 10000,
         meanAbsoluteError: Math.round(mae * 100) / 100,
         meanSquaredError: Math.round(mse * 100) / 100,
-        rSquared: Math.round(regressionResult.rSquared * 10000) / 10000
+        rSquared: Math.round(regressionResult.rSquared * 10000) / 10000,
       };
     } catch (error) {
-      console.error('Error evaluating model:', error);
+      console.error("Error evaluating model:", error);
       return {
         accuracy: 0,
         precision: 0,
@@ -779,7 +796,7 @@ class PerformancePredictionModel {
         f1Score: 0,
         meanAbsoluteError: this.meanAbsoluteError(predictions, actuals),
         meanSquaredError: this.meanSquaredError(predictions, actuals),
-        rSquared: this.rSquared(predictions, actuals)
+        rSquared: this.rSquared(predictions, actuals),
       };
     }
   }
@@ -924,7 +941,7 @@ class PerformancePredictionModel {
 
   // Helper methods
   private calculateReadabilityScore(text: string): number {
-    const result = statisticalEngine.calculateReadabilityScore(text, 'flesch');
+    const result = statisticalEngine.calculateReadabilityScore(text, "flesch");
     return result.score;
   }
 

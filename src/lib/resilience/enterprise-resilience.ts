@@ -94,7 +94,12 @@ export interface DegradationLevel {
 }
 
 export interface DegradationAction {
-  type: "disable_feature" | "reduce_quality" | "limit_requests" | "use_cache" | "custom";
+  type:
+    | "disable_feature"
+    | "reduce_quality"
+    | "limit_requests"
+    | "use_cache"
+    | "custom";
   parameters: Record<string, any>;
   executor?: (parameters: Record<string, any>) => Promise<void>;
 }
@@ -132,7 +137,13 @@ export interface ResilienceResult<T> {
 }
 
 export interface ExecutionStep {
-  step: "operation" | "retry" | "fallback" | "circuit_breaker" | "timeout" | "bulkhead";
+  step:
+    | "operation"
+    | "retry"
+    | "fallback"
+    | "circuit_breaker"
+    | "timeout"
+    | "bulkhead";
   status: "success" | "failure" | "skipped";
   duration: number;
   details?: any;
@@ -250,21 +261,25 @@ export class EnterpriseResilienceManager extends EventEmitter {
 
     const config = this.services.get(serviceName);
     if (!config) {
-      throw new Error(`Service ${serviceName} not registered with resilience framework`);
+      throw new Error(
+        `Service ${serviceName} not registered with resilience framework`
+      );
     }
 
     // Start distributed tracing if enabled
     let traceId: string | undefined;
     if (config.monitoring?.tracing) {
-      traceId = distributedTracer.startTrace(
-        context.operationName,
-        serviceName,
-        context.traceId,
-        {
-          correlationId: context.correlationId,
-          businessContext: context.businessContext,
-        }
-      ).context.traceId;
+      // TODO: Implement startTrace method when available
+      // traceId = distributedTracer.startTrace(
+      //   context.operationName,
+      //   serviceName,
+      //   context.traceId,
+      //   {
+      //     correlationId: context.correlationId,
+      //     businessContext: context.businessContext,
+      //   }
+      // ).context.traceId;
+      traceId = context.traceId;
     }
 
     try {
@@ -272,7 +287,7 @@ export class EnterpriseResilienceManager extends EventEmitter {
       const degradationLevel = this.degradationState.get(serviceName);
       if (degradationLevel) {
         degradationApplied = degradationLevel.name;
-        
+
         // Apply degradation actions
         await this.applyDegradationActions(degradationLevel, context);
       }
@@ -292,7 +307,7 @@ export class EnterpriseResilienceManager extends EventEmitter {
       const result = await this.executeWithRetry(
         async () => {
           attempts++;
-          
+
           // Apply timeout if enabled
           if (config.timeout?.enabled) {
             return await this.executeWithTimeout(
@@ -301,7 +316,7 @@ export class EnterpriseResilienceManager extends EventEmitter {
               config.timeout.onTimeout
             );
           }
-          
+
           return await operation();
         },
         config.retry!,
@@ -310,9 +325,10 @@ export class EnterpriseResilienceManager extends EventEmitter {
 
       // Record success
       this.recordSuccess(serviceName, performance.now() - startTime);
-      
+
       if (traceId) {
-        distributedTracer.finishTrace(traceId, "ok");
+        // TODO: Implement finishTrace method when available
+        // distributedTracer.finishTrace(traceId, "ok");
       }
 
       return {
@@ -325,7 +341,6 @@ export class EnterpriseResilienceManager extends EventEmitter {
         degradationApplied,
         circuitBreakerState: circuitBreaker.getMetrics().state,
       };
-
     } catch (error) {
       // Try fallback if configured
       if (config.fallback?.enabled) {
@@ -336,9 +351,9 @@ export class EnterpriseResilienceManager extends EventEmitter {
             error as Error,
             context
           );
-          
+
           fallbackUsed = true;
-          
+
           executionPath.push({
             step: "fallback",
             status: "success",
@@ -347,24 +362,27 @@ export class EnterpriseResilienceManager extends EventEmitter {
           });
 
           if (traceId) {
-            distributedTracer.addTraceLog(traceId, "warn", "Fallback executed", {
-              strategy: config.fallback.strategy,
-              originalError: (error as Error).message,
-            });
-            distributedTracer.finishTrace(traceId, "ok");
+            // TODO: Implement addTraceLog method when available
+            // distributedTracer.addTraceLog(traceId, "warn", "Fallback executed", {
+            //   strategy: config.fallback.strategy,
+            //   originalError: (error as Error).message,
+            // });
+            // TODO: Implement finishTrace method when available
+            // distributedTracer.finishTrace(traceId, "ok");
           }
 
           return {
             success: true,
-            data: fallbackResult,
+            data: fallbackResult as T,
             executionPath,
             totalDuration: performance.now() - startTime,
             attempts,
             fallbackUsed,
             degradationApplied,
-            circuitBreakerState: circuitBreakerManager.getCircuitBreaker(serviceName).getMetrics().state,
+            circuitBreakerState: circuitBreakerManager
+              .getCircuitBreaker(serviceName)
+              .getMetrics().state,
           };
-
         } catch (fallbackError) {
           executionPath.push({
             step: "fallback",
@@ -376,10 +394,15 @@ export class EnterpriseResilienceManager extends EventEmitter {
       }
 
       // Record failure
-      this.recordFailure(serviceName, performance.now() - startTime, error as Error);
-      
+      this.recordFailure(
+        serviceName,
+        performance.now() - startTime,
+        error as Error
+      );
+
       if (traceId) {
-        distributedTracer.finishTrace(traceId, "error", error as Error);
+        // TODO: Implement finishTrace method when available
+        // distributedTracer.finishTrace(traceId, "error", error as Error);
       }
 
       return {
@@ -390,9 +413,10 @@ export class EnterpriseResilienceManager extends EventEmitter {
         attempts,
         fallbackUsed,
         degradationApplied,
-        circuitBreakerState: circuitBreakerManager.getCircuitBreaker(serviceName).getMetrics().state,
+        circuitBreakerState: circuitBreakerManager
+          .getCircuitBreaker(serviceName)
+          .getMetrics().state,
       };
-
     } finally {
       // Release bulkhead resources
       if (config.bulkhead?.enabled) {
@@ -413,22 +437,28 @@ export class EnterpriseResilienceManager extends EventEmitter {
    */
   getAllServiceHealth(): Record<string, ServiceHealthMetrics> {
     const health: Record<string, ServiceHealthMetrics> = {};
-    
+
     for (const [name, metrics] of this.healthMetrics.entries()) {
       health[name] = metrics;
     }
-    
+
     return health;
   }
 
   /**
    * Trigger manual degradation
    */
-  async triggerDegradation(serviceName: string, level: number, reason: string): Promise<void> {
+  async triggerDegradation(
+    serviceName: string,
+    level: number,
+    reason: string
+  ): Promise<void> {
     const config = this.services.get(serviceName);
     if (!config?.degradation?.enabled) return;
 
-    const degradationLevel = config.degradation.levels.find(l => l.level === level);
+    const degradationLevel = config.degradation.levels.find(
+      l => l.level === level
+    );
     if (!degradationLevel) return;
 
     this.degradationState.set(serviceName, degradationLevel);
@@ -437,7 +467,7 @@ export class EnterpriseResilienceManager extends EventEmitter {
       title: `Service Degradation Triggered: ${serviceName}`,
       description: `Service ${serviceName} degraded to level ${level}: ${degradationLevel.name}`,
       severity: level >= 3 ? "critical" : level >= 2 ? "warning" : "info",
-      source: "resilience",
+      source: "custom",
       category: "degradation",
       tags: ["degradation", "manual", serviceName],
       metadata: {
@@ -470,7 +500,10 @@ export class EnterpriseResilienceManager extends EventEmitter {
   /**
    * Recover from degradation
    */
-  async recoverFromDegradation(serviceName: string, reason: string): Promise<void> {
+  async recoverFromDegradation(
+    serviceName: string,
+    reason: string
+  ): Promise<void> {
     if (!this.degradationState.has(serviceName)) return;
 
     const previousLevel = this.degradationState.get(serviceName);
@@ -501,16 +534,16 @@ export class EnterpriseResilienceManager extends EventEmitter {
   ): Promise<T> {
     if (!retryConfig.enabled) {
       const startTime = performance.now();
-      
+
       try {
         const result = await operation();
-        
+
         executionPath.push({
           step: "operation",
           status: "success",
           duration: performance.now() - startTime,
         });
-        
+
         return result;
       } catch (error) {
         executionPath.push({
@@ -519,30 +552,30 @@ export class EnterpriseResilienceManager extends EventEmitter {
           duration: performance.now() - startTime,
           details: { error: (error as Error).message },
         });
-        
+
         throw error;
       }
     }
 
     let lastError: Error;
-    
+
     for (let attempt = 1; attempt <= retryConfig.maxAttempts; attempt++) {
       const stepStartTime = performance.now();
-      
+
       try {
         const result = await operation();
-        
+
         executionPath.push({
           step: attempt === 1 ? "operation" : "retry",
           status: "success",
           duration: performance.now() - stepStartTime,
           details: { attempt },
         });
-        
+
         return result;
       } catch (error) {
         lastError = error as Error;
-        
+
         executionPath.push({
           step: attempt === 1 ? "operation" : "retry",
           status: "failure",
@@ -551,7 +584,10 @@ export class EnterpriseResilienceManager extends EventEmitter {
         });
 
         // Check if error is retryable
-        if (retryConfig.retryableErrors && !retryConfig.retryableErrors(lastError)) {
+        if (
+          retryConfig.retryableErrors &&
+          !retryConfig.retryableErrors(lastError)
+        ) {
           break;
         }
 
@@ -590,22 +626,26 @@ export class EnterpriseResilienceManager extends EventEmitter {
   }
 
   private calculateRetryDelay(attempt: number, config: RetryOptions): number {
-    const exponentialDelay = config.initialDelay * Math.pow(config.backoffMultiplier, attempt - 1);
+    const exponentialDelay =
+      config.initialDelay * Math.pow(config.backoffMultiplier, attempt - 1);
     const cappedDelay = Math.min(exponentialDelay, config.maxDelay);
-    
+
     if (config.jitter) {
       return cappedDelay * (0.5 + Math.random() * 0.5);
     }
-    
+
     return cappedDelay;
   }
 
-  private async applyBulkhead(serviceName: string, config: BulkheadOptions): Promise<void> {
+  private async applyBulkhead(
+    serviceName: string,
+    config: BulkheadOptions
+  ): Promise<void> {
     const activeCalls = this.activeCalls.get(serviceName) || 0;
-    
+
     if (activeCalls >= config.maxConcurrentCalls) {
       const queue = this.callQueues.get(serviceName) || [];
-      
+
       if (queue.length >= config.maxQueueSize) {
         throw new Error(`Bulkhead queue full for service ${serviceName}`);
       }
@@ -616,7 +656,11 @@ export class EnterpriseResilienceManager extends EventEmitter {
           reject,
           timestamp: Date.now(),
           timeout: setTimeout(() => {
-            reject(new Error(`Request timed out in bulkhead queue for ${serviceName}`));
+            reject(
+              new Error(
+                `Request timed out in bulkhead queue for ${serviceName}`
+              )
+            );
           }, config.queueTimeout),
         });
       });
@@ -649,19 +693,19 @@ export class EnterpriseResilienceManager extends EventEmitter {
     switch (config.strategy) {
       case "cache":
         return this.getCachedFallback(config.cacheKey || serviceName);
-      
+
       case "default":
         if (config.defaultValue !== undefined) {
           return config.defaultValue;
         }
         break;
-      
+
       case "alternative":
         if (config.alternativeService) {
           return await config.alternativeService();
         }
         break;
-      
+
       case "custom":
         if (config.customFallback) {
           return await config.customFallback(error);
@@ -674,11 +718,11 @@ export class EnterpriseResilienceManager extends EventEmitter {
 
   private getCachedFallback<T>(cacheKey: string): T {
     const cached = this.fallbackCache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < cached.ttl) {
       return cached.value;
     }
-    
+
     throw new Error(`No valid cached fallback for key: ${cacheKey}`);
   }
 
@@ -711,15 +755,15 @@ export class EnterpriseResilienceManager extends EventEmitter {
       case "disable_feature":
         // Implementation depends on your feature flag system
         break;
-      
+
       case "reduce_quality":
         // Reduce quality parameters
         break;
-      
+
       case "limit_requests":
         // Apply rate limiting
         break;
-      
+
       case "use_cache":
         // Force cache usage
         break;
@@ -730,22 +774,32 @@ export class EnterpriseResilienceManager extends EventEmitter {
     const metrics = this.healthMetrics.get(serviceName);
     if (metrics) {
       metrics.requestCount++;
-      metrics.averageResponseTime = 
-        (metrics.averageResponseTime * (metrics.requestCount - 1) + duration) / metrics.requestCount;
-      metrics.successRate = ((metrics.requestCount - metrics.errorCount) / metrics.requestCount) * 100;
+      metrics.averageResponseTime =
+        (metrics.averageResponseTime * (metrics.requestCount - 1) + duration) /
+        metrics.requestCount;
+      metrics.successRate =
+        ((metrics.requestCount - metrics.errorCount) / metrics.requestCount) *
+        100;
       metrics.errorRate = (metrics.errorCount / metrics.requestCount) * 100;
       metrics.lastUpdated = Date.now();
     }
   }
 
-  private recordFailure(serviceName: string, duration: number, error: Error): void {
+  private recordFailure(
+    serviceName: string,
+    duration: number,
+    error: Error
+  ): void {
     const metrics = this.healthMetrics.get(serviceName);
     if (metrics) {
       metrics.requestCount++;
       metrics.errorCount++;
-      metrics.averageResponseTime = 
-        (metrics.averageResponseTime * (metrics.requestCount - 1) + duration) / metrics.requestCount;
-      metrics.successRate = ((metrics.requestCount - metrics.errorCount) / metrics.requestCount) * 100;
+      metrics.averageResponseTime =
+        (metrics.averageResponseTime * (metrics.requestCount - 1) + duration) /
+        metrics.requestCount;
+      metrics.successRate =
+        ((metrics.requestCount - metrics.errorCount) / metrics.requestCount) *
+        100;
       metrics.errorRate = (metrics.errorCount / metrics.requestCount) * 100;
       metrics.lastUpdated = Date.now();
     }
@@ -781,7 +835,10 @@ export class EnterpriseResilienceManager extends EventEmitter {
 
   private async checkDegradationTriggers(): Promise<void> {
     for (const [serviceName, config] of this.services.entries()) {
-      if (!config.degradation?.enabled || this.degradationState.has(serviceName)) {
+      if (
+        !config.degradation?.enabled ||
+        this.degradationState.has(serviceName)
+      ) {
         continue;
       }
 
@@ -793,12 +850,12 @@ export class EnterpriseResilienceManager extends EventEmitter {
           const level = config.degradation.levels.find(l => l.level === 1);
           if (level) {
             this.degradationState.set(serviceName, level);
-            
+
             await enterpriseAlertingSystem.createAlert({
               title: `Automatic Service Degradation: ${serviceName}`,
               description: `Service ${serviceName} automatically degraded due to ${trigger.type} threshold`,
               severity: "warning",
-              source: "resilience",
+              source: "custom",
               category: "degradation",
               tags: ["degradation", "automatic", serviceName],
               metadata: {
@@ -821,12 +878,18 @@ export class EnterpriseResilienceManager extends EventEmitter {
     }
   }
 
-  private shouldTriggerDegradation(trigger: DegradationTrigger, metrics: ServiceHealthMetrics): boolean {
+  private shouldTriggerDegradation(
+    trigger: DegradationTrigger,
+    metrics: ServiceHealthMetrics
+  ): boolean {
     const value = this.getTriggerValue(trigger, metrics);
     return value > trigger.threshold;
   }
 
-  private getTriggerValue(trigger: DegradationTrigger, metrics: ServiceHealthMetrics): number {
+  private getTriggerValue(
+    trigger: DegradationTrigger,
+    metrics: ServiceHealthMetrics
+  ): number {
     switch (trigger.type) {
       case "error_rate":
         return metrics.errorRate;
@@ -846,7 +909,7 @@ export class EnterpriseResilienceManager extends EventEmitter {
       if (!metrics) continue;
 
       const criteria = config.degradation.recoveryCriteria;
-      
+
       if (
         metrics.successRate >= criteria.successRate &&
         metrics.averageResponseTime <= criteria.responseTime &&
@@ -886,5 +949,5 @@ export const enterpriseResilienceManager = new EnterpriseResilienceManager();
 
 // Global access
 if (typeof globalThis !== "undefined") {
-  globalThis.EnterpriseResilienceManager = enterpriseResilienceManager;
+  (globalThis as any).EnterpriseResilienceManager = enterpriseResilienceManager;
 }

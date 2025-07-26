@@ -134,7 +134,7 @@ export function withApiAuth<T extends any[]>(
           timestamp: new Date().toISOString(),
           requestId,
           clientIp,
-          userAgent,
+          userAgent: userAgent ?? undefined,
           endpoint,
           event: "INPUT_VALIDATION_FAILED",
           details: { reason: validationResult.reason },
@@ -159,7 +159,7 @@ export function withApiAuth<T extends any[]>(
           timestamp: new Date().toISOString(),
           requestId,
           clientIp,
-          userAgent,
+          userAgent: userAgent ?? undefined,
           endpoint,
           event: "AUTHENTICATION_FAILED",
         });
@@ -185,7 +185,7 @@ export function withApiAuth<T extends any[]>(
             requestId,
             userId: user.id,
             clientIp,
-            userAgent,
+            userAgent: userAgent ?? undefined,
             endpoint,
             event: "INSUFFICIENT_PERMISSIONS",
             details: {
@@ -209,7 +209,7 @@ export function withApiAuth<T extends any[]>(
         requestId,
         userId: user.id,
         clientIp,
-        userAgent,
+        userAgent: userAgent ?? undefined,
         endpoint,
         event: "AUTHENTICATION_SUCCESS",
       });
@@ -220,7 +220,7 @@ export function withApiAuth<T extends any[]>(
         supabase,
         requestId,
         clientIp,
-        userAgent,
+        userAgent: userAgent ?? undefined,
       };
 
       // Execute authenticated handler with error boundary
@@ -235,7 +235,7 @@ export function withApiAuth<T extends any[]>(
           requestId,
           userId: user.id,
           clientIp,
-          userAgent,
+          userAgent: userAgent ?? undefined,
           endpoint,
           event: "HANDLER_ERROR",
           details: {
@@ -264,7 +264,7 @@ export function withApiAuth<T extends any[]>(
           requestId,
           userId: user.id,
           clientIp,
-          userAgent,
+          userAgent: userAgent ?? undefined,
           endpoint,
           event: "SLOW_REQUEST",
           details: { duration: totalDuration },
@@ -305,7 +305,7 @@ export function withApiAuth<T extends any[]>(
         timestamp: new Date().toISOString(),
         requestId,
         clientIp,
-        userAgent,
+        userAgent: userAgent ?? undefined,
         endpoint,
         event: "CRITICAL_AUTH_ERROR",
         details: {

@@ -418,14 +418,16 @@ export class DistributedTracer {
     const activeSpans = Array.from(this.activeSpans.values());
     if (activeSpans.length > 0) {
       const span = activeSpans[activeSpans.length - 1];
-      return {
-        traceId: span.traceId,
-        spanId: span.spanId,
-        parentSpanId: span.parentSpanId,
-        traceFlags: 1,
-        baggage: span.baggage,
-        sampled: true,
-      };
+      if (span) {
+        return {
+          traceId: span.traceId,
+          spanId: span.spanId,
+          parentSpanId: span.parentSpanId,
+          traceFlags: 1,
+          baggage: span.baggage,
+          sampled: true,
+        };
+      }
     }
 
     return null;
@@ -469,12 +471,13 @@ export class DistributedTracer {
       // Calculate latencies
       if (span.duration) {
         if (!latencies[span.serviceName]) latencies[span.serviceName] = 0;
-        latencies[span.serviceName] += span.duration;
+        latencies[span.serviceName] =
+          (latencies[span.serviceName] || 0) + span.duration;
       }
 
       // Calculate throughput
       if (!throughput[span.serviceName]) throughput[span.serviceName] = 0;
-      throughput[span.serviceName]++;
+      throughput[span.serviceName] = (throughput[span.serviceName] || 0) + 1;
 
       // Identify dependencies
       if (span.parentSpanId) {
@@ -511,9 +514,9 @@ export class DistributedTracer {
         version: this.resource.serviceVersion,
         environment: this.resource.environment,
         health:
-          errorRates[name] > 5
+          (errorRates[name] || 0) > 5
             ? "unhealthy"
-            : errorRates[name] > 1
+            : (errorRates[name] || 0) > 1
               ? "degraded"
               : "healthy",
         instances: 1,
@@ -993,5 +996,5 @@ export const distributedTracer = new DistributedTracer({
 
 // Global access
 if (typeof globalThis !== "undefined") {
-  globalThis.DistributedTracer = distributedTracer;
+  (globalThis as any).DistributedTracer = distributedTracer;
 }

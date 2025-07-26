@@ -7,6 +7,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
 import { createClient as createServerAuthClient } from "@/lib/supabase/server-auth";
+import { enterpriseLogger } from "@/lib/monitoring/enterprise-logger";
 
 /**
  * Create server-side Supabase client with user session

@@ -12,7 +12,13 @@ import { EventEmitter } from "events";
 export interface EnterpriseHealthCheck {
   id: string;
   name: string;
-  category: "core" | "dependency" | "integration" | "performance" | "security" | "compliance";
+  category:
+    | "core"
+    | "dependency"
+    | "integration"
+    | "performance"
+    | "security"
+    | "compliance";
   priority: "critical" | "high" | "medium" | "low";
   timeout: number;
   interval: number;
@@ -151,12 +157,15 @@ abstract class BaseHealthCheck {
 
   async run(): Promise<DetailedHealthResult> {
     const startTime = performance.now();
-    
+
     try {
       const result = await Promise.race([
         this.execute(),
-        new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error("Health check timeout")), this.config.timeout)
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Health check timeout")),
+            this.config.timeout
+          )
         ),
       ]);
 
@@ -195,7 +204,7 @@ abstract class BaseHealthCheck {
       };
     } catch (error) {
       const responseTime = performance.now() - startTime;
-      
+
       return {
         id: this.config.id,
         name: this.config.name,
@@ -231,7 +240,7 @@ abstract class BaseHealthCheck {
     result: Partial<DetailedHealthResult>,
     responseTime: number
   ): "healthy" | "degraded" | "unhealthy" {
-    if (result.status) return result.status;
+    if (result.status && result.status !== "unknown") return result.status;
 
     // Check response time thresholds
     if (responseTime > this.config.thresholds.responseTime.critical) {
@@ -249,7 +258,7 @@ abstract class BaseHealthCheck {
 class DatabaseHealthCheck extends BaseHealthCheck {
   protected async execute(): Promise<Partial<DetailedHealthResult>> {
     const supabaseResult = await healthChecker.checkSupabase();
-    
+
     return {
       status: supabaseResult.status,
       details: {
@@ -274,7 +283,7 @@ class DatabaseHealthCheck extends BaseHealthCheck {
 class CacheHealthCheck extends BaseHealthCheck {
   protected async execute(): Promise<Partial<DetailedHealthResult>> {
     const redisResult = await healthChecker.checkRedis();
-    
+
     return {
       status: redisResult.status,
       details: {
@@ -297,7 +306,7 @@ class CacheHealthCheck extends BaseHealthCheck {
 class ExternalAPIHealthCheck extends BaseHealthCheck {
   protected async execute(): Promise<Partial<DetailedHealthResult>> {
     const openaiResult = await healthChecker.checkOpenAI();
-    
+
     return {
       status: openaiResult.status,
       details: {
@@ -319,7 +328,7 @@ class ApplicationHealthCheck extends BaseHealthCheck {
   protected async execute(): Promise<Partial<DetailedHealthResult>> {
     const memoryUsage = process.memoryUsage();
     const cpuUsage = process.cpuUsage();
-    
+
     return {
       status: "healthy",
       details: {
@@ -354,11 +363,11 @@ class SecurityHealthCheck extends BaseHealthCheck {
       rateLimitingActive: true,
       vulnerabilityScans: "passed",
     };
-    
-    const allPassed = Object.values(securityChecks).every(check => 
-      check === true || check === "passed"
+
+    const allPassed = Object.values(securityChecks).every(
+      check => check === true || check === "passed"
     );
-    
+
     return {
       status: allPassed ? "healthy" : "degraded",
       details: {
@@ -381,11 +390,11 @@ class PerformanceHealthCheck extends BaseHealthCheck {
       errorRate: 0.1, // percentage
       activeConnections: 50,
     };
-    
-    const isHealthy = 
+
+    const isHealthy =
       performanceMetrics.averageResponseTime < 200 &&
       performanceMetrics.errorRate < 1.0;
-    
+
     return {
       status: isHealthy ? "healthy" : "degraded",
       details: {
@@ -408,9 +417,11 @@ class ComplianceHealthCheck extends BaseHealthCheck {
       gdprCompliance: true,
       soc2Compliance: true,
     };
-    
-    const allCompliant = Object.values(complianceChecks).every(check => check === true);
-    
+
+    const allCompliant = Object.values(complianceChecks).every(
+      check => check === true
+    );
+
     return {
       status: allCompliant ? "healthy" : "degraded",
       details: {
@@ -589,7 +600,7 @@ export class EnterpriseHealthMonitor extends EventEmitter {
     // Create health check instances
     for (const config of healthCheckConfigs) {
       let healthCheck: BaseHealthCheck;
-      
+
       switch (config.id) {
         case "database":
           healthCheck = new DatabaseHealthCheck(config);
@@ -615,7 +626,7 @@ export class EnterpriseHealthMonitor extends EventEmitter {
         default:
           healthCheck = new ApplicationHealthCheck(config);
       }
-      
+
       this.healthChecks.set(config.id, healthCheck);
     }
   }
@@ -628,25 +639,28 @@ export class EnterpriseHealthMonitor extends EventEmitter {
 
   private scheduleHealthCheck(id: string, healthCheck: BaseHealthCheck): void {
     const config = (healthCheck as any).config;
-    
+
     // Run immediately
     this.runHealthCheck(id, healthCheck);
-    
+
     // Schedule recurring checks
     const interval = setInterval(() => {
       this.runHealthCheck(id, healthCheck);
     }, config.interval);
-    
+
     this.schedules.set(id, interval);
   }
 
-  private async runHealthCheck(id: string, healthCheck: BaseHealthCheck): Promise<void> {
+  private async runHealthCheck(
+    id: string,
+    healthCheck: BaseHealthCheck
+  ): Promise<void> {
     try {
       const result = await healthCheck.run();
       const previousResult = this.results.get(id);
-      
+
       this.results.set(id, result);
-      
+
       // Log status changes
       if (previousResult && previousResult.status !== result.status) {
         enterpriseLogger.info(
@@ -659,10 +673,14 @@ export class EnterpriseHealthMonitor extends EventEmitter {
           },
           ["health-check", "status-change", result.status]
         );
-        
-        this.emit("statusChange", { id, previous: previousResult.status, current: result.status });
+
+        this.emit("statusChange", {
+          id,
+          previous: previousResult.status,
+          current: result.status,
+        });
       }
-      
+
       // Alert on critical issues
       if (result.status === "unhealthy" && result.priority === "critical") {
         enterpriseLogger.critical(
@@ -676,10 +694,9 @@ export class EnterpriseHealthMonitor extends EventEmitter {
           },
           ["health-check", "critical", "alert"]
         );
-        
+
         this.emit("criticalFailure", result);
       }
-      
     } catch (error) {
       enterpriseLogger.error(
         `Health check execution failed: ${id}`,
@@ -698,7 +715,7 @@ export class EnterpriseHealthMonitor extends EventEmitter {
     const summary = this.calculateSummary(checks);
     const overall = this.calculateOverallStatus(checks);
     const score = this.calculateHealthScore(checks);
-    
+
     return {
       overall: this.maintenanceMode ? "maintenance" : overall,
       score,
@@ -731,16 +748,17 @@ export class EnterpriseHealthMonitor extends EventEmitter {
     this.maintenanceMode = true;
     this.maintenanceInfo = {
       start: new Date().toISOString(),
-      end: estimatedDuration ? new Date(Date.now() + estimatedDuration).toISOString() : undefined,
+      end: estimatedDuration
+        ? new Date(Date.now() + estimatedDuration).toISOString()
+        : undefined,
       reason,
     };
-    
-    enterpriseLogger.info(
-      "Maintenance mode enabled",
-      this.maintenanceInfo,
-      ["maintenance", "enabled"]
-    );
-    
+
+    enterpriseLogger.info("Maintenance mode enabled", this.maintenanceInfo, [
+      "maintenance",
+      "enabled",
+    ]);
+
     this.emit("maintenanceMode", { enabled: true, info: this.maintenanceInfo });
   }
 
@@ -749,16 +767,15 @@ export class EnterpriseHealthMonitor extends EventEmitter {
    */
   disableMaintenanceMode(): void {
     this.maintenanceMode = false;
-    const duration = this.maintenanceInfo?.start 
+    const duration = this.maintenanceInfo?.start
       ? Date.now() - new Date(this.maintenanceInfo.start).getTime()
       : 0;
-    
-    enterpriseLogger.info(
-      "Maintenance mode disabled",
-      { duration },
-      ["maintenance", "disabled"]
-    );
-    
+
+    enterpriseLogger.info("Maintenance mode disabled", { duration }, [
+      "maintenance",
+      "disabled",
+    ]);
+
     this.maintenanceInfo = null;
     this.emit("maintenanceMode", { enabled: false });
   }
@@ -772,7 +789,7 @@ export class EnterpriseHealthMonitor extends EventEmitter {
     }
     this.schedules.clear();
     this.results.clear();
-    
+
     enterpriseLogger.info("Health monitoring shutdown completed");
   }
 
@@ -787,52 +804,58 @@ export class EnterpriseHealthMonitor extends EventEmitter {
     };
   }
 
-  private calculateOverallStatus(checks: DetailedHealthResult[]): "healthy" | "degraded" | "unhealthy" {
+  private calculateOverallStatus(
+    checks: DetailedHealthResult[]
+  ): "healthy" | "degraded" | "unhealthy" {
     const criticalChecks = checks.filter(c => c.priority === "critical");
-    const unhealthyCritical = criticalChecks.filter(c => c.status === "unhealthy");
-    
+    const unhealthyCritical = criticalChecks.filter(
+      c => c.status === "unhealthy"
+    );
+
     if (unhealthyCritical.length > 0) return "unhealthy";
-    
-    const degradedCritical = criticalChecks.filter(c => c.status === "degraded");
+
+    const degradedCritical = criticalChecks.filter(
+      c => c.status === "degraded"
+    );
     if (degradedCritical.length > 0) return "degraded";
-    
+
     const allUnhealthy = checks.filter(c => c.status === "unhealthy");
     if (allUnhealthy.length > checks.length * 0.3) return "unhealthy";
-    
+
     const allDegraded = checks.filter(c => c.status === "degraded");
     if (allDegraded.length > checks.length * 0.5) return "degraded";
-    
+
     return "healthy";
   }
 
   private calculateHealthScore(checks: DetailedHealthResult[]): number {
     if (checks.length === 0) return 100;
-    
+
     const weights = {
       critical: 40,
       high: 30,
       medium: 20,
       low: 10,
     };
-    
+
     const statusScores = {
       healthy: 100,
       degraded: 60,
       unhealthy: 0,
       unknown: 50,
     };
-    
+
     let totalWeight = 0;
     let weightedScore = 0;
-    
+
     for (const check of checks) {
       const weight = weights[check.priority as keyof typeof weights] || 10;
       const score = statusScores[check.status] || 0;
-      
+
       totalWeight += weight;
       weightedScore += weight * score;
     }
-    
+
     return totalWeight > 0 ? Math.round(weightedScore / totalWeight) : 100;
   }
 
@@ -854,7 +877,7 @@ export class EnterpriseHealthMonitor extends EventEmitter {
 
   private getCapacityMetrics() {
     const memoryUsage = process.memoryUsage();
-    
+
     return {
       cpu: 25.5, // percentage
       memory: (memoryUsage.heapUsed / memoryUsage.heapTotal) * 100,
@@ -866,8 +889,9 @@ export class EnterpriseHealthMonitor extends EventEmitter {
 
   private getPerformanceMetrics(checks: DetailedHealthResult[]) {
     const performanceCheck = checks.find(c => c.id === "performance");
-    const avgResponseTime = checks.reduce((sum, c) => sum + c.responseTime, 0) / checks.length;
-    
+    const avgResponseTime =
+      checks.reduce((sum, c) => sum + c.responseTime, 0) / checks.length;
+
     return {
       averageResponseTime: Math.round(avgResponseTime),
       throughput: 1250, // requests per minute
@@ -882,7 +906,7 @@ export class EnterpriseHealthMonitor extends EventEmitter {
 
   private getSecurityMetrics(checks: DetailedHealthResult[]) {
     const securityCheck = checks.find(c => c.id === "security");
-    
+
     return {
       vulnerabilities: 0,
       securityScore: 95,
@@ -898,7 +922,11 @@ export class EnterpriseHealthMonitor extends EventEmitter {
       regulations: [
         { name: "GDPR", compliant: true, lastAudit: "2024-01-01T00:00:00Z" },
         { name: "SOC2", compliant: true, lastAudit: "2024-01-01T00:00:00Z" },
-        { name: "ISO 27001", compliant: true, lastAudit: "2023-12-01T00:00:00Z" },
+        {
+          name: "ISO 27001",
+          compliant: true,
+          lastAudit: "2023-12-01T00:00:00Z",
+        },
       ],
       dataRetention: true,
       encryption: true,
@@ -912,5 +940,5 @@ export const enterpriseHealthMonitor = new EnterpriseHealthMonitor();
 
 // Global access
 if (typeof globalThis !== "undefined") {
-  globalThis.EnterpriseHealthMonitor = enterpriseHealthMonitor;
+  (globalThis as any).EnterpriseHealthMonitor = enterpriseHealthMonitor;
 }

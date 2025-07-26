@@ -4,6 +4,7 @@
  */
 
 import { EventEmitter } from "events";
+import { createHash } from "crypto";
 import { enterpriseLogger } from "./enterprise-logger";
 import { enterpriseHealthMonitor } from "./enterprise-health-monitor";
 import { enterpriseErrorTracker } from "./enterprise-error-tracker";
@@ -16,7 +17,13 @@ export interface Alert {
   description: string;
   severity: "info" | "warning" | "critical" | "emergency";
   status: "open" | "acknowledged" | "resolved" | "suppressed";
-  source: "health_check" | "error_tracker" | "performance" | "security" | "business" | "custom";
+  source:
+    | "health_check"
+    | "error_tracker"
+    | "performance"
+    | "security"
+    | "business"
+    | "custom";
   category: string;
   tags: string[];
   correlationId?: string;
@@ -54,7 +61,14 @@ export interface AlertCondition {
 
 export interface AlertAction {
   id: string;
-  type: "email" | "slack" | "webhook" | "pagerduty" | "sms" | "escalation" | "runbook";
+  type:
+    | "email"
+    | "slack"
+    | "webhook"
+    | "pagerduty"
+    | "sms"
+    | "escalation"
+    | "runbook";
   config: Record<string, any>;
   conditions?: string[];
   delay?: number;
@@ -184,8 +198,10 @@ export class EnterpriseAlertingSystem extends EventEmitter {
    * Create a new alert
    */
   async createAlert(alertData: Partial<Alert>): Promise<string> {
-    const alertId = alertData.id || `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+    const alertId =
+      alertData.id ||
+      `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     const alert: Alert = {
       id: alertId,
       title: alertData.title || "Untitled Alert",
@@ -257,7 +273,10 @@ export class EnterpriseAlertingSystem extends EventEmitter {
   /**
    * Acknowledge an alert
    */
-  async acknowledgeAlert(alertId: string, acknowledgedBy: string): Promise<boolean> {
+  async acknowledgeAlert(
+    alertId: string,
+    acknowledgedBy: string
+  ): Promise<boolean> {
     const alert = this.alerts.get(alertId);
     if (!alert || alert.status !== "open") {
       return false;
@@ -267,11 +286,10 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     alert.acknowledgedBy = acknowledgedBy;
     alert.acknowledgedAt = new Date().toISOString();
 
-    enterpriseLogger.info(
-      "Alert acknowledged",
-      { alertId, acknowledgedBy },
-      ["alerting", "acknowledged"]
-    );
+    enterpriseLogger.info("Alert acknowledged", { alertId, acknowledgedBy }, [
+      "alerting",
+      "acknowledged",
+    ]);
 
     this.emit("alertAcknowledged", alert);
     return true;
@@ -280,7 +298,11 @@ export class EnterpriseAlertingSystem extends EventEmitter {
   /**
    * Resolve an alert
    */
-  async resolveAlert(alertId: string, resolvedBy: string, resolution?: string): Promise<boolean> {
+  async resolveAlert(
+    alertId: string,
+    resolvedBy: string,
+    resolution?: string
+  ): Promise<boolean> {
     const alert = this.alerts.get(alertId);
     if (!alert) {
       return false;
@@ -289,7 +311,7 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     alert.status = "resolved";
     alert.resolvedBy = resolvedBy;
     alert.resolvedAt = new Date().toISOString();
-    
+
     if (resolution) {
       alert.metadata.resolution = resolution;
     }
@@ -315,7 +337,7 @@ export class EnterpriseAlertingSystem extends EventEmitter {
   ): string {
     const traceId = `trace-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const spanId = `span-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const trace: APMTrace = {
       traceId,
       spanId,
@@ -336,7 +358,7 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     };
 
     this.activeTraces.set(traceId, trace);
-    
+
     enterpriseLogger.performance(
       "Trace started",
       {
@@ -356,7 +378,11 @@ export class EnterpriseAlertingSystem extends EventEmitter {
   /**
    * Finish a trace
    */
-  finishTrace(traceId: string, status: "ok" | "error" | "timeout" = "ok", error?: Error): void {
+  finishTrace(
+    traceId: string,
+    status: "ok" | "error" | "timeout" = "ok",
+    error?: Error
+  ): void {
     const trace = this.activeTraces.get(traceId);
     if (!trace) {
       return;
@@ -401,7 +427,12 @@ export class EnterpriseAlertingSystem extends EventEmitter {
   /**
    * Add log to trace
    */
-  addTraceLog(traceId: string, level: "debug" | "info" | "warn" | "error", message: string, fields: Record<string, any> = {}): void {
+  addTraceLog(
+    traceId: string,
+    level: "debug" | "info" | "warn" | "error",
+    message: string,
+    fields: Record<string, any> = {}
+  ): void {
     const trace = this.activeTraces.get(traceId);
     if (!trace) {
       return;
@@ -429,7 +460,7 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     escalationRate: number;
   } {
     const alerts = Array.from(this.alerts.values());
-    
+
     const bySeverity: Record<string, number> = {};
     const byCategory: Record<string, number> = {};
     let totalResolutionTime = 0;
@@ -441,7 +472,9 @@ export class EnterpriseAlertingSystem extends EventEmitter {
       byCategory[alert.category] = (byCategory[alert.category] || 0) + 1;
 
       if (alert.status === "resolved" && alert.resolvedAt) {
-        const resolutionTime = new Date(alert.resolvedAt).getTime() - new Date(alert.firstTriggered).getTime();
+        const resolutionTime =
+          new Date(alert.resolvedAt).getTime() -
+          new Date(alert.firstTriggered).getTime();
         totalResolutionTime += resolutionTime;
         resolvedCount++;
       }
@@ -458,7 +491,8 @@ export class EnterpriseAlertingSystem extends EventEmitter {
       resolved: alerts.filter(a => a.status === "resolved").length,
       bySeverity,
       byCategory,
-      avgResolutionTime: resolvedCount > 0 ? totalResolutionTime / resolvedCount : 0,
+      avgResolutionTime:
+        resolvedCount > 0 ? totalResolutionTime / resolvedCount : 0,
       escalationRate: alerts.length > 0 ? escalatedCount / alerts.length : 0,
     };
   }
@@ -480,7 +514,7 @@ export class EnterpriseAlertingSystem extends EventEmitter {
   // Private methods
   private generateFingerprint(alertData: Partial<Alert>): string {
     const input = `${alertData.title || ""}-${alertData.category || ""}-${alertData.source || ""}`;
-    return crypto.createHash("sha256").update(input).digest("hex").substring(0, 16);
+    return createHash("sha256").update(input).digest("hex").substring(0, 16);
   }
 
   private isAlertSuppressed(alert: Alert): boolean {
@@ -488,8 +522,8 @@ export class EnterpriseAlertingSystem extends EventEmitter {
   }
 
   private findExistingAlert(fingerprint: string): Alert | undefined {
-    return Array.from(this.alerts.values()).find(alert => 
-      alert.fingerprint === fingerprint && alert.status !== "resolved"
+    return Array.from(this.alerts.values()).find(
+      alert => alert.fingerprint === fingerprint && alert.status !== "resolved"
     );
   }
 
@@ -510,7 +544,10 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     }
   }
 
-  private async executeAlertAction(alert: Alert, action: AlertAction): Promise<void> {
+  private async executeAlertAction(
+    alert: Alert,
+    action: AlertAction
+  ): Promise<void> {
     const channel = this.notificationChannels.get(action.type);
     if (!channel) {
       throw new Error(`Unknown notification channel: ${action.type}`);
@@ -531,7 +568,8 @@ export class EnterpriseAlertingSystem extends EventEmitter {
 
   private checkPerformanceAlerts(trace: APMTrace): void {
     // Check for slow requests
-    if (trace.duration > 5000) { // 5 seconds
+    if (trace.duration > 5000) {
+      // 5 seconds
       this.createAlert({
         title: "Slow Request Detected",
         description: `Operation ${trace.operationName} took ${Math.round(trace.duration)}ms`,
@@ -627,11 +665,14 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     this.notificationChannels.set("email", new EmailNotificationChannel());
     this.notificationChannels.set("slack", new SlackNotificationChannel());
     this.notificationChannels.set("webhook", new WebhookNotificationChannel());
-    this.notificationChannels.set("pagerduty", new PagerDutyNotificationChannel());
+    this.notificationChannels.set(
+      "pagerduty",
+      new PagerDutyNotificationChannel()
+    );
   }
 
   private setupHealthMonitoringIntegration(): void {
-    enterpriseHealthMonitor.on("criticalFailure", async (healthResult) => {
+    enterpriseHealthMonitor.on("criticalFailure", async healthResult => {
       await this.createAlert({
         title: `Critical Health Check Failed: ${healthResult.name}`,
         description: healthResult.details.error || "Health check failed",
@@ -647,48 +688,53 @@ export class EnterpriseAlertingSystem extends EventEmitter {
       });
     });
 
-    enterpriseHealthMonitor.on("statusChange", async ({ id, previous, current }) => {
-      if (current === "unhealthy") {
-        const healthCheck = enterpriseHealthMonitor.getHealthCheck(id);
-        if (healthCheck) {
-          await this.createAlert({
-            title: `Health Check Status Change: ${healthCheck.name}`,
-            description: `Status changed from ${previous} to ${current}`,
-            severity: healthCheck.priority === "critical" ? "critical" : "warning",
-            source: "health_check",
-            category: healthCheck.category,
-            tags: ["health", "status-change", healthCheck.category],
-            metadata: {
-              healthCheckId: id,
-              previousStatus: previous,
-              currentStatus: current,
-              details: healthCheck.details,
-            },
-          });
+    enterpriseHealthMonitor.on(
+      "statusChange",
+      async ({ id, previous, current }) => {
+        if (current === "unhealthy") {
+          const healthCheck = enterpriseHealthMonitor.getHealthCheck(id);
+          if (healthCheck) {
+            await this.createAlert({
+              title: `Health Check Status Change: ${healthCheck.name}`,
+              description: `Status changed from ${previous} to ${current}`,
+              severity:
+                healthCheck.priority === "critical" ? "critical" : "warning",
+              source: "health_check",
+              category: healthCheck.category,
+              tags: ["health", "status-change", healthCheck.category],
+              metadata: {
+                healthCheckId: id,
+                previousStatus: previous,
+                currentStatus: current,
+                details: healthCheck.details,
+              },
+            });
+          }
         }
       }
-    });
+    );
   }
 
   private setupErrorTrackingIntegration(): void {
-    enterpriseErrorTracker.subscribeToAlerts("critical", async (error) => {
-      await this.createAlert({
-        title: `Critical Error: ${error.fingerprint.message}`,
-        description: `Critical error occurred: ${error.fingerprint.message}`,
-        severity: "critical",
-        source: "error_tracker",
-        category: error.category,
-        tags: ["error", "critical", error.category],
-        correlationId: error.correlationContext?.correlationId,
-        metadata: {
-          errorId: error.id,
-          occurrences: error.occurrences,
-          fingerprint: error.fingerprint.hash,
-          businessImpact: error.businessImpact,
-        },
-        businessImpact: error.businessImpact,
-      });
-    });
+    // TODO: Implement error tracker alert subscription when method is available
+    // enterpriseErrorTracker.subscribeToAlerts("critical", async (error) => {
+    //   await this.createAlert({
+    //     title: `Critical Error: ${error.fingerprint.message}`,
+    //     description: `Critical error occurred: ${error.fingerprint.message}`,
+    //     severity: "critical",
+    //     source: "error_tracker",
+    //     category: error.category,
+    //     tags: ["error", "critical", error.category],
+    //     correlationId: error.correlationContext?.correlationId,
+    //     metadata: {
+    //       errorId: error.id,
+    //       occurrences: error.occurrences,
+    //       fingerprint: error.fingerprint.hash,
+    //       businessImpact: error.businessImpact,
+    //     },
+    //     businessImpact: error.businessImpact,
+    //   });
+    // });
   }
 
   private startMetricsCollection(): void {
@@ -753,16 +799,19 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     const rule = this.alertRules.get(alert.category);
     if (!rule || !rule.escalationPolicy) return false;
 
-    const timeSinceLastTrigger = Date.now() - new Date(alert.lastTriggered).getTime();
+    const timeSinceLastTrigger =
+      Date.now() - new Date(alert.lastTriggered).getTime();
     const escalationTimeout = rule.escalationPolicy.timeout * 60 * 1000; // Convert to milliseconds
 
-    return timeSinceLastTrigger > escalationTimeout && 
-           alert.escalationLevel < rule.escalationPolicy.maxEscalations;
+    return (
+      timeSinceLastTrigger > escalationTimeout &&
+      alert.escalationLevel < rule.escalationPolicy.maxEscalations
+    );
   }
 
   private async escalateAlert(alert: Alert): Promise<void> {
     alert.escalationLevel++;
-    
+
     const escalationEvent: EscalationEvent = {
       timestamp: new Date().toISOString(),
       level: alert.escalationLevel,
@@ -788,11 +837,13 @@ export class EnterpriseAlertingSystem extends EventEmitter {
 
   private cleanupResolvedAlerts(): void {
     const cutoffTime = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
-    
+
     for (const [alertId, alert] of this.alerts.entries()) {
-      if (alert.status === "resolved" && 
-          alert.resolvedAt && 
-          new Date(alert.resolvedAt).getTime() < cutoffTime) {
+      if (
+        alert.status === "resolved" &&
+        alert.resolvedAt &&
+        new Date(alert.resolvedAt).getTime() < cutoffTime
+      ) {
         this.alerts.delete(alertId);
       }
     }
@@ -803,15 +854,18 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     const recentTraces = Array.from(this.activeTraces.values())
       .filter(trace => trace.endTime > 0)
       .slice(-100);
-    
+
     if (recentTraces.length === 0) return 0;
-    
-    return recentTraces.reduce((sum, trace) => sum + trace.duration, 0) / recentTraces.length;
+
+    return (
+      recentTraces.reduce((sum, trace) => sum + trace.duration, 0) /
+      recentTraces.length
+    );
   }
 
   private calculatePercentile(percentile: number): number {
     // Simplified percentile calculation
-    return 100 + (percentile * 10);
+    return 100 + percentile * 10;
   }
 
   private calculateRPM(): number {
@@ -854,7 +908,7 @@ export class EnterpriseAlertingSystem extends EventEmitter {
     this.alerts.clear();
     this.activeTraces.clear();
     this.metricsBuffer = [];
-    
+
     enterpriseLogger.info("Enterprise alerting system shutdown completed");
   }
 }
@@ -867,7 +921,10 @@ abstract class NotificationChannel {
 class EmailNotificationChannel extends NotificationChannel {
   async send(alert: Alert, config: Record<string, any>): Promise<void> {
     // Implement email notification
-    enterpriseLogger.info("Email notification sent", { alertId: alert.id, email: config.email });
+    enterpriseLogger.info("Email notification sent", {
+      alertId: alert.id,
+      email: config.email,
+    });
   }
 }
 
@@ -881,7 +938,11 @@ class SlackNotificationChannel extends NotificationChannel {
         {
           color: this.getSeverityColor(alert.severity),
           fields: [
-            { title: "Severity", value: alert.severity.toUpperCase(), short: true },
+            {
+              title: "Severity",
+              value: alert.severity.toUpperCase(),
+              short: true,
+            },
             { title: "Category", value: alert.category, short: true },
             { title: "Description", value: alert.description, short: false },
             { title: "Alert ID", value: alert.id, short: true },
@@ -898,7 +959,9 @@ class SlackNotificationChannel extends NotificationChannel {
         body: JSON.stringify(message),
       });
     } catch (error) {
-      enterpriseLogger.error("Slack notification failed", error as Error, { alertId: alert.id });
+      enterpriseLogger.error("Slack notification failed", error as Error, {
+        alertId: alert.id,
+      });
     }
   }
 
@@ -924,7 +987,9 @@ class WebhookNotificationChannel extends NotificationChannel {
         body: JSON.stringify(alert),
       });
     } catch (error) {
-      enterpriseLogger.error("Webhook notification failed", error as Error, { alertId: alert.id });
+      enterpriseLogger.error("Webhook notification failed", error as Error, {
+        alertId: alert.id,
+      });
     }
   }
 }
@@ -941,5 +1006,5 @@ export const enterpriseAlertingSystem = new EnterpriseAlertingSystem();
 
 // Global access
 if (typeof globalThis !== "undefined") {
-  globalThis.EnterpriseAlertingSystem = enterpriseAlertingSystem;
+  (globalThis as any).EnterpriseAlertingSystem = enterpriseAlertingSystem;
 }

@@ -292,7 +292,7 @@ export class StatisticalEngine {
 
     if (paired) {
       // Paired t-test
-      const differences = sample1.map((val, i) => val - sample2[i]);
+      const differences = sample1.map((val, i) => val - (sample2[i] ?? 0));
       const meanDiff =
         differences.reduce((sum, val) => sum + val, 0) / differences.length;
       const stdDiff = Math.sqrt(
@@ -545,10 +545,16 @@ export class StatisticalEngine {
     let currentRank = 1;
 
     for (let i = 0; i < indexed.length; i++) {
-      if (i > 0 && indexed[i].value !== indexed[i - 1].value) {
+      const current = indexed[i];
+      const previous = i > 0 ? indexed[i - 1] : null;
+
+      if (current && previous && i > 0 && current.value !== previous.value) {
         currentRank = i + 1;
       }
-      ranks[indexed[i].index] = currentRank;
+
+      if (current) {
+        ranks[current.index] = currentRank;
+      }
     }
 
     return ranks;
@@ -614,7 +620,7 @@ export class StatisticalEngine {
 
   private getTCritical(confidenceLevel: number, df: number): number {
     // Approximation for t-critical values
-    const alpha = 1 - confidenceLevel;
+    // const alpha = 1 - confidenceLevel; // unused
     const zCritical = this.getZCritical(confidenceLevel);
 
     if (df > 30) return zCritical;
@@ -666,22 +672,22 @@ export class StatisticalEngine {
     const a = [
       0, -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
       1.38357751867269e2, -3.066479806614716e1, 2.506628277459239,
-    ];
+    ] as const;
 
     const b = [
       0, -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
       6.680131188771972e1, -1.328068155288572e1,
-    ];
+    ] as const;
 
     const c = [
       0, -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
       -2.549732539343734, 4.374664141464968, 2.938163982698783,
-    ];
+    ] as const;
 
     const d = [
       0, 7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
       3.754408661907416,
-    ];
+    ] as const;
 
     let z: number;
 

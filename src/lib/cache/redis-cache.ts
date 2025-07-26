@@ -37,7 +37,7 @@ interface CacheItem<T = any> {
 
 class RedisCache {
   private static instance: RedisCache;
-  private redis: Redis;
+  private redis!: Redis; // Will be initialized in connect()
   private metrics: CacheMetrics;
   private isConnected = false;
 
@@ -83,14 +83,17 @@ class RedisCache {
     });
 
     this.redis = new Redis({
-      ...config,
+      host: config.host,
+      port: config.port,
+      password: config.password,
+      db: config.db,
       lazyConnect: true,
       keepAlive: 30000,
       family: 4, // Force IPv4
-      retryDelayOnClusterDown: 300,
-      retryDelayOnFailover: config.retryDelayOnFailover,
       maxRetriesPerRequest: config.maxRetriesPerRequest,
-      reconnectOnError: (err) => {
+      connectTimeout: config.connectTimeout,
+      commandTimeout: config.commandTimeout,
+      reconnectOnError: err => {
         const targetError = "READONLY";
         return err.message.includes(targetError);
       },
@@ -110,7 +113,7 @@ class RedisCache {
       this.configureRedis();
     });
 
-    this.redis.on("error", (error) => {
+    this.redis.on("error", error => {
       console.error("❌ Redis connection error:", error.message);
       this.metrics.errors++;
       this.isConnected = false;
@@ -121,7 +124,7 @@ class RedisCache {
       this.isConnected = false;
     });
 
-    this.redis.on("reconnecting", (delay) => {
+    this.redis.on("reconnecting", (delay: number) => {
       console.log(`🔄 Redis reconnecting in ${delay}ms...`);
     });
   }
@@ -132,7 +135,7 @@ class RedisCache {
       await this.redis.config("SET", "maxmemory-policy", "allkeys-lru");
       await this.redis.config("SET", "timeout", "300");
       await this.redis.config("SET", "tcp-keepalive", "60");
-      
+
       console.log("⚙️ Redis configured for optimal performance");
     } catch (error) {
       console.error("❌ Failed to configure Redis:", error);
@@ -160,7 +163,7 @@ class RedisCache {
 
     try {
       await this.ensureConnection();
-      
+
       const cached = await this.redis.get(this.formatKey(key));
       const responseTime = Date.now() - startTime;
       this.updateAverageResponseTime(responseTime);
@@ -171,7 +174,7 @@ class RedisCache {
       }
 
       const item: CacheItem<T> = JSON.parse(cached);
-      
+
       // Check expiry
       if (item.expiry && Date.now() > item.expiry) {
         this.metrics.misses++;
@@ -181,7 +184,7 @@ class RedisCache {
 
       this.metrics.hits++;
       this.updateHitRate();
-      
+
       return item.value;
     } catch (error) {
       this.metrics.errors++;
@@ -204,7 +207,7 @@ class RedisCache {
 
       const item: CacheItem<T> = {
         value,
-        expiry: options?.ttl ? Date.now() + (options.ttl * 1000) : 0,
+        expiry: options?.ttl ? Date.now() + options.ttl * 1000 : 0,
         tags: options?.tags || [],
         version: options?.version || 1,
       };
@@ -217,7 +220,7 @@ class RedisCache {
       );
 
       this.metrics.sets++;
-      
+
       // Add to tag indexes for cache invalidation
       if (options?.tags?.length) {
         await this.addToTagIndexes(key, options.tags);
@@ -234,10 +237,10 @@ class RedisCache {
   public async delete(key: string): Promise<boolean> {
     try {
       await this.ensureConnection();
-      
+
       const result = await this.redis.del(this.formatKey(key));
       this.metrics.deletes++;
-      
+
       return result > 0;
     } catch (error) {
       this.metrics.errors++;
@@ -253,13 +256,13 @@ class RedisCache {
   public async mget<T>(keys: string[]): Promise<(T | null)[]> {
     try {
       await this.ensureConnection();
-      
+
       const formattedKeys = keys.map(key => this.formatKey(key));
       const cached = await this.redis.mget(...formattedKeys);
-      
+
       return cached.map((item, index) => {
         this.metrics.totalRequests++;
-        
+
         if (!item) {
           this.metrics.misses++;
           return null;
@@ -267,11 +270,14 @@ class RedisCache {
 
         try {
           const cacheItem: CacheItem<T> = JSON.parse(item);
-          
+
           // Check expiry
           if (cacheItem.expiry && Date.now() > cacheItem.expiry) {
             this.metrics.misses++;
-            this.delete(keys[index]); // Clean up expired item
+            const key = keys[index];
+            if (key) {
+              this.delete(key); // Clean up expired item
+            }
             return null;
           }
 
@@ -301,13 +307,13 @@ class RedisCache {
   ): Promise<boolean> {
     try {
       await this.ensureConnection();
-      
+
       const pipeline = this.redis.pipeline();
-      
+
       for (const item of items) {
         const cacheItem: CacheItem<T> = {
           value: item.value,
-          expiry: item.ttl ? Date.now() + (item.ttl * 1000) : 0,
+          expiry: item.ttl ? Date.now() + item.ttl * 1000 : 0,
           tags: item.tags || [],
           version: 1,
         };
@@ -329,7 +335,7 @@ class RedisCache {
 
       const results = await pipeline.exec();
       this.metrics.sets += items.length;
-      
+
       return results?.every(result => result[1] === "OK") || false;
     } catch (error) {
       this.metrics.errors++;
@@ -345,31 +351,34 @@ class RedisCache {
   public async invalidateByTag(tag: string): Promise<number> {
     try {
       await this.ensureConnection();
-      
+
       const tagKey = this.formatTagKey(tag);
       const keys = await this.redis.smembers(tagKey);
-      
+
       if (keys.length === 0) {
         return 0;
       }
 
       const pipeline = this.redis.pipeline();
-      
+
       // Delete all keys with this tag
       for (const key of keys) {
         pipeline.del(this.formatKey(key));
       }
-      
+
       // Clean up the tag index
       pipeline.del(tagKey);
-      
+
       const results = await pipeline.exec();
-      const deletedCount = results?.filter(result => result[1] === 1).length || 0;
-      
+      const deletedCount =
+        results?.filter(result => result[1] === 1).length || 0;
+
       this.metrics.deletes += deletedCount;
-      
-      console.log(`🧹 Invalidated ${deletedCount} cache entries for tag: ${tag}`);
-      
+
+      console.log(
+        `🧹 Invalidated ${deletedCount} cache entries for tag: ${tag}`
+      );
+
       return deletedCount;
     } catch (error) {
       this.metrics.errors++;
@@ -380,11 +389,11 @@ class RedisCache {
 
   public async invalidateByTags(tags: string[]): Promise<number> {
     let totalDeleted = 0;
-    
+
     for (const tag of tags) {
       totalDeleted += await this.invalidateByTag(tag);
     }
-    
+
     return totalDeleted;
   }
 
@@ -400,8 +409,10 @@ class RedisCache {
       tags?: string[];
     }>
   ): Promise<void> {
-    console.log(`🔥 Starting cache warm-up for ${warmupFunctions.length} functions...`);
-    
+    console.log(
+      `🔥 Starting cache warm-up for ${warmupFunctions.length} functions...`
+    );
+
     const startTime = Date.now();
     const results = await Promise.allSettled(
       warmupFunctions.map(async ({ key, fn, ttl, tags }) => {
@@ -415,7 +426,7 @@ class RedisCache {
           // Load and cache the data
           const data = await fn();
           await this.set(key, data, { ttl, tags });
-          
+
           return { key, status: "cached" };
         } catch (error) {
           console.error(`❌ Cache warm-up failed for key ${key}:`, error);
@@ -424,23 +435,25 @@ class RedisCache {
       })
     );
 
-    const successful = results.filter(result => 
-      result.status === "fulfilled" && 
-      result.value.status === "cached"
+    const successful = results.filter(
+      result =>
+        result.status === "fulfilled" && result.value.status === "cached"
     ).length;
 
-    const alreadyCached = results.filter(result => 
-      result.status === "fulfilled" && 
-      result.value.status === "already_cached"
+    const alreadyCached = results.filter(
+      result =>
+        result.status === "fulfilled" &&
+        result.value.status === "already_cached"
     ).length;
 
-    const failed = results.filter(result => 
-      result.status === "rejected" || 
-      (result.status === "fulfilled" && result.value.status === "failed")
+    const failed = results.filter(
+      result =>
+        result.status === "rejected" ||
+        (result.status === "fulfilled" && result.value.status === "failed")
     ).length;
 
     const duration = Date.now() - startTime;
-    
+
     console.log(`✅ Cache warm-up completed in ${duration}ms`, {
       successful,
       alreadyCached,
@@ -478,12 +491,15 @@ class RedisCache {
   }
 
   private updateHitRate(): void {
-    this.metrics.hitRate = (this.metrics.hits / this.metrics.totalRequests) * 100;
+    this.metrics.hitRate =
+      (this.metrics.hits / this.metrics.totalRequests) * 100;
   }
 
   private updateAverageResponseTime(responseTime: number): void {
-    const totalResponseTime = this.metrics.averageResponseTime * this.metrics.totalRequests;
-    this.metrics.averageResponseTime = (totalResponseTime + responseTime) / (this.metrics.totalRequests + 1);
+    const totalResponseTime =
+      this.metrics.averageResponseTime * this.metrics.totalRequests;
+    this.metrics.averageResponseTime =
+      (totalResponseTime + responseTime) / (this.metrics.totalRequests + 1);
   }
 
   // =====================================================
@@ -497,10 +513,10 @@ class RedisCache {
   public async getCacheInfo(): Promise<any> {
     try {
       await this.ensureConnection();
-      
+
       const info = await this.redis.info("memory");
       const stats = await this.redis.info("stats");
-      
+
       return {
         connected: this.isConnected,
         metrics: this.getMetrics(),
@@ -521,14 +537,14 @@ class RedisCache {
 
   private parseRedisInfo(info: string): Record<string, string> {
     const result: Record<string, string> = {};
-    
+
     info.split("\n").forEach(line => {
       const [key, value] = line.split(":");
       if (key && value) {
         result[key.trim()] = value.trim();
       }
     });
-    
+
     return result;
   }
 
@@ -536,7 +552,7 @@ class RedisCache {
     try {
       await this.ensureConnection();
       await this.redis.flushall();
-      
+
       // Reset metrics
       this.metrics = {
         hits: 0,
@@ -548,7 +564,7 @@ class RedisCache {
         hitRate: 0,
         averageResponseTime: 0,
       };
-      
+
       console.log("🧹 Cache flushed successfully");
       return true;
     } catch (error) {
@@ -608,8 +624,10 @@ export const CacheKeys = {
   projectCompetitors: (projectId: string) => `project:${projectId}:competitors`,
   userTeams: (userId: string) => `user:${userId}:teams`,
   userProjects: (userId: string) => `user:${userId}:projects`,
-  contentAnalytics: (contentId: string, days: number) => `content:${contentId}:analytics:${days}d`,
-  competitorTracking: (competitorId: string) => `competitor:${competitorId}:tracking`,
+  contentAnalytics: (contentId: string, days: number) =>
+    `content:${contentId}:analytics:${days}d`,
+  competitorTracking: (competitorId: string) =>
+    `competitor:${competitorId}:tracking`,
   dashboards: (projectId: string) => `project:${projectId}:dashboards`,
 };
 

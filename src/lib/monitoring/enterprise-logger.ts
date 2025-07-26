@@ -998,5 +998,5 @@ export const enterpriseLogger = new EnterpriseLogger({
 
 // Global access
 if (typeof globalThis !== "undefined") {
-  globalThis.EnterpriseLogger = enterpriseLogger;
+  (globalThis as any).EnterpriseLogger = enterpriseLogger;
 }

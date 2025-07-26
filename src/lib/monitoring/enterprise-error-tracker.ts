@@ -91,7 +91,7 @@ export class EnterpriseErrorTracker {
     this.alertManager = new AlertManager();
     this.correlationTracker = new CorrelationTracker();
     this.metricsCollector = new ErrorMetricsCollector();
-    
+
     this.initializeDefaultConfigurations();
     this.setupHealthChecks();
   }
@@ -112,39 +112,33 @@ export class EnterpriseErrorTracker {
     }
   ): Promise<string> {
     const startTime = performance.now();
-    
+
     // Generate correlation ID
     const correlationId = this.generateCorrelationId();
-    
+
     // Enhance context with enterprise data
     const enhancedContext: ErrorContext = {
       ...context,
-      correlationId,
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || "production",
-      serviceName: process.env.SERVICE_NAME || "contentlab-nexus",
-      buildNumber: process.env.BUILD_NUMBER || "unknown",
-      region: process.env.AWS_REGION || "unknown",
-      performanceMetrics: {
-        cpuUsage: this.getCpuUsage(),
-        memoryUsage: this.getMemoryUsage(),
-        responseTime: performance.now() - startTime,
-      },
     };
 
     // Track with base error tracker
     const errorId = errorTracker.trackError(error, enhancedContext);
-    
+
     // Get tracked error for enterprise processing
     const trackedError = errorTracker.getError(errorId);
     if (!trackedError) {
-      logger.error("Failed to retrieve tracked error for enterprise processing", { errorId });
+      console.error(
+        "Failed to retrieve tracked error for enterprise processing",
+        { errorId }
+      );
       return errorId;
     }
 
     // Enterprise processing
     await this.processEnterpriseError(trackedError, context);
-    
+
     return errorId;
   }
 
@@ -158,27 +152,29 @@ export class EnterpriseErrorTracker {
   ): Promise<void> {
     try {
       // 1. Business impact analysis
-      const businessImpact = await this.businessImpactAnalyzer.analyze(error, context);
-      
+      const businessImpact = await this.businessImpactAnalyzer.analyze(
+        error,
+        context
+      );
+
       // 2. Correlation tracking
       if (context.traceContext) {
         this.correlationTracker.trackCorrelation(error, context.traceContext);
       }
-      
+
       // 3. Alert processing
       await this.alertManager.processError(error, businessImpact);
-      
+
       // 4. Circuit breaker evaluation
       this.evaluateCircuitBreakers(error);
-      
+
       // 5. Auto-recovery attempt
       if (this.shouldAttemptRecovery(error)) {
         await this.attemptRecovery(error);
       }
-      
+
       // 6. Metrics collection
       this.metricsCollector.collect(error, businessImpact);
-      
     } catch (processingError) {
       logger.error(
         "Failed to process enterprise error features",
@@ -209,9 +205,9 @@ export class EnterpriseErrorTracker {
   }
 
   private evaluateCircuitBreakers(error: TrackedError): void {
-    const service = error.context.serviceName || "unknown";
+    const service = (error.context as any).serviceName || "unknown";
     const breakerKey = `${service}-${error.category}`;
-    
+
     let breaker = this.circuitBreakers.get(breakerKey);
     if (!breaker) {
       breaker = {
@@ -225,16 +221,16 @@ export class EnterpriseErrorTracker {
     }
 
     const now = Date.now();
-    
+
     if (error.severity === "critical" || error.severity === "high") {
       breaker.failureCount++;
       breaker.lastFailureTime = now;
-      
+
       // Open circuit after 5 failures in 5 minutes
       if (breaker.failureCount >= 5 && breaker.state === "closed") {
         breaker.state = "open";
         breaker.nextAttemptTime = now + 60000; // 1 minute timeout
-        
+
         logger.warn(
           "Circuit breaker opened",
           {
@@ -265,8 +261,11 @@ export class EnterpriseErrorTracker {
     if (!action) return;
 
     const now = Date.now();
-    if (action.lastExecuted && (now - action.lastExecuted) < action.cooldownMs) {
-      logger.info("Recovery action in cooldown", { actionId: action.id, category: error.category });
+    if (action.lastExecuted && now - action.lastExecuted < action.cooldownMs) {
+      logger.info("Recovery action in cooldown", {
+        actionId: action.id,
+        category: error.category,
+      });
       return;
     }
 
@@ -287,7 +286,7 @@ export class EnterpriseErrorTracker {
       }
 
       action.lastExecuted = now;
-      
+
       logger.info(
         "Recovery action completed",
         {
@@ -296,7 +295,6 @@ export class EnterpriseErrorTracker {
         },
         ["recovery", "success"]
       );
-
     } catch (recoveryError) {
       logger.error(
         "Recovery action failed",
@@ -310,7 +308,10 @@ export class EnterpriseErrorTracker {
     }
   }
 
-  private async executeRecoveryScript(script: string, error: TrackedError): Promise<void> {
+  private async executeRecoveryScript(
+    script: string,
+    error: TrackedError
+  ): Promise<void> {
     // Placeholder for recovery script execution
     // In a real implementation, this would execute scripts safely in a sandboxed environment
     logger.info("Executing recovery script", { script, errorId: error.id });
@@ -336,12 +337,16 @@ export class EnterpriseErrorTracker {
         levels: [
           {
             level: 1,
-            channels: [{ type: "slack", endpoint: process.env.SLACK_WEBHOOK_URL || "" }],
+            channels: [
+              { type: "slack", endpoint: process.env.SLACK_WEBHOOK_URL || "" },
+            ],
             delayMs: 0,
           },
           {
             level: 2,
-            channels: [{ type: "email", endpoint: process.env.ALERT_EMAIL || "" }],
+            channels: [
+              { type: "email", endpoint: process.env.ALERT_EMAIL || "" },
+            ],
             delayMs: 300000, // 5 minutes
           },
         ],
@@ -379,9 +384,10 @@ export class EnterpriseErrorTracker {
 
   private performHealthCheck(): void {
     const metrics = errorTracker.getErrorMetrics();
-    
+
     // Check for high error rates
-    if (metrics.errorRate > 100) { // More than 100 errors per hour
+    if (metrics.errorRate > 100) {
+      // More than 100 errors per hour
       logger.warn(
         "High error rate detected",
         {
@@ -413,14 +419,16 @@ export class EnterpriseErrorTracker {
    */
   getEnterpriseAnalytics(): EnterpriseErrorAnalytics {
     const baseMetrics = errorTracker.getErrorMetrics();
-    
+
     return {
       ...baseMetrics,
       businessImpact: this.businessImpactAnalyzer.getSummary(),
-      circuitBreakers: Array.from(this.circuitBreakers.entries()).map(([key, state]) => ({
-        service: key,
-        ...state,
-      })),
+      circuitBreakers: Array.from(this.circuitBreakers.entries()).map(
+        ([key, state]) => ({
+          service: key,
+          ...state,
+        })
+      ),
       recoveryActions: Array.from(this.recoveryActions.values()),
       correlationMetrics: this.correlationTracker.getMetrics(),
     };
@@ -457,7 +465,9 @@ export class EnterpriseErrorTracker {
 class BusinessImpactAnalyzer {
   async analyze(
     error: TrackedError,
-    context: ErrorContext & { businessImpact?: Partial<EnterpriseBusinessImpact> }
+    context: ErrorContext & {
+      businessImpact?: Partial<EnterpriseBusinessImpact>;
+    }
   ): Promise<EnterpriseBusinessImpact> {
     const baseImpact: EnterpriseBusinessImpact = {
       usersAffected: 0,
@@ -472,25 +482,25 @@ class BusinessImpactAnalyzer {
 
     // Analyze user impact
     baseImpact.usersAffected = this.calculateUsersAffected(error);
-    
+
     // Analyze revenue impact
     baseImpact.revenueImpact = this.calculateRevenueImpact(error);
-    
+
     // Identify critical user journeys
     baseImpact.criticalUserJourneys = this.identifyCriticalJourneys(error);
-    
+
     // Calculate service downtime
     baseImpact.serviceDowntime = this.calculateServiceDowntime(error);
-    
+
     // Check SLA violations
     baseImpact.slaViolation = this.checkSlaViolation(error);
-    
+
     // Analyze customer segments
     baseImpact.customerSegmentImpact = this.analyzeCustomerSegments(error);
-    
+
     // Analyze geographic impact
     baseImpact.geographicImpact = this.analyzeGeographicImpact(error);
-    
+
     // Analyze feature impact
     baseImpact.featureImpact = this.analyzeFeatureImpact(error);
 
@@ -500,22 +510,26 @@ class BusinessImpactAnalyzer {
   private calculateUsersAffected(error: TrackedError): number {
     const multiplier = this.getSeverityMultiplier(error.severity);
     const categoryMultiplier = this.getCategoryMultiplier(error.category);
-    
+
     return Math.floor(error.occurrences * multiplier * categoryMultiplier);
   }
 
   private calculateRevenueImpact(error: TrackedError): number {
-    const baseImpact = error.occurrences * 0.10; // $0.10 per error
+    const baseImpact = error.occurrences * 0.1; // $0.10 per error
     const severityMultiplier = this.getSeverityMultiplier(error.severity);
-    
-    if (error.context.businessContext?.subscriptionTier === "enterprise") {
+
+    if (
+      (error.context as any).businessContext?.subscriptionTier === "enterprise"
+    ) {
       return baseImpact * severityMultiplier * 100;
     }
-    
-    if (error.context.businessContext?.subscriptionTier === "premium") {
+
+    if (
+      (error.context as any).businessContext?.subscriptionTier === "premium"
+    ) {
       return baseImpact * severityMultiplier * 10;
     }
-    
+
     return baseImpact * severityMultiplier;
   }
 
@@ -549,7 +563,7 @@ class BusinessImpactAnalyzer {
   private identifyCriticalJourneys(error: TrackedError): string[] {
     const journeys: string[] = [];
     const endpoint = error.context.endpoint || "";
-    
+
     if (endpoint.includes("auth") || endpoint.includes("login")) {
       journeys.push("user-authentication");
     }
@@ -562,12 +576,12 @@ class BusinessImpactAnalyzer {
     if (endpoint.includes("dashboard") || endpoint.includes("app")) {
       journeys.push("core-application");
     }
-    
+
     return journeys;
   }
 
   private calculateServiceDowntime(error: TrackedError): number {
-    if (error.severity === "critical" && error.category === "infrastructure") {
+    if (error.severity === "critical" && error.category === "database") {
       return error.occurrences * 1000; // 1 second per occurrence
     }
     return 0;
@@ -575,42 +589,42 @@ class BusinessImpactAnalyzer {
 
   private checkSlaViolation(error: TrackedError): boolean {
     return (
-      error.severity === "critical" && 
-      error.occurrences > 3 && 
-      (error.category === "infrastructure" || error.category === "database")
+      error.severity === "critical" &&
+      error.occurrences > 3 &&
+      (error.category === "network" || error.category === "database")
     );
   }
 
   private analyzeCustomerSegments(error: TrackedError): Record<string, number> {
     const segments: Record<string, number> = {};
-    const tier = error.context.businessContext?.subscriptionTier;
-    
+    const tier = (error.context as any).businessContext?.subscriptionTier;
+
     if (tier) {
       segments[tier] = error.occurrences;
     }
-    
+
     return segments;
   }
 
   private analyzeGeographicImpact(error: TrackedError): Record<string, number> {
     const geographic: Record<string, number> = {};
-    const region = error.context.region;
-    
+    const region = (error.context as any).region;
+
     if (region) {
       geographic[region] = error.occurrences;
     }
-    
+
     return geographic;
   }
 
   private analyzeFeatureImpact(error: TrackedError): Record<string, number> {
     const features: Record<string, number> = {};
-    const feature = error.context.businessContext?.feature;
-    
+    const feature = (error.context as any).businessContext?.feature;
+
     if (feature) {
       features[feature] = error.occurrences;
     }
-    
+
     return features;
   }
 
@@ -634,13 +648,19 @@ class AlertManager {
   private alertHistory: Map<string, number> = new Map();
   private escalationTimers: Map<string, NodeJS.Timeout> = new Map();
 
-  async processError(error: TrackedError, businessImpact: EnterpriseBusinessImpact): Promise<void> {
+  async processError(
+    error: TrackedError,
+    businessImpact: EnterpriseBusinessImpact
+  ): Promise<void> {
     if (this.shouldAlert(error, businessImpact)) {
       await this.sendAlert(error, businessImpact);
     }
   }
 
-  private shouldAlert(error: TrackedError, businessImpact: EnterpriseBusinessImpact): boolean {
+  private shouldAlert(
+    error: TrackedError,
+    businessImpact: EnterpriseBusinessImpact
+  ): boolean {
     // Alert on critical errors or significant business impact
     return (
       error.severity === "critical" ||
@@ -650,18 +670,21 @@ class AlertManager {
     );
   }
 
-  private async sendAlert(error: TrackedError, businessImpact: EnterpriseBusinessImpact): Promise<void> {
+  private async sendAlert(
+    error: TrackedError,
+    businessImpact: EnterpriseBusinessImpact
+  ): Promise<void> {
     const alertKey = `${error.category}-${error.fingerprint.hash}`;
     const lastAlert = this.alertHistory.get(alertKey) || 0;
     const now = Date.now();
-    
+
     // Rate limit alerts - no more than once per 5 minutes per error type
     if (now - lastAlert < 300000) {
       return;
     }
-    
+
     this.alertHistory.set(alertKey, now);
-    
+
     logger.critical(
       "ENTERPRISE ALERT",
       new Error(error.fingerprint.message),
@@ -671,8 +694,8 @@ class AlertManager {
         category: error.category,
         occurrences: error.occurrences,
         businessImpact,
-        runbookUrl: error.runbookUrl,
-        assignedTeam: error.assignedTeam,
+        runbookUrl: (error as any).runbookUrl,
+        assignedTeam: (error as any).assignedTeam,
       },
       ["alert", "enterprise", error.severity]
     );
@@ -691,10 +714,13 @@ class AlertManager {
 class CorrelationTracker {
   private correlations: Map<string, string[]> = new Map();
 
-  trackCorrelation(error: TrackedError, traceContext: DistributedTraceContext): void {
+  trackCorrelation(
+    error: TrackedError,
+    traceContext: DistributedTraceContext
+  ): void {
     const traceId = traceContext.traceId;
     const existing = this.correlations.get(traceId) || [];
-    
+
     if (!existing.includes(error.id)) {
       existing.push(error.id);
       this.correlations.set(traceId, existing);
@@ -708,12 +734,17 @@ class CorrelationTracker {
   getMetrics(): CorrelationMetrics {
     return {
       totalTraces: this.correlations.size,
-      totalCorrelatedErrors: Array.from(this.correlations.values())
-        .reduce((sum, errors) => sum + errors.length, 0),
-      averageErrorsPerTrace: this.correlations.size > 0 
-        ? Array.from(this.correlations.values())
-            .reduce((sum, errors) => sum + errors.length, 0) / this.correlations.size
-        : 0,
+      totalCorrelatedErrors: Array.from(this.correlations.values()).reduce(
+        (sum, errors) => sum + errors.length,
+        0
+      ),
+      averageErrorsPerTrace:
+        this.correlations.size > 0
+          ? Array.from(this.correlations.values()).reduce(
+              (sum, errors) => sum + errors.length,
+              0
+            ) / this.correlations.size
+          : 0,
     };
   }
 
@@ -730,8 +761,16 @@ class ErrorMetricsCollector {
     // Collect custom metrics for enterprise analysis
     this.updateMetric("errors_by_severity", error.severity, 1);
     this.updateMetric("errors_by_category", error.category, 1);
-    this.updateMetric("business_impact_users", "total", businessImpact.usersAffected);
-    this.updateMetric("business_impact_revenue", "total", businessImpact.revenueImpact);
+    this.updateMetric(
+      "business_impact_users",
+      "total",
+      businessImpact.usersAffected
+    );
+    this.updateMetric(
+      "business_impact_revenue",
+      "total",
+      businessImpact.revenueImpact
+    );
   }
 
   private updateMetric(category: string, key: string, value: number): void {
@@ -776,5 +815,5 @@ export const enterpriseErrorTracker = new EnterpriseErrorTracker();
 
 // Export for global access
 if (typeof globalThis !== "undefined") {
-  globalThis.EnterpriseErrorTracker = enterpriseErrorTracker;
+  (globalThis as any).EnterpriseErrorTracker = enterpriseErrorTracker;
 }

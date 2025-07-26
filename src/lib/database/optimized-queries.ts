@@ -74,17 +74,20 @@ export const getTeamsWithFullDetailsForUser = async (
     }
 
     // Transform the nested data to include computed fields
-    return (data || []).map(team => ({
-      ...team,
-      project_count: team.projects?.length || 0,
-      member_count: team.team_members?.length || 0,
-      projects: (team.projects || []).map(project => ({
-        ...project,
-        content_count: (project as any).content_items?.[0]?.count || 0,
-        competitor_count: (project as any).competitors?.[0]?.count || 0,
-        latest_content: null, // Would need separate query for this
-      })),
-    }));
+    return (data || []).map(team => {
+      const teamObj = team as any;
+      return {
+        ...teamObj,
+        project_count: teamObj.projects?.length || 0,
+        member_count: teamObj.team_members?.length || 0,
+        projects: (teamObj.projects || []).map((project: any) => ({
+          ...project,
+          content_count: project.content_items?.[0]?.count || 0,
+          competitor_count: project.competitors?.[0]?.count || 0,
+          latest_content: null, // Would need separate query for this
+        })),
+      } as TeamWithMembersAndProjects;
+    });
   });
 };
 

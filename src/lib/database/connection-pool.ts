@@ -127,9 +127,6 @@ class DatabaseConnectionPool {
           db: {
             schema: "public",
           },
-          realtime: {
-            enabled: false, // Disable realtime for pooled connections
-          },
         }
       );
 
