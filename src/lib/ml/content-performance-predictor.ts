@@ -184,8 +184,15 @@ export class ContentPerformancePredictor {
       keywordDensity: seoFeatures.keywordDensity,
       keywordInTitle: seoFeatures.keywordInTitle,
       keywordInMeta: seoFeatures.keywordInMeta,
-      titleLength: content.meta_title?.length || content.title.length,
-      metaDescriptionLength: content.meta_description?.length || 0,
+      titleLength:
+        (typeof content.meta_title === "string"
+          ? content.meta_title.length
+          : 0) ||
+        (typeof content.title === "string" ? content.title.length : 0),
+      metaDescriptionLength:
+        typeof content.meta_description === "string"
+          ? content.meta_description.length
+          : 0,
       urlOptimizationScore: seoFeatures.urlScore,
 
       // Visual features
@@ -211,7 +218,7 @@ export class ContentPerformancePredictor {
       historicalConversion: historicalPerf.conversion,
       historicalBounceRate: historicalPerf.bounceRate,
       trendingScore: await this.calculateTrendingScore(
-        content.focus_keywords || []
+        Array.isArray(content.focus_keywords) ? content.focus_keywords : []
       ),
     });
   }
@@ -667,7 +674,7 @@ export class ContentPerformancePredictor {
       .eq("id", contentId)
       .single();
 
-    return data?.project_id || "";
+    return (data?.project_id as string) || "";
   }
 
   private getConfidenceLevel(
@@ -713,9 +720,12 @@ export class ContentPerformancePredictor {
     const evaluations = await Promise.all(
       predictions.map(async pred => {
         const actual = this.calculateActualPerformance(
-          pred.content_items.content_analytics
+          (pred as any).content_items?.content_analytics || []
         );
-        const accuracy = this.calculateAccuracy(pred.prediction_data, actual);
+        const accuracy = this.calculateAccuracy(
+          (pred as any).prediction_data,
+          actual
+        );
 
         // Update prediction with evaluation
         await this.supabase
@@ -726,9 +736,9 @@ export class ContentPerformancePredictor {
             is_evaluated: true,
             evaluation_date: new Date().toISOString(),
           })
-          .eq("id", pred.id);
+          .eq("id", (pred as any).id);
 
-        return { predictionId: pred.id, accuracy };
+        return { predictionId: (pred as any).id, accuracy };
       })
     );
 

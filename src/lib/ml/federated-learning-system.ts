@@ -171,7 +171,11 @@ export class FederatedLearningSystem extends EventEmitter {
     this.activeModels.set(sessionId, {
       modelId,
       version: 1,
-      algorithm: validatedConfig.aggregationAlgorithm,
+      algorithm: validatedConfig.aggregationAlgorithm as
+        | "federated_averaging"
+        | "federated_sgd"
+        | "federated_prox"
+        | "secure_aggregation",
       globalWeights: initialModel.weights,
       globalBiases: initialModel.biases,
       metadata: {
@@ -387,11 +391,11 @@ export class FederatedLearningSystem extends EventEmitter {
 
     this.emit("aggregation:completed", {
       sessionId,
-      round: currentRound + 1,
+      round: (currentRound as number) + 1,
       performance: performanceMetrics,
     });
 
-    return currentRound + 1;
+    return (currentRound as number) + 1;
   }
 
   /**
@@ -596,20 +600,22 @@ export class FederatedLearningSystem extends EventEmitter {
     // Initialize with zeros
     for (const layer in globalModel.globalWeights) {
       aggregatedWeights[layer] = new Array(
-        globalModel.globalWeights[layer].length
+        globalModel.globalWeights[layer]?.length || 0
       ).fill(0);
     }
     for (const layer in globalModel.globalBiases) {
       aggregatedBiases[layer] = new Array(
-        globalModel.globalBiases[layer].length
+        globalModel.globalBiases[layer]?.length || 0
       ).fill(0);
     }
 
     // Sum all client updates
     for (const update of updates) {
       for (const layer in update.localWeights) {
-        for (let i = 0; i < update.localWeights[layer].length; i++) {
-          aggregatedWeights[layer][i] += update.localWeights[layer][i];
+        for (let i = 0; i < (update.localWeights[layer]?.length || 0); i++) {
+          if (aggregatedWeights[layer]) {
+            aggregatedWeights[layer][i] += update.localWeights[layer]![i] || 0;
+          }
         }
       }
       for (const layer in update.localBiases) {
@@ -662,12 +668,12 @@ export class FederatedLearningSystem extends EventEmitter {
     // Initialize with zeros
     for (const layer in globalModel.globalWeights) {
       aggregatedWeights[layer] = new Array(
-        globalModel.globalWeights[layer].length
+        globalModel.globalWeights[layer]?.length || 0
       ).fill(0);
     }
     for (const layer in globalModel.globalBiases) {
       aggregatedBiases[layer] = new Array(
-        globalModel.globalBiases[layer].length
+        globalModel.globalBiases[layer]?.length || 0
       ).fill(0);
     }
 
@@ -676,7 +682,7 @@ export class FederatedLearningSystem extends EventEmitter {
       const weight = update.trainingMetrics.samplesUsed / totalSamples;
 
       for (const layer in update.localWeights) {
-        for (let i = 0; i < update.localWeights[layer].length; i++) {
+        for (let i = 0; i < (update.localWeights[layer]?.length || 0); i++) {
           aggregatedWeights[layer][i] += update.localWeights[layer][i] * weight;
         }
       }
@@ -755,12 +761,12 @@ export class FederatedLearningSystem extends EventEmitter {
     // Initialize with zeros
     for (const layer in globalModel.globalWeights) {
       aggregatedWeights[layer] = new Array(
-        globalModel.globalWeights[layer].length
+        globalModel.globalWeights[layer]?.length || 0
       ).fill(0);
     }
     for (const layer in globalModel.globalBiases) {
       aggregatedBiases[layer] = new Array(
-        globalModel.globalBiases[layer].length
+        globalModel.globalBiases[layer]?.length || 0
       ).fill(0);
     }
 
@@ -769,7 +775,7 @@ export class FederatedLearningSystem extends EventEmitter {
       const weight = update.trainingMetrics.localAccuracy / totalWeight;
 
       for (const layer in update.localWeights) {
-        for (let i = 0; i < update.localWeights[layer].length; i++) {
+        for (let i = 0; i < (update.localWeights[layer]?.length || 0); i++) {
           aggregatedWeights[layer][i] += update.localWeights[layer][i] * weight;
         }
       }

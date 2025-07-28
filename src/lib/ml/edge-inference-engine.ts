@@ -412,7 +412,7 @@ export class EdgeInferenceEngine {
     let prediction = definition.bias;
 
     for (let i = 0; i < features.length && i < definition.weights.length; i++) {
-      prediction += features[i] * definition.weights[i];
+      prediction += (features[i] || 0) * (definition.weights[i] || 0);
     }
 
     // Apply sigmoid to bound between 0 and 1
@@ -466,7 +466,7 @@ export class EdgeInferenceEngine {
       definition.weights.layer3,
       definition.biases.layer3
     );
-    const prediction = 1 / (1 + Math.exp(-activations[0])); // Sigmoid
+    const prediction = 1 / (1 + Math.exp(-(activations[0] || 0))); // Sigmoid
 
     return {
       prediction,
@@ -492,7 +492,9 @@ export class EdgeInferenceEngine {
       for (let i = 0; i < features.length; i++) {
         const feature = features[i];
         // Mock likelihood calculation
-        logProb += Math.log(Math.exp(-0.5 * feature * feature) + 0.001);
+        logProb += Math.log(
+          Math.exp(-0.5 * (feature || 0) * (feature || 0)) + 0.001
+        );
       }
 
       classProbabilities[className] = Math.exp(logProb);
@@ -501,7 +503,9 @@ export class EdgeInferenceEngine {
     // Normalize probabilities
     const total = Object.values(classProbabilities).reduce((a, b) => a + b, 0);
     for (const className in classProbabilities) {
-      classProbabilities[className] /= total;
+      if (classProbabilities[className] !== undefined) {
+        classProbabilities[className] /= total;
+      }
     }
 
     // Find prediction
@@ -537,7 +541,7 @@ export class EdgeInferenceEngine {
         j < features.length && j < definition.weights[className].length;
         j++
       ) {
-        score += features[j] * definition.weights[className][j];
+        score += (features[j] || 0) * (definition.weights[className][j] || 0);
       }
 
       classScores[className] = score;
@@ -549,13 +553,13 @@ export class EdgeInferenceEngine {
     let sumExp = 0;
 
     for (const className in classScores) {
-      expScores[className] = Math.exp(classScores[className] - maxScore);
+      expScores[className] = Math.exp((classScores[className] || 0) - maxScore);
       sumExp += expScores[className];
     }
 
     const probabilities: Record<string, number> = {};
     for (const className in expScores) {
-      probabilities[className] = expScores[className] / sumExp;
+      probabilities[className] = (expScores[className] || 0) / sumExp;
     }
 
     // Find prediction
@@ -613,9 +617,9 @@ export class EdgeInferenceEngine {
     const outputs: number[] = [];
 
     for (let i = 0; i < biases.length; i++) {
-      let sum = biases[i];
+      let sum = biases[i] || 0;
       for (let j = 0; j < inputs.length; j++) {
-        sum += inputs[j] * (weights[j]?.[i] || 0);
+        sum += (inputs[j] || 0) * (weights[j]?.[i] || 0);
       }
       outputs.push(sum);
     }
@@ -670,8 +674,8 @@ export class EdgeInferenceEngine {
     for (const op of operators) {
       if (condition.includes(op)) {
         const [left, right] = condition.split(op).map(s => s.trim());
-        const leftVal = parseFloat(left);
-        const rightVal = parseFloat(right);
+        const leftVal = parseFloat(left || "0");
+        const rightVal = parseFloat(right || "0");
 
         switch (op) {
           case "<=":
@@ -702,7 +706,9 @@ export class EdgeInferenceEngine {
       const oldestEntry = Array.from(this.modelCache.entries()).sort(
         (a, b) => a[1].lastUsed - b[1].lastUsed
       )[0];
-      this.modelCache.delete(oldestEntry[0]);
+      if (oldestEntry) {
+        this.modelCache.delete(oldestEntry[0]);
+      }
     }
 
     this.modelCache.set(modelId, {
@@ -771,7 +777,7 @@ export class EdgeInferenceEngine {
     for (let i = 0; i < inputSize; i++) {
       weights[i] = [];
       for (let j = 0; j < outputSize; j++) {
-        weights[i][j] = (Math.random() * 2 - 1) * scale;
+        weights[i]![j] = (Math.random() * 2 - 1) * scale;
       }
     }
 
