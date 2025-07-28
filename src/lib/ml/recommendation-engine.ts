@@ -671,11 +671,11 @@ export class RecommendationEngine {
 
     if (embeddings) {
       for (const embedding of embeddings) {
-        this.contentEmbeddings.set(embedding.content_id, {
-          contentId: embedding.content_id,
-          embedding: embedding.embedding,
-          metadata: embedding.metadata,
-          lastUpdated: new Date(embedding.updated_at),
+        this.contentEmbeddings.set(String(embedding.content_id), {
+          contentId: String(embedding.content_id),
+          embedding: embedding.embedding as number[],
+          metadata: embedding.metadata as any,
+          lastUpdated: new Date(String(embedding.updated_at)),
         });
       }
     }
