@@ -135,30 +135,35 @@ export class ContentPerformancePredictor {
     }
 
     // Generate semantic embedding
-    const embedding = await this.generateEmbedding(content.content || "");
+    const contentText =
+      typeof content.content === "string"
+        ? content.content
+        : JSON.stringify(content.content || "");
+    const embedding = await this.generateEmbedding(contentText);
 
     // Calculate temporal features
-    const publishDate = new Date(content.published_at || content.created_at);
+    const publishDateStr = content.published_at || content.created_at;
+    const publishDate = new Date(String(publishDateStr));
     const contentAge = Math.floor(
       (Date.now() - publishDate.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     // Calculate structural features
-    const structuralFeatures = this.analyzeStructure(content.content || "");
+    const structuralFeatures = this.analyzeStructure(contentText);
     const seoFeatures = this.analyzeSEO(
       content,
-      content.projects.target_keywords
+      Array.isArray(content.focus_keywords) ? content.focus_keywords : []
     );
 
     // Calculate historical performance
     const historicalPerf = this.calculateHistoricalPerformance(
-      content.content_analytics
+      Array.isArray(content.content_analytics) ? content.content_analytics : []
     );
 
     // Get competitive context
     const competitiveContext = await this.getCompetitiveContext(
-      content.project_id,
-      content.focus_keywords || []
+      String(content.project_id),
+      Array.isArray(content.focus_keywords) ? content.focus_keywords : []
     );
 
     return contentFeaturesSchema.parse({
@@ -166,8 +171,8 @@ export class ContentPerformancePredictor {
       semanticEmbedding: embedding,
       topicRelevance: await this.calculateTopicRelevance(content),
       readabilityScore: content.readability_score || 70,
-      sentimentScore: await this.analyzeSentiment(content.content || ""),
-      emotionalTone: await this.analyzeEmotionalTone(content.content || ""),
+      sentimentScore: await this.analyzeSentiment(contentText),
+      emotionalTone: await this.analyzeEmotionalTone(contentText),
 
       // Structural features
       contentLength: content.word_count || 0,

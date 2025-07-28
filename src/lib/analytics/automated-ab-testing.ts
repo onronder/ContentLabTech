@@ -392,9 +392,15 @@ export class AutomatedABTestingFramework {
     const config = experiment.config as ExperimentConfig;
     const isSuccess = this.isSuccessEvent(eventType, value, config);
     if (isSuccess) {
-      state.alpha[variantIndex]++;
+      // TypeScript safety: state is checked above
+      if (state.alpha[variantIndex] !== undefined) {
+        state.alpha[variantIndex]++;
+      }
     } else {
-      state.beta[variantIndex]++;
+      // TypeScript safety: state is checked above
+      if (state.beta[variantIndex] !== undefined) {
+        state.beta[variantIndex]++;
+      }
     }
   }
 
@@ -530,8 +536,13 @@ export class AutomatedABTestingFramework {
     if (significantResults.length > 0) {
       // Sort by uplift
       significantResults.sort((a, b) => b.uplift - a.uplift);
-      winner = significantResults[0].variantId;
-      recommendation = `Variant ${winner} is the winner with ${significantResults[0].uplift.toFixed(1)}% uplift`;
+      const topResult = significantResults[0];
+      if (topResult) {
+        winner = topResult.variantId;
+        recommendation = `Variant ${winner} is the winner with ${topResult.uplift.toFixed(1)}% uplift`;
+      } else {
+        recommendation = "No significant results found";
+      }
     } else {
       // Check sample size
       const minSampleReached = results.every(

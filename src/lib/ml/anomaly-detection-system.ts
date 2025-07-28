@@ -787,7 +787,14 @@ export class AnomalyDetectionSystem extends EventEmitter {
       .lte("timestamp", endTime.toISOString())
       .order("timestamp");
 
-    return data || [];
+    if (!data) return [];
+
+    // Map the data to TimeSeriesPoint format
+    return data.map((item: any) => ({
+      timestamp: new Date(item.timestamp),
+      value: Number(item.value) || 0,
+      metadata: item.metadata || {},
+    }));
   }
 
   private detectSeasonality(timeSeries: TimeSeriesPoint[]): any {
@@ -1215,7 +1222,27 @@ export class AnomalyDetectionSystem extends EventEmitter {
       .order("timestamp", { ascending: false })
       .limit(limit);
 
-    return data || [];
+    if (!data) return [];
+
+    // Validate and return the alerts
+    return data.map((alert: any) => ({
+      id: alert.id,
+      type: alert.type,
+      severity: alert.severity,
+      score: alert.score,
+      confidence: alert.confidence,
+      timestamp: alert.timestamp,
+      data: alert.data || {},
+      context: alert.context || {
+        feature: "",
+        expectedValue: 0,
+        actualValue: 0,
+        deviation: 0,
+        baselineStats: {},
+      },
+      recommendations: alert.recommendations || [],
+      status: alert.status || "new",
+    })) as AnomalyAlert[];
   }
 }
 

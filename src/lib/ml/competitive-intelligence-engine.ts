@@ -266,10 +266,19 @@ export class CompetitiveIntelligenceEngine {
     ]);
 
     similarities.forEach((sim, index) => {
-      sim.performanceCorrelation = this.calculatePerformanceCorrelation(
-        performanceData[userContentId],
-        performanceData[competitorContentIds[index]]
-      );
+      const competitorId = competitorContentIds[index];
+      if (
+        competitorId &&
+        performanceData[userContentId] &&
+        performanceData[competitorId]
+      ) {
+        sim.performanceCorrelation = this.calculatePerformanceCorrelation(
+          performanceData[userContentId],
+          performanceData[competitorId]
+        );
+      } else {
+        sim.performanceCorrelation = 0;
+      }
     });
 
     return similarities;
@@ -388,12 +397,16 @@ export class CompetitiveIntelligenceEngine {
         const serpData = await serpApiService.analyzeRankings({
           domain: competitor.domain,
           keywords: await this.getTrackedKeywords(competitor.id),
+          competitors: [], // Single competitor analysis, no additional competitors needed
           device: "desktop",
         });
 
         if (serpData.success && serpData.data) {
           const significantChanges = serpData.data.rankings.filter(
-            r => Math.abs(r.position - (r as any).previousPosition) > 3
+            r =>
+              r.position !== null &&
+              (r as any).previousPosition !== undefined &&
+              Math.abs(r.position - (r as any).previousPosition) > 3
           );
 
           if (significantChanges.length > 0) {
@@ -743,10 +756,13 @@ export class CompetitiveIntelligenceEngine {
   }
 
   private cosineSimilarity(vec1: number[], vec2: number[]): number {
-    const dotProduct = vec1.reduce((sum, val, i) => sum + val * vec2[i], 0);
+    const dotProduct = vec1.reduce(
+      (sum, val, i) => sum + val * (vec2[i] || 0),
+      0
+    );
     const mag1 = Math.sqrt(vec1.reduce((sum, val) => sum + val * val, 0));
     const mag2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
-    return dotProduct / (mag1 * mag2);
+    return mag1 && mag2 ? dotProduct / (mag1 * mag2) : 0;
   }
 
   private structuralSimilarity(content1: any, content2: any): number {
@@ -1046,7 +1062,7 @@ export class CompetitiveIntelligenceEngine {
       niche: "Specialized player with focused market approach",
     };
 
-    return statements[category];
+    return statements[category] || "Market player with strategic positioning";
   }
 
   private async identifyStrengths(
@@ -1212,7 +1228,7 @@ export class CompetitiveIntelligenceEngine {
       .eq("competitor_id", competitorId)
       .limit(50);
 
-    return data?.map(d => d.keyword) || [];
+    return data?.map((d: any) => d.keyword as string) || [];
   }
 
   private async detectTechStackChanges(domain: string): Promise<any[]> {

@@ -497,11 +497,13 @@ export class RealtimeAnalyticsPipeline extends EventEmitter {
           event.eventType === "pageview" &&
           event.metadata?.source === "organic"
         ) {
-          const date = new Date(event.timestamp).toISOString().split("T")[0];
-          state.organicTraffic.set(
-            date,
-            (state.organicTraffic.get(date) || 0) + 1
-          );
+          const dateStr = new Date(event.timestamp).toISOString().split("T")[0];
+          if (dateStr) {
+            state.organicTraffic.set(
+              dateStr,
+              (state.organicTraffic.get(dateStr) || 0) + 1
+            );
+          }
         }
       },
       getState: () => ({
