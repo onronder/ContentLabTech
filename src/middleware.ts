@@ -191,204 +191,152 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 }
 
 export async function middleware(request: NextRequest) {
-  const startTime = Date.now();
-  const clientIp = getClientIp(request);
-  const userAgent = request.headers.get("user-agent") || "unknown";
-  const { pathname } = request.nextUrl;
+  try {
+    const startTime = Date.now();
+    const { pathname } = request.nextUrl;
 
-  // Apply rate limiting (except for static assets)
-  if (!pathname.startsWith("/_next/") && !pathname.startsWith("/api/auth/")) {
-    if (!checkRateLimit(clientIp)) {
-      enterpriseLogger.warn("Rate limit exceeded", {
-        clientIp,
-        pathname,
-        userAgent,
-        rateLimitRequests: SECURITY_CONFIG.RATE_LIMIT_REQUESTS,
-      });
-      return new NextResponse("Too Many Requests", {
-        status: 429,
-        headers: {
-          "Retry-After": "3600",
-          "X-RateLimit-Limit": SECURITY_CONFIG.RATE_LIMIT_REQUESTS.toString(),
-          "X-RateLimit-Remaining": "0",
-          "X-RateLimit-Reset": new Date(
-            Date.now() + SECURITY_CONFIG.RATE_LIMIT_WINDOW
-          ).toISOString(),
-        },
-      });
+    // Skip middleware for static assets and certain paths
+    if (
+      pathname.startsWith("/_next/") ||
+      pathname.startsWith("/api/health") ||
+      pathname.includes(".")
+    ) {
+      return NextResponse.next();
     }
-  }
 
-  // CSRF Protection - disabled for auth pages to prevent blocking
-  if (!pathname.startsWith("/auth/") && !validateCSRFToken(request)) {
-    enterpriseLogger.warn("CSRF token validation failed", {
-      clientIp,
-      pathname,
-      userAgent,
-      method: request.method,
-    });
-    return new NextResponse("CSRF Token Mismatch", {
-      status: 403,
-      headers: {
-        "Content-Type": "application/json",
+    let response = NextResponse.next({
+      request: {
+        headers: request.headers,
       },
     });
-  }
 
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  // Generate and set CSRF token for new sessions
-  if (!request.cookies.get("csrf-token")) {
-    const csrfToken = generateCSRFToken();
-    response.cookies.set("csrf-token", csrfToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      maxAge: 60 * 60 * 24, // 24 hours
-    });
-  }
-
-  const supabase = createServerClient(
-    process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
-    process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: "",
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value: "",
-            ...options,
-          });
-        },
-      },
-    }
-  );
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // Public routes that don't require authentication
-  const publicRoutes = [
-    "/",
-    "/auth/signin",
-    "/auth/signup",
-    "/auth/forgot-password",
-    "/auth/reset-password",
-    "/auth/callback",
-    "/terms",
-    "/privacy",
-    "/api/auth/callback",
-  ];
-
-  // Check if the current route is public
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
-
-  // If user is not authenticated and trying to access a protected route
-  if (!session && !isPublicRoute) {
-    enterpriseLogger.info("Unauthenticated access to protected route", {
-      clientIp,
-      pathname,
-      userAgent,
-    });
-    const redirectUrl = new URL("/auth/signin", request.url);
-    redirectUrl.searchParams.set("redirectTo", pathname);
-    const redirectResponse = NextResponse.redirect(redirectUrl);
-    return addSecurityHeaders(redirectResponse);
-  }
-
-  // If user is authenticated and trying to access auth pages, redirect to dashboard
-  if (
-    session &&
-    pathname.startsWith("/auth/") &&
-    pathname !== "/auth/callback"
-  ) {
-    enterpriseLogger.debug("Authenticated user redirected from auth page", {
-      pathname,
-      userId: session.user?.id,
-    });
-    const redirectResponse = NextResponse.redirect(
-      new URL("/dashboard", request.url)
-    );
-    return addSecurityHeaders(redirectResponse);
-  }
-
-  // If user is authenticated and on root path, redirect to dashboard
-  if (session && pathname === "/") {
-    enterpriseLogger.debug(
-      "Authenticated user redirected from root to dashboard",
-      {
-        userId: session.user?.id,
+    // Only process authentication for non-static routes
+    try {
+      // Generate and set CSRF token for new sessions
+      if (!request.cookies.get("csrf-token")) {
+        const csrfToken = generateCSRFToken();
+        response.cookies.set("csrf-token", csrfToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 60 * 60 * 24, // 24 hours
+        });
       }
-    );
-    const redirectResponse = NextResponse.redirect(
-      new URL("/dashboard", request.url)
-    );
-    return addSecurityHeaders(redirectResponse);
+
+      const supabase = createServerClient(
+        process.env["NEXT_PUBLIC_SUPABASE_URL"]!,
+        process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"]!,
+        {
+          cookies: {
+            get(name: string) {
+              return request.cookies.get(name)?.value;
+            },
+            set(name: string, value: string, options: CookieOptions) {
+              request.cookies.set({
+                name,
+                value,
+                ...options,
+              });
+              response = NextResponse.next({
+                request: {
+                  headers: request.headers,
+                },
+              });
+              response.cookies.set({
+                name,
+                value,
+                ...options,
+              });
+            },
+            remove(name: string, options: CookieOptions) {
+              request.cookies.set({
+                name,
+                value: "",
+                ...options,
+              });
+              response = NextResponse.next({
+                request: {
+                  headers: request.headers,
+                },
+              });
+              response.cookies.set({
+                name,
+                value: "",
+                ...options,
+              });
+            },
+          },
+        }
+      );
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      // Public routes that don't require authentication
+      const publicRoutes = [
+        "/",
+        "/auth/signin",
+        "/auth/signup",
+        "/auth/forgot-password",
+        "/auth/reset-password",
+        "/auth/callback",
+        "/terms",
+        "/privacy",
+        "/api/auth/callback",
+      ];
+
+      // Check if the current route is public
+      const isPublicRoute = publicRoutes.some(route =>
+        pathname.startsWith(route)
+      );
+
+      // If user is not authenticated and trying to access a protected route
+      if (!session && !isPublicRoute) {
+        const redirectUrl = new URL("/auth/signin", request.url);
+        redirectUrl.searchParams.set("redirectTo", pathname);
+        const redirectResponse = NextResponse.redirect(redirectUrl);
+        return addSecurityHeaders(redirectResponse);
+      }
+
+      // If user is authenticated and trying to access auth pages, redirect to dashboard
+      if (
+        session &&
+        pathname.startsWith("/auth/") &&
+        pathname !== "/auth/callback"
+      ) {
+        const redirectResponse = NextResponse.redirect(
+          new URL("/dashboard", request.url)
+        );
+        return addSecurityHeaders(redirectResponse);
+      }
+
+      // If user is authenticated and on root path, redirect to dashboard
+      if (session && pathname === "/") {
+        const redirectResponse = NextResponse.redirect(
+          new URL("/dashboard", request.url)
+        );
+        return addSecurityHeaders(redirectResponse);
+      }
+    } catch (authError) {
+      // If authentication fails, continue but log the error
+      console.error("Middleware auth error:", authError);
+    }
+
+    // Add comprehensive security headers to all responses
+    const secureResponse = addSecurityHeaders(response);
+
+    // Add performance metrics
+    const processingTime = Date.now() - startTime;
+    secureResponse.headers.set("X-Response-Time", `${processingTime}ms`);
+
+    return secureResponse;
+  } catch (error) {
+    // If middleware fails completely, return a basic response with security headers
+    console.error("Middleware error:", error);
+    const response = NextResponse.next();
+    return addSecurityHeaders(response);
   }
-
-  // Add comprehensive security headers to all responses
-  const secureResponse = addSecurityHeaders(response);
-
-  // Add performance and security metrics
-  const processingTime = Date.now() - startTime;
-  secureResponse.headers.set("X-Response-Time", `${processingTime}ms`);
-
-  // Log security events for monitoring
-  if (processingTime > 1000) {
-    enterpriseLogger.warn("Slow middleware request", {
-      clientIp,
-      pathname,
-      userAgent,
-      processingTime,
-      isProduction: process.env.NODE_ENV === "production",
-    });
-  }
-
-  // Log successful authentication events
-  if (session) {
-    enterpriseLogger.debug("Middleware authentication successful", {
-      userId: session.user?.id,
-      pathname,
-      processingTime,
-    });
-  }
-
-  return secureResponse;
 }
 
 export const config = {
