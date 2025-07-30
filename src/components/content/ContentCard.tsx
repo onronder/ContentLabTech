@@ -40,26 +40,39 @@ import {
   TrendingUp,
   Calendar,
   Sparkles,
+  Image,
+  Video,
+  Share2,
+  File,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface ContentItem {
   id: string;
   project_id: string;
+  user_id: string;
   title: string;
-  content: string;
+  description?: string;
+  content?: string;
   url?: string;
   content_type:
-    | "article"
+    | "document"
+    | "image"
+    | "video"
+    | "social"
     | "blog_post"
+    | "article"
     | "landing_page"
     | "product_page"
     | "category_page"
     | "other";
-  status: "draft" | "published" | "archived" | "deleted";
+  status: "draft" | "published" | "under_review" | "archived" | "deleted";
   seo_score?: number;
   readability_score?: number;
   word_count?: number;
+  file_size?: number;
+  mime_type?: string;
+  metadata?: any;
   meta_title?: string;
   meta_description?: string;
   focus_keywords?: string[];
@@ -67,12 +80,13 @@ interface ContentItem {
   created_at: string;
   updated_at: string;
   created_by: string;
-  project: {
+  project?: {
     id: string;
     name: string;
-    description: string;
+    description?: string;
+    team_id: string;
   };
-  stats: {
+  stats?: {
     views: number;
     engagement: number;
     conversions: number;
@@ -102,6 +116,8 @@ export const ContentCard = ({
         return "bg-green-50 text-green-700 border-green-200";
       case "draft":
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
+      case "under_review":
+        return "bg-blue-50 text-blue-700 border-blue-200";
       case "archived":
         return "bg-gray-50 text-gray-700 border-gray-200";
       default:
@@ -111,8 +127,12 @@ export const ContentCard = ({
 
   const getContentTypeLabel = (type: string) => {
     const labels = {
-      article: "Article",
+      document: "Document",
+      image: "Image",
+      video: "Video",
+      social: "Social",
       blog_post: "Blog Post",
+      article: "Article",
       landing_page: "Landing Page",
       product_page: "Product Page",
       category_page: "Category Page",
@@ -123,14 +143,22 @@ export const ContentCard = ({
 
   const getContentTypeIcon = (type: string) => {
     switch (type) {
-      case "article":
+      case "document":
         return <FileText className="h-4 w-4" />;
+      case "image":
+        return <Image className="h-4 w-4" />;
+      case "video":
+        return <Video className="h-4 w-4" />;
+      case "social":
+        return <Share2 className="h-4 w-4" />;
       case "blog_post":
         return <Edit className="h-4 w-4" />;
+      case "article":
+        return <FileText className="h-4 w-4" />;
       case "landing_page":
         return <Globe className="h-4 w-4" />;
       default:
-        return <FileText className="h-4 w-4" />;
+        return <File className="h-4 w-4" />;
     }
   };
 
@@ -204,9 +232,9 @@ export const ContentCard = ({
             </Badge>
           </div>
           <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
-            <span>{content.project.name}</span>
+            <span>{content.project?.name || "Unknown Project"}</span>
             <span>{getContentTypeLabel(content.content_type)}</span>
-            <span>{content.word_count} words</span>
+            <span>{content.word_count || 0} words</span>
             <span>
               Updated {formatDistanceToNow(new Date(content.updated_at))} ago
             </span>
@@ -355,8 +383,12 @@ export const ContentCard = ({
           {content.title}
         </h3>
         <p className="line-clamp-3 text-sm text-gray-600">
-          {content.meta_description ||
-            content.content.replace(/<[^>]*>/g, "").substring(0, 150) + "..."}
+          {content.description ||
+            content.meta_description ||
+            (content.content
+              ? content.content.replace(/<[^>]*>/g, "").substring(0, 150) +
+                "..."
+              : "No description available")}
         </p>
       </div>
 
@@ -365,14 +397,14 @@ export const ContentCard = ({
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span className="flex items-center space-x-1">
             <FileText className="h-3 w-3" />
-            <span>{content.project.name}</span>
+            <span>{content.project?.name || "Unknown Project"}</span>
           </span>
           <span>{getContentTypeLabel(content.content_type)}</span>
         </div>
         <div className="flex items-center justify-between text-xs text-gray-500">
           <span className="flex items-center space-x-1">
             <FileText className="h-3 w-3" />
-            <span>{content.word_count} words</span>
+            <span>{content.word_count || 0} words</span>
           </span>
           <span className="flex items-center space-x-1">
             <Clock className="h-3 w-3" />
@@ -438,11 +470,11 @@ export const ContentCard = ({
         <div className="flex items-center space-x-3">
           <span className="flex items-center space-x-1">
             <Eye className="h-3 w-3" />
-            <span>{content.stats.views.toLocaleString()}</span>
+            <span>{content.stats?.views?.toLocaleString() || "0"}</span>
           </span>
           <span className="flex items-center space-x-1">
             <TrendingUp className="h-3 w-3" />
-            <span>{content.stats.engagement}%</span>
+            <span>{content.stats?.engagement || 0}%</span>
           </span>
         </div>
         {content.published_at && (

@@ -38,20 +38,29 @@ import { ContentEmptyState } from "./ContentEmptyState";
 interface ContentItem {
   id: string;
   project_id: string;
+  user_id: string;
   title: string;
-  content: string;
+  description?: string;
+  content?: string;
   url?: string;
   content_type:
-    | "article"
+    | "document"
+    | "image"
+    | "video"
+    | "social"
     | "blog_post"
+    | "article"
     | "landing_page"
     | "product_page"
     | "category_page"
     | "other";
-  status: "draft" | "published" | "archived" | "deleted";
+  status: "draft" | "published" | "under_review" | "archived" | "deleted";
   seo_score?: number;
   readability_score?: number;
   word_count?: number;
+  file_size?: number;
+  mime_type?: string;
+  metadata?: any;
   meta_title?: string;
   meta_description?: string;
   focus_keywords?: string[];
@@ -59,12 +68,13 @@ interface ContentItem {
   created_at: string;
   updated_at: string;
   created_by: string;
-  project: {
+  project?: {
     id: string;
     name: string;
-    description: string;
+    description?: string;
+    team_id: string;
   };
-  stats: {
+  stats?: {
     views: number;
     engagement: number;
     conversions: number;
@@ -96,8 +106,9 @@ export const ContentManager = () => {
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [totalContent, setTotalContent] = useState(0);
+  const [isCreatingSample, setIsCreatingSample] = useState(false);
 
-  // Enhanced debugging for team context
+  // Enhanced debugging for team context with better error handling
   useEffect(() => {
     console.log("🔍 ContentManager: Team context debug:", {
       currentTeam: currentTeam,
@@ -119,11 +130,16 @@ export const ContentManager = () => {
         console.log(
           "🔄 Teams available but no currentTeam, content loading disabled"
         );
-        setError("Team context sync issue. Please refresh the page.");
+        setError(
+          "Please select a team to view content. Go to Settings to create or join a team."
+        );
+        setLoading(false);
       } else {
         console.log("🆕 No teams found, showing empty state");
         setLoading(false);
-        setError(null);
+        setError(
+          "No team found. Create a team first to start managing content."
+        );
       }
     } else {
       console.log("⏳ Teams still loading, waiting...");
@@ -216,6 +232,39 @@ export const ContentManager = () => {
       ...prev,
       offset: prev.offset + prev.limit,
     }));
+  };
+
+  const handleCreateSampleContent = async () => {
+    if (!currentTeam?.id) {
+      setError("No team selected. Please select a team first.");
+      return;
+    }
+
+    setIsCreatingSample(true);
+    try {
+      const response = await fetch("/api/content/sample", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create sample content");
+      }
+
+      const result = await response.json();
+      console.log("✅ Sample content created:", result);
+
+      // Reload content to show the new samples
+      loadContent();
+    } catch (err) {
+      console.error("❌ Failed to create sample content:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to create sample content";
+      setError(`Sample content creation failed: ${errorMessage}`);
+    } finally {
+      setIsCreatingSample(false);
+    }
   };
 
   if (loading && content.length === 0) {
@@ -314,6 +363,7 @@ export const ContentManager = () => {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="draft">Draft</SelectItem>
               <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="under_review">Under Review</SelectItem>
               <SelectItem value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
@@ -334,8 +384,12 @@ export const ContentManager = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="article">Article</SelectItem>
+              <SelectItem value="document">Document</SelectItem>
+              <SelectItem value="image">Image</SelectItem>
+              <SelectItem value="video">Video</SelectItem>
+              <SelectItem value="social">Social</SelectItem>
               <SelectItem value="blog_post">Blog Post</SelectItem>
+              <SelectItem value="article">Article</SelectItem>
               <SelectItem value="landing_page">Landing Page</SelectItem>
               <SelectItem value="product_page">Product Page</SelectItem>
               <SelectItem value="category_page">Category Page</SelectItem>
@@ -394,7 +448,13 @@ export const ContentManager = () => {
           </Button>
         </div>
       ) : content.length === 0 && !loading ? (
-        <ContentEmptyState onCreateContent={() => setShowCreateModal(true)} />
+        <ContentEmptyState
+          onCreateContent={() => setShowCreateModal(true)}
+          onCreateSampleContent={
+            currentTeam?.id ? handleCreateSampleContent : undefined
+          }
+          isCreatingSample={isCreatingSample}
+        />
       ) : (
         <div className="space-y-6">
           {/* Content Grid/List */}

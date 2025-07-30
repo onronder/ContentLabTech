@@ -17,15 +17,20 @@ import {
   ArrowRight,
   Plus,
   Lightbulb,
+  Sparkles,
 } from "lucide-react";
 
 interface ContentEmptyStateProps {
   onCreateContent?: () => void;
+  onCreateSampleContent?: () => void;
+  isCreatingSample?: boolean;
   className?: string;
 }
 
 export const ContentEmptyState = ({
   onCreateContent,
+  onCreateSampleContent,
+  isCreatingSample = false,
   className,
 }: ContentEmptyStateProps) => {
   const handleCreateContent = () => {
@@ -201,11 +206,28 @@ export const ContentEmptyState = ({
             className="transform bg-green-600 px-8 py-3 text-lg font-medium transition-all duration-300 hover:scale-105 hover:bg-green-700 hover:shadow-lg"
           >
             <Plus className="mr-2 h-5 w-5" />
-            Create Your First Project
+            Create Your First Content
           </Button>
 
+          {onCreateSampleContent && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={onCreateSampleContent}
+              disabled={isCreatingSample}
+              className="border-blue-200 px-8 py-3 text-lg font-medium hover:bg-blue-50 disabled:opacity-50"
+            >
+              <Sparkles
+                className={`mr-2 h-5 w-5 ${isCreatingSample ? "animate-spin" : ""}`}
+              />
+              {isCreatingSample
+                ? "Creating Sample Content..."
+                : "Create Sample Content"}
+            </Button>
+          )}
+
           <Button
-            variant="outline"
+            variant="ghost"
             size="lg"
             className="px-8 py-3 text-lg font-medium"
             onClick={() => (window.location.href = "/competitive/virtual-demo")}
