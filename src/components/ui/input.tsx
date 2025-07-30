@@ -32,13 +32,19 @@ function Input({
       data-slot="input"
       disabled={disabled}
       className={cn(
-        // Base styles with enhanced Opera compatibility
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium md:text-sm",
-        // Focus styles with enhanced fallbacks
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "focus:border-ring focus:ring-ring/50 focus:ring-[3px]", // Fallback for Opera
-        // Invalid styles
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        // Base styles with production design system
+        "input-field file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground",
+        "border-input flex h-10 w-full min-w-0 rounded-lg border bg-white px-4 py-2 text-sm",
+        "shadow-xs transition-all duration-200 outline-none",
+        "file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium",
+        // Enhanced focus styles
+        "focus-visible:border-primary-500 focus-visible:shadow-primary focus-visible:ring-primary-100 focus-visible:ring-4",
+        "focus:border-primary-500 focus:shadow-primary focus:ring-primary-100 focus:ring-4",
+        // Hover styles
+        "hover:border-primary-300 hover:bg-neutral-50",
+        // Invalid styles with design system colors
+        "aria-invalid:border-error-500 aria-invalid:ring-error-100 aria-invalid:ring-4",
+        "invalid:border-error-500 invalid:ring-error-100 invalid:ring-4",
         // Enhanced disabled styles with better specificity
         disabled && "pointer-events-none cursor-not-allowed opacity-50",
         // Ensure proper layering

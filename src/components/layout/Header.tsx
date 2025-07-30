@@ -19,17 +19,17 @@ export const Header = () => {
   return (
     <header
       className={cn(
-        "sticky top-0 z-30 border-b border-gray-200/50 bg-white/95 px-4 py-3 backdrop-blur-sm",
-        "transition-all duration-300 ease-out"
+        "z-sticky border-primary-200/30 sticky top-0 border-b bg-white/95 px-6 py-4 backdrop-blur-md",
+        "glass shadow-sm transition-all duration-300 ease-out"
       )}
     >
       <div className="flex items-center justify-between">
         {/* Left side - Mobile menu button */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-6">
           <Button
             variant="ghost"
             size="sm"
-            className="hover:bg-gray-100 md:hidden"
+            className="interactive hover:bg-primary-50 md:hidden"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? (
@@ -41,25 +41,27 @@ export const Header = () => {
 
           {/* Page title or breadcrumb would go here */}
           <div className="hidden sm:block">
-            <h1 className="text-lg font-semibold text-gray-900">Dashboard</h1>
+            <h1 className="font-display text-primary-900 text-xl font-semibold">
+              Dashboard
+            </h1>
           </div>
         </div>
 
-        {/* Center - Search */}
-        <div className="mx-4 max-w-lg flex-1">
+        {/* Center - Enhanced Search */}
+        <div className="mx-6 max-w-lg flex-1">
           <div className="relative">
             <Search
               className={cn(
-                "absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform transition-colors duration-200",
-                searchFocused ? "text-blue-500" : "text-gray-400"
+                "absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 transform transition-colors duration-200",
+                searchFocused ? "text-primary-500" : "text-neutral-400"
               )}
             />
             <Input
               placeholder="Search projects, content, keywords..."
               className={cn(
-                "cursor-pointer border-gray-200 bg-gray-50/50 pl-10 transition-all duration-200",
-                "focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100",
-                "placeholder:text-gray-500"
+                "input-field cursor-pointer border-neutral-200 bg-neutral-50/50 pr-16 pl-12",
+                "focus:border-primary-300 focus:shadow-primary focus:bg-white",
+                "hover:border-primary-200 placeholder:text-neutral-500 hover:bg-white"
               )}
               onFocus={() => {
                 setSearchFocused(true);
@@ -69,41 +71,45 @@ export const Header = () => {
               onClick={() => setCommandPaletteOpen(true)}
               readOnly
             />
-            <div className="absolute top-1/2 right-3 -translate-y-1/2 transform">
-              <kbd className="hidden items-center rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-mono text-xs text-gray-500 transition-colors hover:bg-gray-100 sm:inline-flex">
+            <div className="absolute top-1/2 right-4 -translate-y-1/2 transform">
+              <kbd className="hidden items-center rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1 font-mono text-xs text-neutral-500 transition-colors hover:bg-neutral-100 sm:inline-flex">
                 <Command className="mr-1 h-3 w-3" />K
               </kbd>
             </div>
           </div>
         </div>
 
-        {/* Right side - Actions */}
-        <div className="flex items-center space-x-2">
+        {/* Right side - Enhanced Actions */}
+        <div className="flex items-center space-x-3">
           {/* Quick Action Button */}
           <Button
             variant="outline"
             size="sm"
-            className="hidden items-center space-x-2 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 sm:flex"
+            className="btn-primary hidden items-center space-x-2 sm:flex"
           >
             <Plus className="h-4 w-4" />
             <span>New</span>
           </Button>
 
           {/* Help Button */}
-          <Button variant="ghost" size="sm" className="hover:bg-gray-100">
-            <HelpCircle className="h-5 w-5 text-gray-500" />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="interactive hover:bg-neutral-50"
+          >
+            <HelpCircle className="h-5 w-5 text-neutral-500" />
           </Button>
 
           {/* Notifications */}
           <Button
             variant="ghost"
             size="sm"
-            className="relative hover:bg-gray-100"
+            className="interactive relative hover:bg-neutral-50"
           >
-            <Bell className="h-5 w-5 text-gray-500" />
-            {/* Notification badge */}
-            <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500">
-              <span className="text-[10px] font-medium text-white">3</span>
+            <Bell className="h-5 w-5 text-neutral-500" />
+            {/* Enhanced notification badge */}
+            <span className="bg-gradient-error shadow-error absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full">
+              <span className="text-[10px] font-semibold text-white">3</span>
             </span>
           </Button>
         </div>

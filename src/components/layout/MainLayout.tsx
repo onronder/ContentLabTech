@@ -27,16 +27,17 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
     useCommandPalette();
 
   return (
-    <div className="flex min-h-screen overflow-hidden bg-gray-50">
+    <div className="bg-gradient-neutral flex min-h-screen overflow-hidden">
       {/* Sidebar */}
-      <div data-tour="sidebar">
+      <div data-tour="sidebar" className="z-fixed">
         <Sidebar />
       </div>
 
-      {/* Continuous vertical separator line */}
+      {/* Elegant vertical separator with gradient */}
       <div
         className={cn(
-          "fixed top-0 bottom-0 z-30 hidden w-px bg-gray-200 transition-all duration-300 ease-out md:block",
+          "z-sticky fixed top-0 bottom-0 hidden w-px transition-all duration-300 ease-out md:block",
+          "bg-gradient-to-b from-transparent via-neutral-200 to-transparent",
           sidebarExpanded ? "left-64" : "left-16"
         )}
       />
@@ -50,16 +51,16 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
       >
         <Header />
 
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
+        <main className="scrollbar-thin flex-1 overflow-y-auto">
+          <div className="main-content">
             {/* Breadcrumb */}
-            <div className="mb-6">
+            <div className="mb-8">
               <Breadcrumb />
             </div>
 
-            {/* Page Content with animation */}
+            {/* Page Content with enhanced animation */}
             <div key={pathname} className="animate-fade-in">
-              {children}
+              <div className="space-y-8">{children}</div>
             </div>
           </div>
         </main>

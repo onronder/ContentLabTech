@@ -12,20 +12,29 @@ import { FileText, Eye, Target, Sparkles } from "lucide-react";
 interface ContentItem {
   id: string;
   project_id: string;
+  user_id: string;
   title: string;
-  content: string;
+  description?: string;
+  content?: string;
   url?: string;
   content_type:
-    | "article"
+    | "document"
+    | "image"
+    | "video"
+    | "social"
     | "blog_post"
+    | "article"
     | "landing_page"
     | "product_page"
     | "category_page"
     | "other";
-  status: "draft" | "published" | "archived" | "deleted";
+  status: "draft" | "published" | "under_review" | "archived" | "deleted";
   seo_score?: number;
   readability_score?: number;
   word_count?: number;
+  file_size?: number;
+  mime_type?: string;
+  metadata?: any;
   meta_title?: string;
   meta_description?: string;
   focus_keywords?: string[];
@@ -33,12 +42,13 @@ interface ContentItem {
   created_at: string;
   updated_at: string;
   created_by: string;
-  project: {
+  project?: {
     id: string;
     name: string;
-    description: string;
+    description?: string;
+    team_id: string;
   };
-  stats: {
+  stats?: {
     views: number;
     engagement: number;
     conversions: number;
@@ -92,11 +102,11 @@ export const ContentStats = ({ content, loading }: ContentStatsProps) => {
               ) / withReadabilityScore.length
             )
           : 0,
-      totalViews: content.reduce((sum, c) => sum + c.stats.views, 0),
+      totalViews: content.reduce((sum, c) => sum + (c.stats?.views || 0), 0),
       avgEngagement:
         content.length > 0
           ? Math.round(
-              content.reduce((sum, c) => sum + c.stats.engagement, 0) /
+              content.reduce((sum, c) => sum + (c.stats?.engagement || 0), 0) /
                 content.length
             )
           : 0,

@@ -215,27 +215,31 @@ export const ContentCard = ({
 
   if (variant === "list") {
     return (
-      <div className="flex items-center space-x-4 rounded-xl border border-gray-200 bg-white p-4 hover:shadow-sm">
+      <div className="card-interactive flex items-center space-x-4 bg-white p-4 hover:shadow-md">
         <div className="flex-shrink-0">
-          <div className="rounded-lg bg-gray-50 p-2">
+          <div className="bg-gradient-neutral rounded-lg p-2 shadow-xs">
             {getContentTypeIcon(content.content_type)}
           </div>
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center space-x-2">
-            <h3 className="truncate text-sm font-semibold text-gray-900">
+            <h3 className="font-display truncate text-sm font-semibold text-neutral-900">
               {content.title}
             </h3>
             <Badge variant="outline" className={getStatusColor(content.status)}>
               {content.status}
             </Badge>
           </div>
-          <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
-            <span>{content.project?.name || "Unknown Project"}</span>
-            <span>{getContentTypeLabel(content.content_type)}</span>
+          <div className="mt-2 flex items-center space-x-4 text-xs text-neutral-500">
+            <span className="font-medium">
+              {content.project?.name || "Unknown Project"}
+            </span>
+            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">
+              {getContentTypeLabel(content.content_type)}
+            </span>
             <span>{content.word_count || 0} words</span>
-            <span>
+            <span className="text-neutral-400">
               Updated {formatDistanceToNow(new Date(content.updated_at))} ago
             </span>
           </div>
@@ -327,11 +331,11 @@ export const ContentCard = ({
   }
 
   return (
-    <div className="group relative rounded-xl border border-gray-200 bg-white p-6 transition-shadow hover:shadow-md">
+    <div className="card-elevated group relative bg-white p-6 hover:shadow-lg">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="rounded-lg bg-gray-50 p-2">
+        <div className="flex items-center space-x-3">
+          <div className="bg-gradient-neutral rounded-lg p-2 shadow-xs">
             {getContentTypeIcon(content.content_type)}
           </div>
           <div>
@@ -379,10 +383,10 @@ export const ContentCard = ({
 
       {/* Content */}
       <div className="mb-4">
-        <h3 className="mb-2 line-clamp-2 text-lg font-semibold text-gray-900">
+        <h3 className="font-display mb-3 line-clamp-2 text-lg font-semibold text-neutral-900">
           {content.title}
         </h3>
-        <p className="line-clamp-3 text-sm text-gray-600">
+        <p className="font-body line-clamp-3 text-sm leading-relaxed text-neutral-600">
           {content.description ||
             content.meta_description ||
             (content.content
@@ -393,21 +397,25 @@ export const ContentCard = ({
       </div>
 
       {/* Metadata */}
-      <div className="mb-4 space-y-2">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span className="flex items-center space-x-1">
-            <FileText className="h-3 w-3" />
-            <span>{content.project?.name || "Unknown Project"}</span>
+      <div className="mb-4 space-y-3">
+        <div className="flex items-center justify-between text-xs text-neutral-500">
+          <span className="flex items-center space-x-2">
+            <FileText className="text-primary-400 h-3 w-3" />
+            <span className="font-medium">
+              {content.project?.name || "Unknown Project"}
+            </span>
           </span>
-          <span>{getContentTypeLabel(content.content_type)}</span>
+          <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-700">
+            {getContentTypeLabel(content.content_type)}
+          </span>
         </div>
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span className="flex items-center space-x-1">
-            <FileText className="h-3 w-3" />
+        <div className="flex items-center justify-between text-xs text-neutral-500">
+          <span className="flex items-center space-x-2">
+            <FileText className="text-secondary-400 h-3 w-3" />
             <span>{content.word_count || 0} words</span>
           </span>
-          <span className="flex items-center space-x-1">
-            <Clock className="h-3 w-3" />
+          <span className="flex items-center space-x-2">
+            <Clock className="h-3 w-3 text-neutral-400" />
             <span>{formatDistanceToNow(new Date(content.updated_at))} ago</span>
           </span>
         </div>
@@ -417,12 +425,12 @@ export const ContentCard = ({
       {(content.seo_score || content.readability_score) && (
         <div className="mb-4 flex items-center space-x-4">
           {content.seo_score && (
-            <div className="flex items-center space-x-1">
-              <Sparkles className="h-3 w-3 text-blue-500" />
-              <span className="text-xs text-gray-500">SEO:</span>
+            <div className="bg-info-50 flex items-center space-x-2 rounded-lg px-3 py-2">
+              <Sparkles className="text-info-500 h-3 w-3" />
+              <span className="text-info-700 text-xs font-medium">SEO:</span>
               <span
                 className={cn(
-                  "text-xs font-semibold",
+                  "text-xs font-bold",
                   getScoreColor(content.seo_score)
                 )}
               >
@@ -431,12 +439,14 @@ export const ContentCard = ({
             </div>
           )}
           {content.readability_score && (
-            <div className="flex items-center space-x-1">
-              <Eye className="h-3 w-3 text-green-500" />
-              <span className="text-xs text-gray-500">Readability:</span>
+            <div className="bg-success-50 flex items-center space-x-2 rounded-lg px-3 py-2">
+              <Eye className="text-success-500 h-3 w-3" />
+              <span className="text-success-700 text-xs font-medium">
+                Readability:
+              </span>
               <span
                 className={cn(
-                  "text-xs font-semibold",
+                  "text-xs font-bold",
                   getScoreColor(content.readability_score)
                 )}
               >
@@ -450,14 +460,17 @@ export const ContentCard = ({
       {/* Keywords */}
       {content.focus_keywords && content.focus_keywords.length > 0 && (
         <div className="mb-4">
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2">
             {content.focus_keywords.slice(0, 3).map((keyword, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
+              <Badge key={index} variant="ghost" className="text-xs shadow-xs">
                 {keyword}
               </Badge>
             ))}
             {content.focus_keywords.length > 3 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge
+                variant="outline"
+                className="border-primary-200 text-primary-700 text-xs"
+              >
                 +{content.focus_keywords.length - 3} more
               </Badge>
             )}
@@ -466,19 +479,23 @@ export const ContentCard = ({
       )}
 
       {/* Stats */}
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        <div className="flex items-center space-x-3">
-          <span className="flex items-center space-x-1">
-            <Eye className="h-3 w-3" />
-            <span>{content.stats?.views?.toLocaleString() || "0"}</span>
+      <div className="flex items-center justify-between border-t border-neutral-100 pt-4 text-xs text-neutral-500">
+        <div className="flex items-center space-x-4">
+          <span className="flex items-center space-x-2 rounded-md bg-neutral-50 px-2 py-1">
+            <Eye className="text-primary-400 h-3 w-3" />
+            <span className="font-medium">
+              {content.stats?.views?.toLocaleString() || "0"}
+            </span>
           </span>
-          <span className="flex items-center space-x-1">
-            <TrendingUp className="h-3 w-3" />
-            <span>{content.stats?.engagement || 0}%</span>
+          <span className="flex items-center space-x-2 rounded-md bg-neutral-50 px-2 py-1">
+            <TrendingUp className="text-success-400 h-3 w-3" />
+            <span className="font-medium">
+              {content.stats?.engagement || 0}%
+            </span>
           </span>
         </div>
         {content.published_at && (
-          <span className="flex items-center space-x-1">
+          <span className="flex items-center space-x-2 text-neutral-400">
             <Calendar className="h-3 w-3" />
             <span>{new Date(content.published_at).toLocaleDateString()}</span>
           </span>

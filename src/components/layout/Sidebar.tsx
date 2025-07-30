@@ -35,15 +35,17 @@ export const Sidebar = () => {
       <>
         {/* Mobile backdrop */}
         <div
-          className="bg-opacity-50 fixed inset-0 z-40 bg-black md:hidden"
+          className="z-modal-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
 
         {/* Mobile sidebar */}
         <aside
           className={cn(
-            "border-primary/20 from-primary-50/80 to-secondary-50/30 fixed top-0 left-0 z-50 h-full w-64 border-r bg-gradient-to-b via-white shadow-xl",
-            "transform transition-transform duration-300 ease-in-out md:hidden",
+            "z-modal fixed top-0 left-0 h-full w-64 md:hidden",
+            "bg-gradient-primary-soft border-primary-200 border-r",
+            "glass-dark shadow-2xl backdrop-blur-md",
+            "transform transition-transform duration-300 ease-out",
             mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
@@ -57,10 +59,10 @@ export const Sidebar = () => {
   return (
     <aside
       className={cn(
-        "fixed top-0 left-0 z-40 hidden h-full md:block",
-        "from-primary-50/80 to-secondary-50/30 bg-gradient-to-b via-white",
-        "border-primary/20 shadow-primary/10 border-r shadow-lg",
-        "backdrop-blur-sm transition-all duration-300 ease-out",
+        "z-fixed fixed top-0 left-0 hidden h-full md:block",
+        "bg-gradient-primary-soft border-primary-200 border-r",
+        "glass shadow-lg backdrop-blur-md",
+        "transition-all duration-300 ease-out",
         sidebarExpanded ? "w-64" : "w-16"
       )}
     >
@@ -73,17 +75,17 @@ const SidebarContent = () => {
   return (
     <div className="flex h-full flex-col">
       {/* Logo Section */}
-      <div className="border-primary/20 from-primary-100/50 border-b bg-gradient-to-r to-transparent">
+      <div className="border-primary-200/50 from-primary-100/30 border-b bg-gradient-to-r to-transparent backdrop-blur-sm">
         <Logo />
       </div>
 
       {/* Navigation Items */}
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="scrollbar-thin flex-1 overflow-y-auto py-6">
         <EnhancedNavItems />
       </div>
 
       {/* User Controls */}
-      <div className="border-primary/20 from-primary-100/50 border-t bg-gradient-to-r to-transparent">
+      <div className="border-primary-200/50 from-primary-100/30 border-t bg-gradient-to-r to-transparent backdrop-blur-sm">
         <UserControls />
       </div>
     </div>
