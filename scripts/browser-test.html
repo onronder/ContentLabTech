@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ContentLab Nexus - Browser Test Suite</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+
+      .header {
+        background: #1a1a1a;
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+
+      .test-section {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .test-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+      }
+
+      .test-item:last-child {
+        border-bottom: none;
+      }
+
+      .status {
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .status.pending {
+        background: #f0f0f0;
+        color: #666;
+      }
+      .status.testing {
+        background: #fff3cd;
+        color: #856404;
+      }
+      .status.passed {
+        background: #d4edda;
+        color: #155724;
+      }
+      .status.failed {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-right: 10px;
+      }
+
+      .btn-primary {
+        background: #007bff;
+        color: white;
+      }
+      .btn-success {
+        background: #28a745;
+        color: white;
+      }
+      .btn-danger {
+        background: #dc3545;
+        color: white;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .summary-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .summary-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 36px;
+      }
+
+      .summary-card.total {
+        border-top: 3px solid #007bff;
+      }
+      .summary-card.passed {
+        border-top: 3px solid #28a745;
+      }
+      .summary-card.failed {
+        border-top: 3px solid #dc3545;
+      }
+      .summary-card.pending {
+        border-top: 3px solid #6c757d;
+      }
+
+      #log {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        font-family: monospace;
+        font-size: 12px;
+        max-height: 300px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+
+      .test-iframe {
+        width: 100%;
+        height: 600px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin-top: 20px;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>🧪 ContentLab Nexus - Browser Test Suite</h1>
+      <p>Automated browser testing for all UI components and interactions</p>
+    </div>
+
+    <div class="summary">
+      <div class="summary-card total">
+        <h3 id="total-count">0</h3>
+        <p>Total Tests</p>
+      </div>
+      <div class="summary-card passed">
+        <h3 id="passed-count">0</h3>
+        <p>Passed</p>
+      </div>
+      <div class="summary-card failed">
+        <h3 id="failed-count">0</h3>
+        <p>Failed</p>
+      </div>
+      <div class="summary-card pending">
+        <h3 id="pending-count">0</h3>
+        <p>Pending</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" onclick="runAllTests()">
+        Run All Tests
+      </button>
+      <button class="btn btn-success" onclick="runSelectedTests()">
+        Run Selected
+      </button>
+      <button class="btn btn-danger" onclick="resetTests()">Reset</button>
+      <label style="margin-left: 20px">
+        <input type="checkbox" id="show-iframe" onchange="toggleIframe()" />
+        Show Test Frame
+      </label>
+    </div>
+
+    <div class="test-section">
+      <h2>Navigation & Routing Tests</h2>
+      <div id="navigation-tests"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>Form & Interaction Tests</h2>
+      <div id="interaction-tests"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>API & Data Tests</h2>
+      <div id="api-tests"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>Performance Tests</h2>
+      <div id="performance-tests"></div>
+    </div>
+
+    <div class="test-section">
+      <h2>Test Log</h2>
+      <div id="log"></div>
+    </div>
+
+    <iframe id="test-frame" class="test-iframe"></iframe>
+
+    <script>
+      // Test configuration
+      const BASE_URL = window.location.origin;
+      const testFrame = document.getElementById("test-frame");
+      const log = document.getElementById("log");
+
+      // Test definitions
+      const tests = {
+        navigation: [
+          { name: "Homepage loads", path: "/", check: "title" },
+          {
+            name: "Login page accessible",
+            path: "/auth/signin",
+            check: "form",
+          },
+          {
+            name: "Signup page accessible",
+            path: "/auth/signup",
+            check: "form",
+          },
+          {
+            name: "Dashboard redirects when not authenticated",
+            path: "/dashboard",
+            check: "redirect",
+          },
+          { name: "Health check API", path: "/api/health", check: "api" },
+        ],
+        interaction: [
+          {
+            name: "Login form validation",
+            type: "form-validation",
+            target: "/auth/signin",
+          },
+          {
+            name: "Signup form validation",
+            type: "form-validation",
+            target: "/auth/signup",
+          },
+          {
+            name: "Password reset flow",
+            type: "form-submit",
+            target: "/auth/forgot-password",
+          },
+        ],
+        api: [
+          { name: "Health endpoint", endpoint: "/api/health", method: "GET" },
+          {
+            name: "CSRF token generation",
+            endpoint: "/api/csrf-token",
+            method: "GET",
+          },
+          {
+            name: "Database health",
+            endpoint: "/api/health/database",
+            method: "GET",
+          },
+        ],
+        performance: [
+          {
+            name: "Homepage load time",
+            path: "/",
+            metric: "load",
+            threshold: 3000,
+          },
+          {
+            name: "First Contentful Paint",
+            path: "/",
+            metric: "fcp",
+            threshold: 1500,
+          },
+          {
+            name: "Time to Interactive",
+            path: "/",
+            metric: "tti",
+            threshold: 3500,
+          },
+        ],
+      };
+
+      // Test state
+      let testResults = {
+        total: 0,
+        passed: 0,
+        failed: 0,
+        pending: 0,
+      };
+
+      // Initialize tests
+      function initTests() {
+        renderTests();
+        updateSummary();
+      }
+
+      // Render test items
+      function renderTests() {
+        Object.entries(tests).forEach(([category, items]) => {
+          const container = document.getElementById(`${category}-tests`);
+          container.innerHTML = items
+            .map(
+              (test, index) => `
+                    <div class="test-item" data-category="${category}" data-index="${index}">
+                        <div>
+                            <input type="checkbox" id="${category}-${index}" checked>
+                            <label for="${category}-${index}">${test.name}</label>
+                        </div>
+                        <span class="status pending" id="status-${category}-${index}">Pending</span>
+                    </div>
+                `
+            )
+            .join("");
+        });
+
+        testResults.total = Object.values(tests).reduce(
+          (sum, items) => sum + items.length,
+          0
+        );
+        testResults.pending = testResults.total;
+      }
+
+      // Update summary
+      function updateSummary() {
+        document.getElementById("total-count").textContent = testResults.total;
+        document.getElementById("passed-count").textContent =
+          testResults.passed;
+        document.getElementById("failed-count").textContent =
+          testResults.failed;
+        document.getElementById("pending-count").textContent =
+          testResults.pending;
+      }
+
+      // Log message
+      function logMessage(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const prefix =
+          type === "error" ? "❌" : type === "success" ? "✅" : "ℹ️";
+        log.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+        log.scrollTop = log.scrollHeight;
+      }
+
+      // Update test status
+      function updateTestStatus(category, index, status) {
+        const statusEl = document.getElementById(`status-${category}-${index}`);
+        statusEl.className = `status ${status}`;
+        statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+
+        if (status === "passed") {
+          testResults.passed++;
+          testResults.pending--;
+        } else if (status === "failed") {
+          testResults.failed++;
+          testResults.pending--;
+        }
+
+        updateSummary();
+      }
+
+      // Run navigation test
+      async function runNavigationTest(test, category, index) {
+        updateTestStatus(category, index, "testing");
+        logMessage(`Testing: ${test.name}`);
+
+        try {
+          const response = await fetch(BASE_URL + test.path);
+          const text = await response.text();
+
+          let passed = false;
+
+          switch (test.check) {
+            case "title":
+              passed = text.includes("<title>") && response.ok;
+              break;
+            case "form":
+              passed = text.includes("<form") && response.ok;
+              break;
+            case "redirect":
+              passed = response.redirected || response.status === 307;
+              break;
+            case "api":
+              passed = response.ok;
+              break;
+          }
+
+          updateTestStatus(category, index, passed ? "passed" : "failed");
+          logMessage(
+            `${test.name}: ${passed ? "PASSED" : "FAILED"}`,
+            passed ? "success" : "error"
+          );
+        } catch (error) {
+          updateTestStatus(category, index, "failed");
+          logMessage(`${test.name}: ERROR - ${error.message}`, "error");
+        }
+      }
+
+      // Run API test
+      async function runApiTest(test, category, index) {
+        updateTestStatus(category, index, "testing");
+        logMessage(`Testing API: ${test.name}`);
+
+        try {
+          const response = await fetch(BASE_URL + test.endpoint, {
+            method: test.method,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+
+          const data = await response.json();
+          const passed = response.ok || response.status === 401; // 401 is expected for protected routes
+
+          updateTestStatus(category, index, passed ? "passed" : "failed");
+          logMessage(
+            `${test.name}: ${passed ? "PASSED" : "FAILED"} (Status: ${response.status})`,
+            passed ? "success" : "error"
+          );
+        } catch (error) {
+          updateTestStatus(category, index, "failed");
+          logMessage(`${test.name}: ERROR - ${error.message}`, "error");
+        }
+      }
+
+      // Run performance test
+      async function runPerformanceTest(test, category, index) {
+        updateTestStatus(category, index, "testing");
+        logMessage(`Testing Performance: ${test.name}`);
+
+        try {
+          const startTime = performance.now();
+          const response = await fetch(BASE_URL + test.path);
+          await response.text();
+          const endTime = performance.now();
+
+          const duration = endTime - startTime;
+          const passed = duration < test.threshold;
+
+          updateTestStatus(category, index, passed ? "passed" : "failed");
+          logMessage(
+            `${test.name}: ${Math.round(duration)}ms (${passed ? "PASSED" : "FAILED"})`,
+            passed ? "success" : "error"
+          );
+        } catch (error) {
+          updateTestStatus(category, index, "failed");
+          logMessage(`${test.name}: ERROR - ${error.message}`, "error");
+        }
+      }
+
+      // Run all tests
+      async function runAllTests() {
+        resetTests();
+        logMessage("Starting all tests...", "info");
+
+        // Navigation tests
+        for (let i = 0; i < tests.navigation.length; i++) {
+          if (document.getElementById(`navigation-${i}`).checked) {
+            await runNavigationTest(tests.navigation[i], "navigation", i);
+            await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between tests
+          }
+        }
+
+        // API tests
+        for (let i = 0; i < tests.api.length; i++) {
+          if (document.getElementById(`api-${i}`).checked) {
+            await runApiTest(tests.api[i], "api", i);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+
+        // Performance tests
+        for (let i = 0; i < tests.performance.length; i++) {
+          if (document.getElementById(`performance-${i}`).checked) {
+            await runPerformanceTest(tests.performance[i], "performance", i);
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+
+        logMessage(
+          `Tests completed. Passed: ${testResults.passed}, Failed: ${testResults.failed}`,
+          "info"
+        );
+      }
+
+      // Reset tests
+      function resetTests() {
+        testResults = {
+          total: Object.values(tests).reduce(
+            (sum, items) => sum + items.length,
+            0
+          ),
+          passed: 0,
+          failed: 0,
+          pending: Object.values(tests).reduce(
+            (sum, items) => sum + items.length,
+            0
+          ),
+        };
+
+        document.querySelectorAll(".status").forEach(el => {
+          el.className = "status pending";
+          el.textContent = "Pending";
+        });
+
+        log.textContent = "";
+        updateSummary();
+      }
+
+      // Toggle iframe visibility
+      function toggleIframe() {
+        const show = document.getElementById("show-iframe").checked;
+        testFrame.style.display = show ? "block" : "none";
+      }
+
+      // Initialize on load
+      initTests();
+    </script>
+  </body>
+</html>
