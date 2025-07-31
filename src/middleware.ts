@@ -1,10 +1,15 @@
 /**
  * Next.js Middleware for Route Protection & Security
- * Production-grade with enterprise features, rate limiting, and comprehensive security
+ * Production-grade with enterprise features, comprehensive security, and monitoring
  */
 
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { simpleRateLimiter } from "./lib/security/simple-rate-limiter";
+import { InputValidator } from "./lib/security/input-validator";
+import { csrfProtection } from "./lib/security/csrf-protection";
+import { securityHeaders } from "./lib/security/security-headers";
+import { correlationTracker } from "./lib/security/correlation-tracker";
 
 // Safe enterprise logger initialization
 interface SafeLogger {
@@ -46,55 +51,56 @@ if (typeof process !== "undefined" && process.env.NODE_ENV !== "test") {
     });
 }
 
-// Rate limiting store with production-ready features
+// Middleware error class for better error handling
+class MiddlewareError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode = 500,
+    public correlationId?: string
+  ) {
+    super(message);
+    this.name = "MiddlewareError";
+  }
+}
+
+// Legacy fallback for rate limiting (Redis is now primary)
 interface RateLimitEntry {
   count: number;
   resetTime: number;
 }
 
-// In production, this should be replaced with Redis
-const rateLimitStore = new Map<string, RateLimitEntry>();
-
-// Clean up expired entries periodically
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, value] of rateLimitStore.entries()) {
-      if (now > value.resetTime) {
-        rateLimitStore.delete(key);
-      }
-    }
-  }, 60000); // Clean up every minute
-}
+const fallbackRateLimitStore = new Map<string, RateLimitEntry>();
 
 // Security configuration with environment overrides
 const SECURITY_CONFIG = {
-  // Rate limiting
-  RATE_LIMIT_REQUESTS: parseInt(
-    process.env["API_RATE_LIMIT_REQUESTS"] || "100"
-  ),
-  RATE_LIMIT_WINDOW:
-    parseInt(process.env["API_RATE_LIMIT_WINDOW"] || "3600") * 1000, // Convert to milliseconds
+  // Request validation
+  MAX_REQUEST_SIZE: parseInt(process.env["MAX_REQUEST_SIZE"] || "10485760"), // 10MB
+  MAX_HEADER_SIZE: parseInt(process.env["MAX_HEADER_SIZE"] || "8192"), // 8KB
+  MAX_URL_LENGTH: parseInt(process.env["MAX_URL_LENGTH"] || "2048"),
 
-  // CSRF protection
-  CSRF_TOKEN_LENGTH: 32,
-  CSRF_ENABLED: process.env["CSRF_PROTECTION_ENABLED"] !== "false",
+  // Rate limiting rules
+  RATE_LIMITS: {
+    api: {
+      requests: parseInt(process.env["API_RATE_LIMIT_REQUESTS"] || "100"),
+      window: parseInt(process.env["API_RATE_LIMIT_WINDOW"] || "60") * 1000,
+    },
+    auth: {
+      requests: parseInt(process.env["AUTH_RATE_LIMIT_REQUESTS"] || "5"),
+      window: parseInt(process.env["AUTH_RATE_LIMIT_WINDOW"] || "900") * 1000, // 15 minutes
+    },
+    heavy: {
+      requests: parseInt(process.env["HEAVY_RATE_LIMIT_REQUESTS"] || "10"),
+      window: parseInt(process.env["HEAVY_RATE_LIMIT_WINDOW"] || "60") * 1000,
+    },
+  },
 
-  // Content Security Policy
-  CSP_POLICY: [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-    "frame-src 'self'",
-    "object-src 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'none'",
-    "upgrade-insecure-requests",
-  ].join("; "),
+  // Feature flags
+  ENABLE_REQUEST_VALIDATION:
+    process.env["ENABLE_REQUEST_VALIDATION"] !== "false",
+  ENABLE_ANOMALY_DETECTION: process.env["ENABLE_ANOMALY_DETECTION"] !== "false",
+  ENABLE_CORRELATION_TRACKING:
+    process.env["ENABLE_CORRELATION_TRACKING"] !== "false",
 };
 
 /**
@@ -131,180 +137,157 @@ function getClientIp(request: NextRequest): string {
 }
 
 /**
- * Check rate limit with production-ready logic
+ * Determine rate limiting rule based on request
  */
-function checkRateLimit(ip: string): boolean {
-  try {
-    const now = Date.now();
-    const key = `rate_limit:${ip}`;
-    const existing = rateLimitStore.get(key);
+function determineRateLimitRule(pathname: string, method: string): string {
+  // Authentication endpoints
+  if (pathname.startsWith("/auth/") || pathname.startsWith("/api/auth/")) {
+    return "auth";
+  }
 
-    if (!existing || now > existing.resetTime) {
-      // Reset or create new entry
-      rateLimitStore.set(key, {
-        count: 1,
-        resetTime: now + SECURITY_CONFIG.RATE_LIMIT_WINDOW,
+  // Heavy operations
+  if (
+    pathname.includes("/upload") ||
+    pathname.includes("/export") ||
+    pathname.includes("/analyze") ||
+    pathname.includes("/generate")
+  ) {
+    return "heavy";
+  }
+
+  // WebSocket connections
+  if (
+    pathname.startsWith("/api/websocket") ||
+    pathname.startsWith("/api/realtime")
+  ) {
+    return "websocket";
+  }
+
+  // Default API rate limiting
+  return "api";
+}
+
+/**
+ * Check rate limit using fallback system
+ */
+async function checkRateLimit(
+  ruleName: string,
+  identifier: string,
+  correlationId?: string
+): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
+  try {
+    const result = await simpleRateLimiter.checkRateLimit(ruleName, identifier);
+
+    if (!result.allowed && correlationId) {
+      correlationTracker.logSecurityEvent(correlationId, {
+        eventType: "rate_limit",
+        threatLevel: "medium",
+        blocked: true,
+        reason: `Rate limit exceeded for ${ruleName}: ${identifier}`,
+        metadata: { ruleName, identifier, limit: result.totalHits },
       });
-      return true;
     }
 
-    if (existing.count >= SECURITY_CONFIG.RATE_LIMIT_REQUESTS) {
-      return false;
-    }
-
-    existing.count++;
-    return true;
+    return {
+      allowed: result.allowed,
+      remaining: result.remaining,
+      resetTime: result.resetTime,
+    };
   } catch (error) {
-    console.error("Rate limit check error:", error);
-    // Allow request on error to prevent blocking legitimate traffic
-    return true;
+    console.error("Rate limit error:", error);
+    // Fallback to basic rate limiting
+    return fallbackRateLimit(identifier);
   }
 }
 
 /**
- * Generate cryptographically secure CSRF token
+ * Fallback rate limiting when Redis is unavailable
  */
-function generateCSRFToken(): string {
-  try {
-    const chars =
-      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let result = "";
-    const randomValues = new Uint8Array(SECURITY_CONFIG.CSRF_TOKEN_LENGTH);
+function fallbackRateLimit(identifier: string): {
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
+} {
+  const now = Date.now();
+  const key = `fallback:${identifier}`;
+  const existing = fallbackRateLimitStore.get(key);
+  const limit = 50; // Conservative fallback limit
+  const window = 60 * 1000; // 1 minute
 
-    // Use crypto API if available
-    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-      crypto.getRandomValues(randomValues);
-      for (let i = 0; i < SECURITY_CONFIG.CSRF_TOKEN_LENGTH; i++) {
-        const randomValue = randomValues[i];
-        if (randomValue !== undefined) {
-          result += chars[randomValue % chars.length];
-        }
+  if (!existing || now > existing.resetTime) {
+    fallbackRateLimitStore.set(key, {
+      count: 1,
+      resetTime: now + window,
+    });
+    return { allowed: true, remaining: limit - 1, resetTime: now + window };
+  }
+
+  existing.count++;
+  const remaining = Math.max(0, limit - existing.count);
+
+  return {
+    allowed: existing.count <= limit,
+    remaining,
+    resetTime: existing.resetTime,
+  };
+}
+
+/**
+ * Handle middleware errors with proper correlation tracking
+ */
+function handleMiddlewareError(
+  error: Error,
+  correlationId: string,
+  pathname: string
+): NextResponse {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // Log error with correlation tracking
+  correlationTracker.logSecurityEvent(correlationId, {
+    eventType: "validation_error",
+    threatLevel: "medium",
+    blocked: false,
+    reason: error.message,
+    metadata: {
+      error: error.name,
+      stack: isProduction ? undefined : error.stack,
+    },
+  });
+
+  if (error instanceof MiddlewareError) {
+    return NextResponse.json(
+      {
+        error: isProduction ? "Request failed" : error.message,
+        code: error.code,
+        correlationId,
+        timestamp: new Date().toISOString(),
+      },
+      {
+        status: error.statusCode,
+        headers: {
+          "X-Correlation-ID": correlationId,
+          "X-Request-ID": correlationId,
+        },
       }
-    } else {
-      // Fallback for environments without crypto
-      for (let i = 0; i < SECURITY_CONFIG.CSRF_TOKEN_LENGTH; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-    }
-    return result;
-  } catch (error) {
-    console.error("CSRF token generation error:", error);
-    // Generate a simple fallback token
-    return Date.now().toString(36) + Math.random().toString(36);
-  }
-}
-
-/**
- * Validate CSRF token with production safeguards
- */
-function validateCSRFToken(request: NextRequest): boolean {
-  try {
-    // Skip CSRF check if disabled
-    if (!SECURITY_CONFIG.CSRF_ENABLED) {
-      return true;
-    }
-
-    const method = request.method;
-
-    // Only check CSRF for state-changing methods
-    if (!["POST", "PUT", "DELETE", "PATCH"].includes(method)) {
-      return true;
-    }
-
-    // Skip CSRF check for API auth callbacks and authenticated API routes
-    const pathname = request.nextUrl.pathname;
-    if (
-      pathname.startsWith("/auth/callback") ||
-      pathname.startsWith("/api/auth/")
-    ) {
-      return true;
-    }
-
-    // Skip CSRF for all API routes (they use production-grade authentication)
-    if (pathname.startsWith("/api/")) {
-      enterpriseLogger?.debug?.(`CSRF skipped for API route: ${pathname}`, {
-        pathname,
-        method: request.method,
-      });
-      return true;
-    }
-
-    const tokenFromHeader = request.headers.get("x-csrf-token");
-    const tokenFromCookie = request.cookies.get("csrf-token")?.value;
-
-    return tokenFromHeader === tokenFromCookie && !!tokenFromHeader;
-  } catch (error) {
-    console.error("CSRF validation error:", error);
-    // Allow request on error in production to prevent blocking
-    return process.env.NODE_ENV !== "production";
-  }
-}
-
-/**
- * Add comprehensive security headers
- */
-function addSecurityHeaders(response: NextResponse): NextResponse {
-  try {
-    // Content Security Policy
-    response.headers.set("Content-Security-Policy", SECURITY_CONFIG.CSP_POLICY);
-
-    // XSS Protection
-    response.headers.set("X-XSS-Protection", "1; mode=block");
-
-    // Content Type Options
-    response.headers.set("X-Content-Type-Options", "nosniff");
-
-    // Frame Options
-    response.headers.set("X-Frame-Options", "DENY");
-
-    // Referrer Policy
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-
-    // Strict Transport Security (HTTPS only)
-    if (process.env.NODE_ENV === "production") {
-      response.headers.set(
-        "Strict-Transport-Security",
-        "max-age=31536000; includeSubDomains; preload"
-      );
-    }
-
-    // Enhanced Permissions Policy
-    response.headers.set(
-      "Permissions-Policy",
-      [
-        "accelerometer=()",
-        "ambient-light-sensor=()",
-        "autoplay=()",
-        "battery=()",
-        "camera=()",
-        "cross-origin-isolated=()",
-        "display-capture=()",
-        "document-domain=()",
-        "encrypted-media=()",
-        "execution-while-not-rendered=()",
-        "execution-while-out-of-viewport=()",
-        "fullscreen=()",
-        "geolocation=()",
-        "gyroscope=()",
-        "keyboard-map=()",
-        "magnetometer=()",
-        "microphone=()",
-        "midi=()",
-        "navigation-override=()",
-        "payment=()",
-        "picture-in-picture=()",
-        "publickey-credentials-get=()",
-        "screen-wake-lock=()",
-        "sync-xhr=()",
-        "usb=()",
-        "web-share=()",
-        "xr-spatial-tracking=()",
-        "interest-cohort=()",
-      ].join(", ")
     );
-  } catch (error) {
-    console.error("Error adding security headers:", error);
   }
+
+  // Generic error response
+  const response = NextResponse.json(
+    {
+      error: isProduction ? "Internal server error" : error.message,
+      code: "MIDDLEWARE_ERROR",
+      correlationId,
+      timestamp: new Date().toISOString(),
+    },
+    {
+      status: 500,
+      headers: {
+        "X-Correlation-ID": correlationId,
+        "X-Request-ID": correlationId,
+      },
+    }
+  );
 
   return response;
 }
@@ -313,10 +296,12 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
  * Main middleware function with production-grade error handling
  */
 export async function middleware(request: NextRequest) {
+  let correlationId = "";
   let startTime: number;
   let clientIp = "unknown";
   let userAgent = "unknown";
   let session: { user?: { id?: string } } | null = null;
+  let context: any;
 
   try {
     startTime = Date.now();
@@ -340,77 +325,141 @@ export async function middleware(request: NextRequest) {
       console.warn("Failed to get client info:", error);
     }
 
+    // Create correlation context for request tracking
+    if (SECURITY_CONFIG.ENABLE_CORRELATION_TRACKING) {
+      context = correlationTracker.createContext(request, clientIp);
+      correlationId = context.correlationId;
+    } else {
+      correlationId = `mw-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // Validate request format and content
+    if (SECURITY_CONFIG.ENABLE_REQUEST_VALIDATION) {
+      const validationResult = InputValidator.validateRequest(request);
+      if (!validationResult.valid) {
+        correlationTracker.logSecurityEvent(correlationId, {
+          eventType: "validation_error",
+          threatLevel: "high",
+          blocked: true,
+          reason: `Request validation failed: ${validationResult.errors.map(e => e.message).join(", ")}`,
+          metadata: { errors: validationResult.errors },
+        });
+
+        return NextResponse.json(
+          {
+            error: "Invalid request format",
+            code: "VALIDATION_ERROR",
+            correlationId,
+            errors: validationResult.errors,
+          },
+          {
+            status: 400,
+            headers: {
+              "X-Correlation-ID": correlationId,
+              "X-Request-ID": correlationId,
+            },
+          }
+        );
+      }
+    }
+
     let response = NextResponse.next({
       request: {
         headers: request.headers,
       },
     });
 
-    // Apply rate limiting for production
-    if (process.env.NODE_ENV === "production") {
-      try {
-        if (!pathname.startsWith("/api/auth/") && !checkRateLimit(clientIp)) {
-          enterpriseLogger?.warn?.("Rate limit exceeded", {
-            clientIp,
-            pathname,
-            userAgent,
-            rateLimitRequests: SECURITY_CONFIG.RATE_LIMIT_REQUESTS,
-          });
-          return new NextResponse("Too Many Requests", {
-            status: 429,
-            headers: {
-              "Retry-After": "3600",
-              "X-RateLimit-Limit":
-                SECURITY_CONFIG.RATE_LIMIT_REQUESTS.toString(),
-              "X-RateLimit-Remaining": "0",
-              "X-RateLimit-Reset": new Date(
-                Date.now() + SECURITY_CONFIG.RATE_LIMIT_WINDOW
-              ).toISOString(),
-            },
-          });
+    // Apply intelligent rate limiting
+    const rateLimitRule = determineRateLimitRule(pathname, request.method);
+    const rateLimitResult = await checkRateLimit(
+      rateLimitRule,
+      clientIp,
+      correlationId
+    );
+
+    if (!rateLimitResult.allowed) {
+      enterpriseLogger?.warn?.("Rate limit exceeded", {
+        correlationId,
+        clientIp,
+        pathname,
+        userAgent,
+        rule: rateLimitRule,
+      });
+
+      return NextResponse.json(
+        {
+          error: "Rate limit exceeded",
+          code: "RATE_LIMIT_EXCEEDED",
+          correlationId,
+          retryAfter: Math.ceil(
+            (rateLimitResult.resetTime - Date.now()) / 1000
+          ),
+        },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.ceil(
+              (rateLimitResult.resetTime - Date.now()) / 1000
+            ).toString(),
+            "X-RateLimit-Limit": "100",
+            "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+            "X-RateLimit-Reset": new Date(
+              rateLimitResult.resetTime
+            ).toISOString(),
+            "X-Correlation-ID": correlationId,
+            "X-Request-ID": correlationId,
+          },
         }
-      } catch (rateLimitError) {
-        console.error("Rate limiting error:", rateLimitError);
-        // Continue on rate limit errors
-      }
+      );
     }
 
-    // CSRF Protection for production
-    if (process.env.NODE_ENV === "production") {
-      try {
-        if (!pathname.startsWith("/auth/") && !validateCSRFToken(request)) {
-          enterpriseLogger?.warn?.("CSRF token validation failed", {
-            clientIp,
-            pathname,
-            userAgent,
-            method: request.method,
-          });
-          return new NextResponse("CSRF Token Mismatch", {
+    // Enhanced CSRF Protection
+    if (csrfProtection.needsProtection(request)) {
+      const csrfResult = await csrfProtection.validateToken(request, response);
+
+      if (!csrfResult.valid) {
+        correlationTracker.logSecurityEvent(correlationId, {
+          eventType: "csrf_violation",
+          threatLevel: "high",
+          blocked: true,
+          reason: csrfResult.reason || "CSRF token validation failed",
+        });
+
+        enterpriseLogger?.warn?.("CSRF token validation failed", {
+          correlationId,
+          clientIp,
+          pathname,
+          userAgent,
+          method: request.method,
+          reason: csrfResult.reason,
+        });
+
+        return NextResponse.json(
+          {
+            error: "CSRF token validation failed",
+            code: "CSRF_ERROR",
+            correlationId,
+            reason: csrfResult.reason,
+          },
+          {
             status: 403,
             headers: {
-              "Content-Type": "application/json",
+              "X-Correlation-ID": correlationId,
+              "X-Request-ID": correlationId,
             },
-          });
-        }
-      } catch (csrfError) {
-        console.error("CSRF validation error:", csrfError);
-        // Continue on CSRF errors in production
+          }
+        );
       }
-    }
 
-    // Generate and set CSRF token for new sessions
-    try {
-      if (!request.cookies.get("csrf-token")) {
-        const csrfToken = generateCSRFToken();
-        response.cookies.set("csrf-token", csrfToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-          maxAge: 60 * 60 * 24, // 24 hours
-        });
+      // Handle token rotation
+      if (csrfResult.newToken) {
+        response.headers.set("X-New-CSRF-Token", csrfResult.newToken);
       }
-    } catch (error) {
-      console.error("CSRF token generation error:", error);
+    } else {
+      // Initialize CSRF protection for new sessions
+      if (!request.cookies.get("csrf-token")) {
+        await csrfProtection.initializeProtection(response);
+      }
     }
 
     // Authentication check with proper error handling
@@ -466,6 +515,14 @@ export async function middleware(request: NextRequest) {
       } = await supabase.auth.getSession();
       session = authSession;
 
+      // Update correlation context with session info
+      if (context && session) {
+        correlationTracker.updateContext(correlationId, {
+          sessionId: "session",
+          userId: session.user?.id,
+        });
+      }
+
       // Public routes that don't require authentication
       const publicRoutes = [
         "/",
@@ -486,15 +543,28 @@ export async function middleware(request: NextRequest) {
 
       // If user is not authenticated and trying to access a protected route
       if (!session && !isPublicRoute) {
+        correlationTracker.logSecurityEvent(correlationId, {
+          eventType: "auth_failure",
+          threatLevel: "low",
+          blocked: false,
+          reason: "Unauthenticated access to protected route",
+          metadata: { pathname, method: request.method },
+        });
+
         enterpriseLogger?.info?.("Unauthenticated access to protected route", {
+          correlationId,
           clientIp,
           pathname,
           userAgent,
         });
+
         const redirectUrl = new URL("/auth/signin", request.url);
         redirectUrl.searchParams.set("redirectTo", pathname);
         const redirectResponse = NextResponse.redirect(redirectUrl);
-        return addSecurityHeaders(redirectResponse);
+
+        // Apply security headers with correlation ID
+        await securityHeaders.applyHeaders(redirectResponse, correlationId);
+        return redirectResponse;
       }
 
       // If user is authenticated and trying to access auth pages, redirect to dashboard
@@ -506,14 +576,18 @@ export async function middleware(request: NextRequest) {
         enterpriseLogger?.debug?.(
           "Authenticated user redirected from auth page",
           {
+            correlationId,
             pathname,
             userId: session.user?.id,
           }
         );
+
         const redirectResponse = NextResponse.redirect(
           new URL("/dashboard", request.url)
         );
-        return addSecurityHeaders(redirectResponse);
+
+        await securityHeaders.applyHeaders(redirectResponse, correlationId);
+        return redirectResponse;
       }
 
       // If user is authenticated and on root path, redirect to dashboard
@@ -521,68 +595,172 @@ export async function middleware(request: NextRequest) {
         enterpriseLogger?.debug?.(
           "Authenticated user redirected from root to dashboard",
           {
+            correlationId,
             userId: session.user?.id,
           }
         );
+
         const redirectResponse = NextResponse.redirect(
           new URL("/dashboard", request.url)
         );
-        return addSecurityHeaders(redirectResponse);
+
+        await securityHeaders.applyHeaders(redirectResponse, correlationId);
+        return redirectResponse;
       }
     } catch (authError) {
       // If authentication fails, continue but log the error
       console.error("Middleware auth error:", authError);
+
+      correlationTracker.logSecurityEvent(correlationId, {
+        eventType: "auth_failure",
+        threatLevel: "medium",
+        blocked: false,
+        reason: "Authentication error in middleware",
+        metadata: {
+          error:
+            authError instanceof Error ? authError.message : String(authError),
+        },
+      });
+
       enterpriseLogger?.error?.(
         "Authentication error in middleware",
         authError,
         {
+          correlationId,
           pathname,
           method: request.method,
         }
       );
     }
 
-    // Add comprehensive security headers to all responses
-    const secureResponse = addSecurityHeaders(response);
+    // Apply comprehensive security headers
+    await securityHeaders.applyHeaders(response, correlationId);
 
     // Add performance and security metrics
     const processingTime = Date.now() - startTime!;
-    secureResponse.headers.set("X-Response-Time", `${processingTime}ms`);
+    response.headers.set("X-Response-Time", `${processingTime}ms`);
+    response.headers.set("X-Correlation-ID", correlationId);
+    response.headers.set("X-Request-ID", correlationId);
 
-    // Log slow requests in production
-    if (processingTime > 1000 && process.env.NODE_ENV === "production") {
+    // Update performance metrics
+    if (context) {
+      correlationTracker.updatePerformanceMetrics(correlationId, {
+        endTime: Date.now(),
+        duration: processingTime,
+      });
+    }
+
+    // Log slow requests
+    if (processingTime > 1000) {
+      correlationTracker.logSecurityEvent(correlationId, {
+        eventType: "suspicious_request",
+        threatLevel: "low",
+        blocked: false,
+        reason: "Slow request processing",
+        metadata: { processingTime },
+      });
+
       enterpriseLogger?.warn?.("Slow middleware request", {
+        correlationId,
         clientIp,
         pathname,
         userAgent,
         processingTime,
-        isProduction: true,
       });
     }
 
-    // Log successful authentication events
+    // Check for anomalous behavior
+    if (SECURITY_CONFIG.ENABLE_ANOMALY_DETECTION && context) {
+      const anomaly = correlationTracker.detectAnomalies(correlationId);
+      if (anomaly.isAnomalous) {
+        correlationTracker.logSecurityEvent(correlationId, {
+          eventType: "suspicious_request",
+          threatLevel: anomaly.riskScore > 75 ? "high" : "medium",
+          blocked: false,
+          reason: `Anomalous behavior detected: ${anomaly.reasons.join(", ")}`,
+          metadata: { riskScore: anomaly.riskScore, reasons: anomaly.reasons },
+        });
+
+        enterpriseLogger?.warn?.("Anomalous request detected", {
+          correlationId,
+          clientIp,
+          pathname,
+          riskScore: anomaly.riskScore,
+          reasons: anomaly.reasons,
+        });
+      }
+    }
+
+    // Log successful processing
     if (session) {
-      enterpriseLogger?.debug?.("Middleware authentication successful", {
+      enterpriseLogger?.debug?.("Middleware processing successful", {
+        correlationId,
         userId: session.user?.id,
         pathname,
         processingTime,
       });
     }
 
-    return secureResponse;
+    return response;
   } catch (error) {
-    // If middleware fails completely, return a basic response with security headers
+    // If middleware fails completely, handle gracefully
     console.error("Critical middleware error:", error);
+
+    const fallbackCorrelationId =
+      correlationId ||
+      `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Log critical error
+    if (correlationId) {
+      correlationTracker.logSecurityEvent(correlationId, {
+        eventType: "validation_error",
+        threatLevel: "critical",
+        blocked: false,
+        reason: "Critical middleware failure",
+        metadata: {
+          error: error instanceof Error ? error.message : String(error),
+          stack:
+            process.env.NODE_ENV !== "production"
+              ? error instanceof Error
+                ? error.stack
+                : undefined
+              : undefined,
+        },
+      });
+    }
+
     enterpriseLogger?.error?.("Critical middleware failure", error, {
+      correlationId: fallbackCorrelationId,
       pathname: request.nextUrl.pathname,
       method: request.method,
       clientIp,
       userAgent,
     });
 
+    // Return error response or safe fallback
+    if (error instanceof MiddlewareError) {
+      return handleMiddlewareError(
+        error,
+        fallbackCorrelationId,
+        request.nextUrl.pathname
+      );
+    }
+
     // Return a safe response that allows the application to continue
     const response = NextResponse.next();
-    return addSecurityHeaders(response);
+    response.headers.set("X-Correlation-ID", fallbackCorrelationId);
+    response.headers.set("X-Request-ID", fallbackCorrelationId);
+
+    try {
+      await securityHeaders.applyHeaders(response, fallbackCorrelationId);
+    } catch (headerError) {
+      console.error("Failed to apply security headers:", headerError);
+      // Apply minimal headers as fallback
+      response.headers.set("X-Content-Type-Options", "nosniff");
+      response.headers.set("X-Frame-Options", "DENY");
+    }
+
+    return response;
   }
 }
 

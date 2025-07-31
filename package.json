@@ -67,6 +67,7 @@
     "googleapis": "^150.0.1",
     "https-proxy-agent": "^7.0.6",
     "ioredis": "^5.6.1",
+    "isomorphic-dompurify": "^2.26.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.522.0",
     "natural": "^8.1.0",
