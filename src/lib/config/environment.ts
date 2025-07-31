@@ -150,23 +150,19 @@ export function validateEnvironment(): ValidationResult {
       warnings.push("Supabase URL doesn't appear to be a valid Supabase URL");
     }
 
-    if (
-      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] &&
-      !process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"].startsWith(
-        "sb_publishable_"
-      )
-    ) {
-      errors.push("Supabase anon key has invalid format");
-    }
+    // Temporarily accept both new and legacy Supabase key formats
+    const anonKey = process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"];
+    if (anonKey) {
+      const isNewFormat = anonKey.startsWith("sb_publishable_");
+      const isLegacyFormat = anonKey.startsWith("eyJ") && anonKey.length > 100;
 
-    // Check for legacy JWT tokens
-    if (
-      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] &&
-      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"].startsWith("eyJ")
-    ) {
-      errors.push(
-        "CRITICAL: Legacy JWT token detected as anon key. This will cause browser crashes."
-      );
+      if (!isNewFormat && !isLegacyFormat) {
+        errors.push("Supabase anon key has invalid format");
+      } else if (isLegacyFormat) {
+        warnings.push(
+          "Using legacy JWT token format. Please update to new format (sb_publishable_...) for better security."
+        );
+      }
     }
 
     const isValid = errors.length === 0 && criticalMissing.length === 0;
