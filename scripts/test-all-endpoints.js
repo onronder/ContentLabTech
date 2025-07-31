@@ -9,8 +9,7 @@ const https = require("https");
 const http = require("http");
 
 // Configuration
-const BASE_URL =
-  process.env.TEST_BASE_URL || "https://contentlab-nexus.vercel.app";
+const BASE_URL = process.env.TEST_BASE_URL || "https://app.contentlabtech.com";
 const API_KEY = process.env.SUPABASE_ANON_KEY || "";
 
 // Colors for output

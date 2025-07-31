@@ -9,7 +9,7 @@ echo ""
 
 # Configuration
 if [ -z "$DOMAIN" ]; then
-    DOMAIN="https://contentlab-nexus.vercel.app"
+    DOMAIN="https://app.contentlabtech.com"
 fi
 
 # Colors

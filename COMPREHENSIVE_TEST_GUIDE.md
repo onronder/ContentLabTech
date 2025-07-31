@@ -4,6 +4,8 @@
 
 This guide ensures every function, button, and page in ContentLab Nexus is working correctly.
 
+**Production URL**: https://app.contentlabtech.com
+
 ---
 
 ## 1. Authentication System Tests ✅
@@ -214,13 +216,13 @@ This guide ensures every function, button, and page in ContentLab Nexus is worki
 
 ```bash
 # Test basic health
-curl https://your-domain.com/api/health
+curl https://app.contentlabtech.com/api/health
 
 # Test detailed health
-curl https://your-domain.com/api/health/detailed
+curl https://app.contentlabtech.com/api/health/detailed
 
 # Test database health
-curl https://your-domain.com/api/health/database
+curl https://app.contentlabtech.com/api/health/database
 ```
 
 ### CRUD Operations
