@@ -5,6 +5,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 
+// Force Node.js runtime for Redis operations
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 interface RedisHealthCheck {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;

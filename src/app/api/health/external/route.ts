@@ -7,6 +7,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { circuitBreakerManager } from "@/lib/resilience/circuit-breaker";
 import { timeoutFetch } from "@/lib/resilience/timeout-fetch";
 
+// Force Node.js runtime for external service checks
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 interface ExternalServiceCheck {
   name: string;
   status: "healthy" | "degraded" | "unhealthy" | "not_configured";

@@ -9,6 +9,10 @@ import { circuitBreakerManager } from "@/lib/resilience/circuit-breaker";
 import { supabase } from "@/lib/supabase/client";
 import { healthChecker } from "@/lib/monitoring/health-checker";
 
+// Force Node.js runtime for health checks
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 interface HealthCheckResult {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
