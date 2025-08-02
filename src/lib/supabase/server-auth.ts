@@ -46,10 +46,17 @@ export async function createClient() {
 
     // CRITICAL FIX: Use service role key for server-side operations
     // Server operations need elevated permissions that anon key doesn't provide
-    const serverKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const usingServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serverKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const usingServiceRole = !!serverKey;
+
+    if (!serverKey) {
+      console.error(
+        "❌ Server Auth Client: SUPABASE_SERVICE_ROLE_KEY is missing"
+      );
+      throw new Error(
+        "SUPABASE_SERVICE_ROLE_KEY is required for server-side operations"
+      );
+    }
 
     console.log("🔧 Server Auth Client: Key selection", {
       usingServiceRole,

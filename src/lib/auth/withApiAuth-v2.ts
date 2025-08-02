@@ -33,14 +33,63 @@ export function withApiAuth<T extends any[]>(
     });
 
     try {
-      // Use existing session utilities that are proven to work
-      console.log("🔍 withApiAuth v2: Getting current user from session");
-      const user = await getCurrentUser();
+      let user = null;
+      let supabase = null;
+
+      // Try Bearer token authentication first
+      const authHeader = request.headers.get("authorization");
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.substring(7);
+        console.log(
+          "🔍 withApiAuth v2: Attempting Bearer token authentication"
+        );
+
+        try {
+          // Create supabase client with the access token
+          const { createClient } = await import("@/lib/supabase/server-auth");
+          supabase = await createClient();
+
+          // Set the token on the client and get user
+          const {
+            data: { user: bearerUser },
+            error,
+          } = await supabase.auth.getUser(token);
+
+          if (!error && bearerUser) {
+            user = bearerUser;
+            console.log(
+              "✅ withApiAuth v2: Bearer token authentication successful"
+            );
+          }
+        } catch (bearerError) {
+          console.log(
+            "❌ withApiAuth v2: Bearer token authentication failed:",
+            bearerError
+          );
+        }
+      }
+
+      // Fallback to session-based authentication
+      if (!user) {
+        console.log(
+          "🔍 withApiAuth v2: Attempting session-based authentication"
+        );
+        user = await getCurrentUser();
+
+        if (user) {
+          console.log(
+            "✅ withApiAuth v2: Session-based authentication successful"
+          );
+          // Create supabase client for session-based auth
+          supabase = await createClient();
+        }
+      }
 
       if (!user) {
         console.log("❌ withApiAuth v2: No authenticated user found", {
           method: request.method,
           url: request.url,
+          hasBearerToken: !!authHeader?.startsWith("Bearer "),
         });
 
         return NextResponse.json(
@@ -51,7 +100,7 @@ export function withApiAuth<T extends any[]>(
             timestamp: new Date().toISOString(),
             details: {
               message: "Please log in to access this resource",
-              authMethod: "session",
+              authMethod: "session_or_bearer",
             },
           },
           {
@@ -71,9 +120,11 @@ export function withApiAuth<T extends any[]>(
         url: request.url,
       });
 
-      // Create Supabase client for this request
-      console.log("🔧 withApiAuth v2: Creating Supabase client");
-      const supabase = await createClient();
+      // Supabase client should already be created above
+      if (!supabase) {
+        console.log("🔧 withApiAuth v2: Creating fallback Supabase client");
+        supabase = await createClient();
+      }
 
       // Create auth context
       const context: AuthContext = {

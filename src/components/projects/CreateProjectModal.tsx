@@ -74,7 +74,7 @@ export const CreateProjectModal = ({
   onClose,
   onProjectCreated,
 }: CreateProjectModalProps) => {
-  const { currentTeam, session } = useAuth();
+  const { currentTeam, teams, session } = useAuth();
   const [currentTab, setCurrentTab] = useState("basic");
 
   // Advanced form validation configuration
@@ -222,11 +222,23 @@ export const CreateProjectModal = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentTeam?.id) return;
+
+    // Get the team to use for project creation
+    const targetTeam = currentTeam || teams[0];
+    if (!targetTeam?.id) {
+      errorHandler.addError(
+        new Error("No team available. Please create or join a team first."),
+        undefined,
+        { operation: "project_creation" }
+      );
+      return;
+    }
 
     // Start loading with step progression
     loadingManager.startLoading("submitting");
     errorHandler.clearAllErrors();
+
+    const currentTeamId = targetTeam.id; // Store for error handling
 
     try {
       // Step 1: Validation
@@ -244,7 +256,7 @@ export const CreateProjectModal = ({
       loadingManager.updateStep("creation", "active");
 
       const payload = {
-        teamId: currentTeam.id,
+        teamId: targetTeam.id,
         name: formValidation.formData.name,
         description: formValidation.formData.description || undefined,
         website_url: formValidation.formData.website_url || undefined,
@@ -281,7 +293,7 @@ export const CreateProjectModal = ({
       // Simple error handling
       errorHandler.addError(err, undefined, {
         operation: "project_creation",
-        teamId: currentTeam?.id,
+        teamId: currentTeamId,
       });
 
       // Fail current step if loading
@@ -292,10 +304,12 @@ export const CreateProjectModal = ({
   };
 
   // Form validity based on validation state
+  const targetTeam = currentTeam || teams[0];
   const isFormValid =
     formValidation.isValid &&
     formValidation.formData.name.trim().length > 0 &&
-    !loadingManager.isAnyLoading;
+    !loadingManager.isAnyLoading &&
+    !!targetTeam?.id;
 
   return (
     <EnhancedDialog open={open} onOpenChange={handleClose}>
@@ -314,6 +328,16 @@ export const CreateProjectModal = ({
           <EnhancedDialogDescription>
             Set up a new content project with comprehensive analysis and
             tracking
+            {!currentTeam && teams.length === 0 && (
+              <div className="mt-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm text-yellow-800">
+                    You need to be a member of a team to create projects.
+                  </span>
+                </div>
+              </div>
+            )}
           </EnhancedDialogDescription>
         </EnhancedDialogHeader>
 
