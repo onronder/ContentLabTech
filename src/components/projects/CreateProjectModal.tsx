@@ -267,8 +267,12 @@ export const CreateProjectModal = ({
         settings: {},
       };
 
+      console.log("🚀 Creating project with payload:", payload);
+
       // Simple API call with authentication
       const response = await apiPost("/api/projects", payload);
+
+      console.log("📡 API response status:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json();

@@ -122,7 +122,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [currentTeam?.id, currentTeamRole, teams.length]);
 
-  // Declare loadUserTeams before it's used
+  // Declare loadUserTeams before it's used - FIXED: Remove circular dependency
   const loadUserTeams = useCallback(
     async (userId: string) => {
       setTeamsLoading(true);
@@ -188,16 +188,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setTeamsLoading(false);
       }
     },
-    [teams]
+    [] // FIXED: Removed teams dependency that caused circular updates
   );
 
-  // Optimized teams loading effect
+  // Optimized teams loading effect - FIXED: Remove loadUserTeams dependency to prevent loops
   useEffect(() => {
     if (user?.id && !teamsLoading && teams.length === 0) {
       debugLog("Loading teams for user", { userId: user.id });
       loadUserTeams(user.id);
     }
-  }, [user?.id, teamsLoading, teams.length, loadUserTeams]);
+  }, [user?.id, teamsLoading, teams.length]); // FIXED: Removed loadUserTeams dependency
 
   // Memoized configuration validation
   const validateSupabaseConfig = useMemo(() => {
@@ -211,9 +211,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return false;
     }
 
-    if (!key.startsWith("eyJ")) {
+    // FIXED: Support different Supabase key formats (both JWT and sb_publishable_)
+    if (
+      !key.startsWith("eyJ") &&
+      !key.startsWith("sb_publishable_") &&
+      !key.startsWith("sb_")
+    ) {
       const error = "Invalid anon key format";
-      console.error("[AuthContext]", error);
+      console.error("[AuthContext]", error, {
+        keyPrefix: key.substring(0, 10),
+      });
       setInitializationError(error);
       return false;
     }
@@ -479,7 +486,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     if (user?.id) {
       await loadUserTeams(user.id);
     }
-  }, [user?.id, loadUserTeams]);
+  }, [user?.id]); // FIXED: Removed loadUserTeams dependency to prevent loops
 
   const hasPermission = useCallback(
     (permission: string): boolean => {
