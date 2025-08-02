@@ -74,53 +74,17 @@ export const PerformanceMetrics = ({
 
     setLoading(true);
     try {
-      // Mock data - integrate with actual Core Web Vitals API
-      const mockData: PerformanceData = {
-        coreWebVitals: {
-          mobile: {
-            lcp: { value: 2.4, status: "good" },
-            fid: { value: 85, status: "needs-improvement" },
-            cls: { value: 0.08, status: "needs-improvement" },
-            fcp: { value: 1.8, status: "good" },
-            speedIndex: { value: 3.2, status: "good" },
-          },
-          desktop: {
-            lcp: { value: 1.9, status: "good" },
-            fid: { value: 45, status: "good" },
-            cls: { value: 0.05, status: "good" },
-            fcp: { value: 1.2, status: "good" },
-            speedIndex: { value: 2.1, status: "good" },
-          },
-        },
-        overallScore: 78,
-        trends: [
-          { date: "2024-01-01", score: 72, lcp: 2.8, fid: 95, cls: 0.12 },
-          { date: "2024-01-08", score: 75, lcp: 2.6, fid: 90, cls: 0.1 },
-          { date: "2024-01-15", score: 78, lcp: 2.4, fid: 85, cls: 0.08 },
-        ],
-        recommendations: [
-          {
-            type: "image-optimization",
-            impact: "high",
-            description: "Optimize images to reduce LCP by ~0.8s",
-            savings: "0.8s faster LCP",
-          },
-          {
-            type: "javascript-optimization",
-            impact: "medium",
-            description: "Remove unused JavaScript to improve FID",
-            savings: "25ms faster FID",
-          },
-          {
-            type: "layout-shift",
-            impact: "high",
-            description: "Reserve space for dynamic content to reduce CLS",
-            savings: "0.03 better CLS",
-          },
-        ],
-      };
+      // Fetch real performance metrics from API
+      const response = await fetch(
+        `/api/performance/metrics?timeRange=${timeRange}&teamId=${teamId}`
+      );
 
-      setPerformanceData(mockData);
+      if (!response.ok) {
+        throw new Error("Failed to fetch performance metrics");
+      }
+
+      const data = await response.json();
+      setPerformanceData(data);
     } catch (error) {
       console.error("Failed to load performance data:", error);
     } finally {

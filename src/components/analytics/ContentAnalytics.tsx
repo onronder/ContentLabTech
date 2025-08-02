@@ -59,9 +59,14 @@ interface ContentMetrics {
   };
 }
 
-export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) => {
+export const ContentAnalytics = ({
+  timeRange,
+  teamId,
+}: ContentAnalyticsProps) => {
   const [loading, setLoading] = useState(true);
-  const [contentMetrics, setContentMetrics] = useState<ContentMetrics | null>(null);
+  const [contentMetrics, setContentMetrics] = useState<ContentMetrics | null>(
+    null
+  );
 
   useEffect(() => {
     loadContentAnalytics();
@@ -72,55 +77,18 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
 
     setLoading(true);
     try {
-      // Mock data - integrate with actual content analytics API
-      const mockData: ContentMetrics = {
-        totalContent: 156,
-        publishedContent: 134,
-        draftContent: 22,
-        avgSeoScore: 78,
-        avgReadabilityScore: 82,
-        totalViews: 285431,
-        totalEngagement: 18500,
-        conversionRate: 3.2,
-        topPerformingContent: [
-          {
-            id: "1",
-            title: "Complete Guide to SEO Optimization",
-            views: 15420,
-            engagement: 87.5,
-            seoScore: 95,
-            type: "article",
-          },
-          {
-            id: "2",
-            title: "Content Marketing Best Practices",
-            views: 12840,
-            engagement: 92.1,
-            seoScore: 88,
-            type: "blog_post",
-          },
-          {
-            id: "3",
-            title: "AI-Powered Content Strategy",
-            views: 9870,
-            engagement: 79.3,
-            seoScore: 91,
-            type: "article",
-          },
-        ],
-        contentTrends: [
-          { date: "2024-01-01", published: 12, views: 45000, engagement: 15200 },
-          { date: "2024-01-08", published: 15, views: 52000, engagement: 16800 },
-          { date: "2024-01-15", published: 18, views: 58000, engagement: 18500 },
-        ],
-        seoInsights: {
-          keywordOpportunities: 24,
-          optimizationSuggestions: 45,
-          technicalIssues: 3,
-        },
-      };
+      // Fetch real content analytics from API
+      const response = await fetch(
+        `/api/analytics/content?timeRange=${timeRange}&teamId=${teamId}`
+      );
 
-      setContentMetrics(mockData);
+      if (!response.ok) {
+        throw new Error("Failed to fetch content analytics");
+      }
+
+      const data: ContentMetrics = await response.json();
+
+      setContentMetrics(data);
     } catch (error) {
       console.error("Failed to load content analytics:", error);
     } finally {
@@ -196,7 +164,8 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
               {contentMetrics.totalContent}
             </div>
             <div className="text-xs text-gray-500">
-              {contentMetrics.publishedContent} published, {contentMetrics.draftContent} drafts
+              {contentMetrics.publishedContent} published,{" "}
+              {contentMetrics.draftContent} drafts
             </div>
           </CardContent>
         </Card>
@@ -209,7 +178,9 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
             <Target className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${getScoreColor(contentMetrics.avgSeoScore)}`}>
+            <div
+              className={`text-2xl font-bold ${getScoreColor(contentMetrics.avgSeoScore)}`}
+            >
               {contentMetrics.avgSeoScore}
               <span className="text-sm font-normal text-gray-500">/100</span>
             </div>
@@ -232,7 +203,7 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
             </div>
             <div className="flex items-center space-x-1 text-xs text-gray-500">
               <TrendingUp className="h-3 w-3 text-green-500" />
-              <span>+12% vs last {timeRange === '7d' ? 'week' : 'month'}</span>
+              <span>+12% vs last {timeRange === "7d" ? "week" : "month"}</span>
             </div>
           </CardContent>
         </Card>
@@ -268,19 +239,19 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
             {contentMetrics.topPerformingContent.map((content, index) => (
               <div
                 key={content.id}
-                className="flex items-center space-x-4 p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                className="flex items-center space-x-4 rounded-lg border border-gray-200 p-4 hover:bg-gray-50"
               >
-                <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100">
                   <span className="text-sm font-semibold text-blue-600">
                     {index + 1}
                   </span>
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-medium text-gray-900 truncate">
+
+                <div className="min-w-0 flex-1">
+                  <h4 className="truncate text-sm font-medium text-gray-900">
                     {content.title}
                   </h4>
-                  <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                  <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
                     <span>{getContentTypeLabel(content.type)}</span>
                     <span>{formatNumber(content.views)} views</span>
                     <span>{content.engagement}% engagement</span>
@@ -292,10 +263,10 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
                     variant="outline"
                     className={
                       content.seoScore >= 90
-                        ? "border-green-200 text-green-700 bg-green-50"
+                        ? "border-green-200 bg-green-50 text-green-700"
                         : content.seoScore >= 80
-                        ? "border-blue-200 text-blue-700 bg-blue-50"
-                        : "border-yellow-200 text-yellow-700 bg-yellow-50"
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-yellow-200 bg-yellow-50 text-yellow-700"
                     }
                   >
                     SEO: {content.seoScore}
@@ -317,12 +288,16 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-center justify-between rounded-lg bg-blue-50 p-3">
               <div className="flex items-center space-x-3">
                 <Target className="h-5 w-5 text-blue-600" />
                 <div>
-                  <div className="font-medium text-blue-900">Keyword Opportunities</div>
-                  <div className="text-sm text-blue-700">New keywords to target</div>
+                  <div className="font-medium text-blue-900">
+                    Keyword Opportunities
+                  </div>
+                  <div className="text-sm text-blue-700">
+                    New keywords to target
+                  </div>
                 </div>
               </div>
               <Badge className="bg-blue-100 text-blue-800">
@@ -330,12 +305,16 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
               </Badge>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+            <div className="flex items-center justify-between rounded-lg bg-green-50 p-3">
               <div className="flex items-center space-x-3">
                 <Sparkles className="h-5 w-5 text-green-600" />
                 <div>
-                  <div className="font-medium text-green-900">Optimization Suggestions</div>
-                  <div className="text-sm text-green-700">AI-powered improvements</div>
+                  <div className="font-medium text-green-900">
+                    Optimization Suggestions
+                  </div>
+                  <div className="text-sm text-green-700">
+                    AI-powered improvements
+                  </div>
                 </div>
               </div>
               <Badge className="bg-green-100 text-green-800">
@@ -344,12 +323,16 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
             </div>
 
             {contentMetrics.seoInsights.technicalIssues > 0 && (
-              <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+              <div className="flex items-center justify-between rounded-lg bg-red-50 p-3">
                 <div className="flex items-center space-x-3">
                   <AlertTriangle className="h-5 w-5 text-red-600" />
                   <div>
-                    <div className="font-medium text-red-900">Technical Issues</div>
-                    <div className="text-sm text-red-700">Need immediate attention</div>
+                    <div className="font-medium text-red-900">
+                      Technical Issues
+                    </div>
+                    <div className="text-sm text-red-700">
+                      Need immediate attention
+                    </div>
                   </div>
                 </div>
                 <Badge className="bg-red-100 text-red-800">
@@ -369,8 +352,8 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 bg-purple-50 rounded-lg">
-                <CheckCircle className="h-4 w-4 text-purple-600 mt-0.5" />
+              <div className="flex items-start space-x-3 rounded-lg bg-purple-50 p-3">
+                <CheckCircle className="mt-0.5 h-4 w-4 text-purple-600" />
                 <div className="text-sm">
                   <div className="font-medium text-purple-900">
                     High-Performing Content Types
@@ -381,8 +364,8 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 p-3 bg-blue-50 rounded-lg">
-                <Clock className="h-4 w-4 text-blue-600 mt-0.5" />
+              <div className="flex items-start space-x-3 rounded-lg bg-blue-50 p-3">
+                <Clock className="mt-0.5 h-4 w-4 text-blue-600" />
                 <div className="text-sm">
                   <div className="font-medium text-blue-900">
                     Optimal Publishing Time
@@ -393,8 +376,8 @@ export const ContentAnalytics = ({ timeRange, teamId }: ContentAnalyticsProps) =
                 </div>
               </div>
 
-              <div className="flex items-start space-x-3 p-3 bg-green-50 rounded-lg">
-                <BarChart3 className="h-4 w-4 text-green-600 mt-0.5" />
+              <div className="flex items-start space-x-3 rounded-lg bg-green-50 p-3">
+                <BarChart3 className="mt-0.5 h-4 w-4 text-green-600" />
                 <div className="text-sm">
                   <div className="font-medium text-green-900">
                     Content Length Sweet Spot
