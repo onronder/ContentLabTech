@@ -29,22 +29,29 @@ import {
 import { useAuth } from "@/lib/auth/context";
 
 interface UserProfile {
-  id: string;
-  email: string;
-  displayName: string;
-  avatarUrl: string;
+  user_id: string;
+  display_name: string | null;
+  avatar_url: string | null;
   timezone: string;
   locale: string;
   theme: string;
-  emailVerified: boolean;
-  provider: string;
-  createdAt: string;
-  updatedAt: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AuthUser {
+  id: string;
+  email: string | undefined;
+  email_confirmed_at: string | null;
+  app_metadata: {
+    provider: string;
+  };
 }
 
 export const UserProfileSection: React.FC = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,11 +77,11 @@ export const UserProfileSection: React.FC = () => {
         throw new Error("Failed to load profile");
       }
 
-      const data = await response.json();
-      const profileData = data.data;
+      const profileData = await response.json();
 
       setProfile(profileData);
-      setDisplayName(profileData.displayName || "");
+      setAuthUser(user as AuthUser | null); // Get auth user from context
+      setDisplayName(profileData.display_name || "");
       setTimezone(profileData.timezone || "UTC");
       setLocale(profileData.locale || "en");
       setTheme(profileData.theme || "system");
@@ -98,7 +105,7 @@ export const UserProfileSection: React.FC = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          displayName,
+          display_name: displayName,
           timezone,
           locale,
           theme,
@@ -169,7 +176,7 @@ export const UserProfileSection: React.FC = () => {
               <Input
                 id="email"
                 type="email"
-                value={profile?.email || ""}
+                value={user?.email || ""}
                 disabled
                 className="bg-gray-50"
               />
@@ -182,7 +189,7 @@ export const UserProfileSection: React.FC = () => {
               <Label htmlFor="provider">Sign-in Method</Label>
               <Input
                 id="provider"
-                value={profile?.provider || "email"}
+                value={user?.app_metadata?.provider || "email"}
                 disabled
                 className="bg-gray-50 capitalize"
               />
@@ -259,21 +266,21 @@ export const UserProfileSection: React.FC = () => {
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="flex items-center space-x-2">
-              {profile?.emailVerified ? (
+              {user?.email_confirmed_at ? (
                 <CheckCircle className="h-4 w-4 text-green-600" />
               ) : (
                 <AlertTriangle className="h-4 w-4 text-orange-600" />
               )}
               <span className="text-sm">
-                Email {profile?.emailVerified ? "Verified" : "Not Verified"}
+                Email {user?.email_confirmed_at ? "Verified" : "Not Verified"}
               </span>
             </div>
 
             <div className="text-sm text-gray-600">
               <span>Member since: </span>
               <span>
-                {profile?.createdAt
-                  ? new Date(profile.createdAt).toLocaleDateString()
+                {profile?.created_at
+                  ? new Date(profile.created_at).toLocaleDateString()
                   : ""}
               </span>
             </div>

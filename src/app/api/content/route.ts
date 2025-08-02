@@ -13,7 +13,6 @@ interface CreateContentRequest {
   url?: string;
   meta_description?: string;
   focus_keywords?: string[];
-  target_audience?: string;
   content_type?: string;
   status?: "draft" | "published" | "archived";
 }
@@ -45,7 +44,6 @@ export const POST = withApiAuth(
         url,
         meta_description,
         focus_keywords = [],
-        target_audience,
         content_type = "article",
         status = "draft",
       } = body;
@@ -119,13 +117,11 @@ export const POST = withApiAuth(
             url,
             meta_description,
             focus_keywords,
-            target_audience,
             content_type,
             status,
             seo_score: seoScore,
             readability_score: readabilityScore,
             word_count: wordCount,
-            created_by: context.user.id,
           },
         ])
         .select()

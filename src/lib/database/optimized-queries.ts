@@ -126,7 +126,7 @@ export const getTeamsByUserOptimized = async (
 // OPTIMIZED PROJECT QUERIES
 // =====================================================
 
-interface ProjectWithDetails extends Project {
+interface ProjectWithDetails extends Omit<Project, "competitors"> {
   team: {
     id: string;
     name: string;

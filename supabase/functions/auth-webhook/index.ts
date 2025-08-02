@@ -91,9 +91,9 @@ async function sendEmail(payload: EmailPayload): Promise<void> {
 // Get user profile data
 async function getUserProfile(userId: string) {
   const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", userId)
+    .from("user_preferences")
+    .select("display_name")
+    .eq("user_id", userId)
     .single();
 
   return profile;

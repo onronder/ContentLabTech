@@ -4,7 +4,6 @@
  */
 
 import { Text, Button, Section, Row, Column } from "@react-email/components";
-import * as React from "react";
 import EmailLayout from "./components/EmailLayout";
 
 export interface VerificationEmailProps {

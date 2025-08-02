@@ -17,11 +17,10 @@ import {
   Link,
   Hr,
 } from "@react-email/components";
-import * as React from "react";
 
 export interface EmailLayoutProps {
   preview: string;
-  children: React.ReactNode;
+  children: any;
   footerText?: string;
 }
 

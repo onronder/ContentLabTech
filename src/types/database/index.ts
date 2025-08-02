@@ -33,6 +33,7 @@ export interface Database {
       };
       team_members: {
         Row: {
+          id: string;
           team_id: string;
           user_id: string;
           role: Database["public"]["Enums"]["user_role"];
@@ -41,6 +42,7 @@ export interface Database {
           created_at: string;
         };
         Insert: {
+          id?: string;
           team_id: string;
           user_id: string;
           role?: Database["public"]["Enums"]["user_role"];
@@ -49,6 +51,7 @@ export interface Database {
           created_at?: string;
         };
         Update: {
+          id?: string;
           team_id?: string;
           user_id?: string;
           role?: Database["public"]["Enums"]["user_role"];
@@ -65,6 +68,9 @@ export interface Database {
           description: string | null;
           website_url: string | null;
           target_keywords: string[];
+          target_audience: string | null;
+          content_goals: string[];
+          competitors: string[];
           settings: Json;
           status: Database["public"]["Enums"]["project_status"];
           created_by: string;
@@ -78,6 +84,9 @@ export interface Database {
           description?: string | null;
           website_url?: string | null;
           target_keywords?: string[];
+          target_audience?: string | null;
+          content_goals?: string[];
+          competitors?: string[];
           settings?: Json;
           status?: Database["public"]["Enums"]["project_status"];
           created_by: string;
@@ -91,6 +100,9 @@ export interface Database {
           description?: string | null;
           website_url?: string | null;
           target_keywords?: string[];
+          target_audience?: string | null;
+          content_goals?: string[];
+          competitors?: string[];
           settings?: Json;
           status?: Database["public"]["Enums"]["project_status"];
           created_by?: string;
@@ -796,6 +808,176 @@ export interface Database {
           is_implemented?: boolean;
           implemented_at?: string | null;
           dismissed_at?: string | null;
+          created_at?: string;
+        };
+      };
+      user_preferences: {
+        Row: {
+          user_id: string;
+          display_name: string | null;
+          avatar_url: string | null;
+          timezone: string;
+          locale: string;
+          theme: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          timezone?: string;
+          locale?: string;
+          theme?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          display_name?: string | null;
+          avatar_url?: string | null;
+          timezone?: string;
+          locale?: string;
+          theme?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      notification_preferences: {
+        Row: {
+          user_id: string;
+          email_enabled: boolean;
+          email_marketing: boolean;
+          email_updates: boolean;
+          email_reports: boolean;
+          email_team_invites: boolean;
+          email_mentions: boolean;
+          in_app_enabled: boolean;
+          in_app_updates: boolean;
+          in_app_reports: boolean;
+          in_app_team_activity: boolean;
+          in_app_mentions: boolean;
+          report_frequency: string;
+          digest_frequency: string;
+          content_notifications: boolean;
+          analytics_notifications: boolean;
+          competitor_notifications: boolean;
+          system_notifications: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          email_enabled?: boolean;
+          email_marketing?: boolean;
+          email_updates?: boolean;
+          email_reports?: boolean;
+          email_team_invites?: boolean;
+          email_mentions?: boolean;
+          in_app_enabled?: boolean;
+          in_app_updates?: boolean;
+          in_app_reports?: boolean;
+          in_app_team_activity?: boolean;
+          in_app_mentions?: boolean;
+          report_frequency?: string;
+          digest_frequency?: string;
+          content_notifications?: boolean;
+          analytics_notifications?: boolean;
+          competitor_notifications?: boolean;
+          system_notifications?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          email_enabled?: boolean;
+          email_marketing?: boolean;
+          email_updates?: boolean;
+          email_reports?: boolean;
+          email_team_invites?: boolean;
+          email_mentions?: boolean;
+          in_app_enabled?: boolean;
+          in_app_updates?: boolean;
+          in_app_reports?: boolean;
+          in_app_team_activity?: boolean;
+          in_app_mentions?: boolean;
+          report_frequency?: string;
+          digest_frequency?: string;
+          content_notifications?: boolean;
+          analytics_notifications?: boolean;
+          competitor_notifications?: boolean;
+          system_notifications?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      user_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          session_token: string;
+          device_info: Json;
+          ip_address: string | null;
+          user_agent: string | null;
+          last_activity: string;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          session_token: string;
+          device_info?: Json;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          last_activity?: string;
+          expires_at: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          session_token?: string;
+          device_info?: Json;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          last_activity?: string;
+          expires_at?: string;
+          created_at?: string;
+        };
+      };
+      login_history: {
+        Row: {
+          id: string;
+          user_id: string;
+          login_type: string;
+          success: boolean;
+          ip_address: string | null;
+          user_agent: string | null;
+          device_info: Json;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          login_type: string;
+          success: boolean;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          device_info?: Json;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          login_type?: string;
+          success?: boolean;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          device_info?: Json;
+          error_message?: string | null;
           created_at?: string;
         };
       };

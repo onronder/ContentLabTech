@@ -3,7 +3,7 @@
  * Development tool for previewing email templates
  */
 
-import * as React from "react";
+import React from "react";
 import VerificationEmail from "./VerificationEmail";
 import WelcomeEmail from "./WelcomeEmail";
 import PasswordResetEmail from "./PasswordResetEmail";

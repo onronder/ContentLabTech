@@ -1126,7 +1126,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     // Get database client
-    const supabase = createDatabaseClient(req);
+    const supabase = createDatabaseClient();
 
     // Check user access to project
     const hasAccess = await getUserTeamAccess(supabase, user!.id, projectId);

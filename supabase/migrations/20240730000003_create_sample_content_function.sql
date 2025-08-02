@@ -41,7 +41,7 @@ BEGIN
   -- Check if user already has sample content
   IF EXISTS (
     SELECT 1 FROM content_items 
-    WHERE user_id = auth.uid() 
+    WHERE project_id = sample_project_id 
     AND title LIKE '%Demo%' OR title LIKE '%Sample%'
     LIMIT 1
   ) THEN
@@ -53,8 +53,7 @@ BEGIN
 
   -- Insert sample content items
   INSERT INTO content_items (
-    user_id,
-    project_id,
+        project_id,
     title,
     description,
     content_type,
@@ -68,8 +67,7 @@ BEGIN
     seo_score
   ) VALUES 
   (
-    user_id,
-    sample_project_id,
+        sample_project_id,
     'Competitive Analysis Report Q4 2024',
     'Comprehensive analysis of competitor strategies and market positioning for the fourth quarter.',
     'document',
@@ -83,8 +81,7 @@ BEGIN
     85
   ),
   (
-    user_id,
-    sample_project_id,
+        sample_project_id,
     'Product Demo Video',
     'Professional product demonstration showcasing key features and benefits.',
     'video',
@@ -98,8 +95,7 @@ BEGIN
     72
   ),
   (
-    user_id,
-    sample_project_id,
+        sample_project_id,
     'Brand Guidelines Infographic',
     'Visual representation of brand colors, typography, and design principles.',
     'image',
@@ -113,8 +109,7 @@ BEGIN
     68
   ),
   (
-    user_id,
-    sample_project_id,
+        sample_project_id,
     'Social Media Campaign Assets',
     'Collection of social media posts and graphics for the upcoming campaign.',
     'social',
@@ -128,8 +123,7 @@ BEGIN
     71
   ),
   (
-    user_id,
-    sample_project_id,
+        sample_project_id,
     'SEO Strategy Blog Post',
     'Detailed blog post outlining our SEO strategy and implementation roadmap.',
     'blog_post',
@@ -158,7 +152,7 @@ BEGIN
   -- Insert sample tags
   WITH content_with_titles AS (
     SELECT id, title FROM content_items 
-    WHERE user_id = auth.uid() 
+    WHERE project_id = sample_project_id 
     AND id = ANY(content_ids)
   )
   INSERT INTO content_tags (content_id, tag)
@@ -229,7 +223,7 @@ BEGIN
   -- Delete existing sample content
   WITH deleted_content AS (
     DELETE FROM content_items 
-    WHERE user_id = auth.uid() 
+    WHERE project_id = sample_project_id 
     AND (
       title LIKE '%Demo%' OR 
       title LIKE '%Sample%' OR

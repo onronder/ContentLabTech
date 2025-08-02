@@ -388,7 +388,7 @@ async function handleCoreWebVitalsAnalysis(
     }
 
     // Create database client
-    const supabase = createDatabaseClient(request);
+    const supabase = createDatabaseClient();
 
     // Check team access
     const hasAccess = await getUserTeamAccess(supabase, user.id, projectId);

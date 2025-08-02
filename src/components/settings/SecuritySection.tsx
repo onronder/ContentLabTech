@@ -108,7 +108,7 @@ export const SecuritySection: React.FC = () => {
       setError(null);
 
       const response = await fetch("/api/user/password", {
-        method: "PUT",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },

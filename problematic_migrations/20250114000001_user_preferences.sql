@@ -65,10 +65,10 @@ CREATE TABLE IF NOT EXISTS login_history (
 );
 
 -- Create indexes
-CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
-CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
-CREATE INDEX idx_login_history_user_id ON login_history(user_id);
-CREATE INDEX idx_login_history_created_at ON login_history(created_at);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_expires_at ON user_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_login_history_user_id ON login_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_login_history_created_at ON login_history(created_at);
 
 -- Enable RLS
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
