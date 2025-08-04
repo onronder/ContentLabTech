@@ -289,9 +289,61 @@ async function handleGet(request: NextRequest, context: AuthContext) {
       );
     }
 
-    console.log("✅ Projects fetched successfully:", projects?.length || 0);
+    // Enrich projects with stats
+    const enrichedProjects = await Promise.all(
+      (projects || []).map(async project => {
+        try {
+          // Get content count
+          const { count: contentCount } = await context.supabase
+            .from("content_items")
+            .select("*", { count: "exact", head: true })
+            .eq("project_id", project.id);
 
-    return createSuccessResponse({ projects: projects || [] });
+          // Get competitor count
+          const { count: competitorCount } = await context.supabase
+            .from("competitors")
+            .select("*", { count: "exact", head: true })
+            .eq("project_id", project.id)
+            .eq("is_active", true);
+
+          // Get last activity
+          const { data: recentContent } = await context.supabase
+            .from("content_items")
+            .select("created_at")
+            .eq("project_id", project.id)
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          return {
+            ...project,
+            stats: {
+              contentCount: contentCount || 0,
+              competitorCount: competitorCount || 0,
+              lastActivity:
+                recentContent?.[0]?.created_at || project.updated_at,
+            },
+          };
+        } catch (error) {
+          console.error(`Error enriching project ${project.id}:`, error);
+          // Return project with default stats if enrichment fails
+          return {
+            ...project,
+            stats: {
+              contentCount: 0,
+              competitorCount: 0,
+              lastActivity: project.updated_at,
+            },
+          };
+        }
+      })
+    );
+
+    console.log(
+      "✅ Projects fetched successfully:",
+      enrichedProjects?.length || 0
+    );
+
+    return createSuccessResponse({ projects: enrichedProjects || [] });
   } catch (error) {
     console.error("❌ Projects GET error:", error);
     return new Response(
