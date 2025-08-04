@@ -184,9 +184,9 @@ export function getAggregatedMetrics(
     successfulRequests,
     failedRequests,
     averageResponseTime: Math.round(averageResponseTime),
-    medianResponseTime,
-    p95ResponseTime,
-    p99ResponseTime,
+    medianResponseTime: medianResponseTime || 0,
+    p95ResponseTime: p95ResponseTime || 0,
+    p99ResponseTime: p99ResponseTime || 0,
     errorRate: Math.round(errorRate * 100) / 100,
     requestsPerSecond: Math.round(requestsPerSecond * 100) / 100,
     lastCalculated: Date.now(),
@@ -282,8 +282,8 @@ export function getErrorMetrics(
       const [errorType, endpoint] = key.split(":");
       return {
         timestamp: data.lastSeen,
-        error: errorType,
-        endpoint,
+        error: errorType || "unknown",
+        endpoint: endpoint || "unknown",
         count: data.count,
       };
     })

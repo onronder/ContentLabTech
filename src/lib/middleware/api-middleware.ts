@@ -13,31 +13,25 @@ import {
 } from "@/lib/security/validation";
 
 // Rate limiters for different types of requests
-const globalRateLimiter = new SimpleRateLimiter({
+const globalRateLimiter = new SimpleRateLimiter();
+globalRateLimiter.addRule("global", {
+  identifier: "global",
+  limit: 1000, // 1000 requests per IP per 15 minutes
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 1000, // 1000 requests per IP per 15 minutes
-  keyGenerator: req =>
-    req.headers.get("x-forwarded-for") ||
-    req.headers.get("x-real-ip") ||
-    "unknown",
 });
 
-const authRateLimiter = new SimpleRateLimiter({
+const authRateLimiter = new SimpleRateLimiter();
+authRateLimiter.addRule("auth", {
+  identifier: "auth",
+  limit: 100, // 100 auth attempts per IP per 15 minutes
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 100, // 100 auth attempts per IP per 15 minutes
-  keyGenerator: req =>
-    req.headers.get("x-forwarded-for") ||
-    req.headers.get("x-real-ip") ||
-    "unknown",
 });
 
-const apiRateLimiter = new SimpleRateLimiter({
+const apiRateLimiter = new SimpleRateLimiter();
+apiRateLimiter.addRule("api", {
+  identifier: "api",
+  limit: 60, // 60 API calls per minute per IP
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 60, // 60 API calls per minute per IP
-  keyGenerator: req =>
-    req.headers.get("x-forwarded-for") ||
-    req.headers.get("x-real-ip") ||
-    "unknown",
 });
 
 // Blocked IPs and user agents (in production, load from database/config)
@@ -133,7 +127,7 @@ export function createApiMiddleware(options: MiddlewareOptions = {}) {
         }
 
         // Check blocked user agents
-        const isBlockedUserAgent = blockedUserAgents.some(blocked =>
+        const isBlockedUserAgent = Array.from(blockedUserAgents).some(blocked =>
           userAgent.toLowerCase().includes(blocked.toLowerCase())
         );
 
@@ -217,7 +211,24 @@ export function createApiMiddleware(options: MiddlewareOptions = {}) {
           rateLimiter = apiRateLimiter;
         }
 
-        const rateLimitResult = await rateLimiter.isAllowed(request, requestId);
+        const clientIp =
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          ipAddress ||
+          "unknown";
+
+        // Determine which rule to use based on the rate limiter
+        let ruleId = "global";
+        if (rateLimiter === authRateLimiter) {
+          ruleId = "auth";
+        } else if (rateLimiter === apiRateLimiter) {
+          ruleId = "api";
+        }
+
+        const rateLimitResult = await rateLimiter.checkRateLimit(
+          ruleId,
+          clientIp
+        );
         if (!rateLimitResult.allowed) {
           enterpriseLogger.warn("Rate limit exceeded", {
             requestId,
@@ -236,7 +247,9 @@ export function createApiMiddleware(options: MiddlewareOptions = {}) {
               "Retry-After": Math.ceil(
                 (rateLimitResult.resetTime - Date.now()) / 1000
               ).toString(),
-              "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+              "X-RateLimit-Limit": (
+                rateLimiter.getRule(ruleId)?.limit || 1000
+              ).toString(),
               "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
               "X-RateLimit-Reset": new Date(
                 rateLimitResult.resetTime
