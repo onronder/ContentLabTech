@@ -101,7 +101,23 @@ export const CreateProjectModal = ({
             message: "Description must be less than 500 characters",
           },
         ],
-        website_url: [{ type: "url", message: "Please enter a valid URL" }],
+        website_url: [
+          {
+            type: "custom",
+            validator: (value: string) => {
+              // Allow empty URLs since this field is optional
+              if (!value || value.trim() === "") return true;
+              // If a value is provided, validate it as a URL
+              try {
+                new URL(value);
+                return true;
+              } catch {
+                return false;
+              }
+            },
+            message: "Please enter a valid URL",
+          },
+        ],
         target_audience: [
           {
             type: "max",

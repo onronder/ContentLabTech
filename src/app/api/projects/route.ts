@@ -156,9 +156,19 @@ async function handlePost(request: NextRequest, context: AuthContext) {
       dbDuration,
     });
 
+    // Add stats to the new project for consistency with GET endpoint
+    const projectWithStats = {
+      ...newProject,
+      stats: {
+        contentCount: 0,
+        competitorCount: 0,
+        lastActivity: newProject?.created_at || new Date().toISOString(),
+      },
+    };
+
     return createSuccessResponse(
       {
-        project: newProject,
+        project: projectWithStats,
       },
       201,
       undefined,
