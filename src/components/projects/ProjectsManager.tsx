@@ -98,6 +98,18 @@ const ensureProjectStats = (project: any): Project => {
 
 export const ProjectsManager = () => {
   const { currentTeam, teamsLoading, user, refreshTeams, session } = useAuth();
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log("🔍 [PROJECTS] Auth state:", {
+      hasUser: !!user,
+      userId: user?.id,
+      hasSession: !!session,
+      hasCurrentTeam: !!currentTeam,
+      currentTeamId: currentTeam?.id,
+      teamsLoading,
+    });
+  }, [user, session, currentTeam, teamsLoading]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,10 +125,18 @@ export const ProjectsManager = () => {
 
   // Load projects when team or filters change
   useEffect(() => {
+    console.log("🔍 [PROJECTS] Effect triggered:", {
+      currentTeamId: currentTeam?.id,
+      teamsLoading,
+      hasCurrentTeam: !!currentTeam,
+    });
+
     if (currentTeam?.id && !teamsLoading) {
+      console.log("🔍 [PROJECTS] Loading projects for team:", currentTeam.id);
       loadProjects();
     } else if (!teamsLoading && !currentTeam?.id) {
       // No team available, stop loading
+      console.log("🔍 [PROJECTS] No team available, stopping loading");
       setLoading(false);
       setProjects([]);
     }
