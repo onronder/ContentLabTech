@@ -203,14 +203,16 @@ export const ProjectsManager = () => {
       console.log("🔍 [PROJECTS] Raw API response:", data);
 
       // Ensure all projects have required stats structure
-      const processedProjects = (data.projects || []).map(ensureProjectStats);
+      const processedProjects = (data.data?.projects || []).map(
+        ensureProjectStats
+      );
       console.log(
         "🔍 [PROJECTS] Processed projects count:",
         processedProjects.length
       );
 
       setProjects(processedProjects);
-      setTotalProjects(data.total || 0);
+      setTotalProjects(data.data?.total || processedProjects.length);
       console.log("✅ [PROJECTS] Projects loaded successfully");
     } catch (err) {
       console.error("Failed to load projects:", err);
