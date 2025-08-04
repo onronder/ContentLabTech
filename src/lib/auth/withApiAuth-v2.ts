@@ -210,7 +210,7 @@ export function withApiAuth<T extends any[]>(
             if (shouldLogDetails) {
               enterpriseLogger.info("Session-based authentication successful", {
                 requestId,
-                userId: user.id,
+                userId: (user as any)?.id,
               });
             }
             // Create supabase client for session-based auth
@@ -262,8 +262,8 @@ export function withApiAuth<T extends any[]>(
       if (user && shouldLogDetails) {
         enterpriseLogger.info("User authenticated successfully", {
           requestId,
-          userId: user.id,
-          email: user.email,
+          userId: (user as any)?.id,
+          email: (user as any)?.email,
           method: request.method,
         });
       }

@@ -27,7 +27,63 @@ validateBrowserSecurity();
 export const supabase = createBrowserClient<Database>(
   process.env["NEXT_PUBLIC_SUPABASE_URL"] || "https://placeholder.supabase.co",
   process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder_legacy_key"
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder_legacy_key",
+  {
+    cookies: {
+      get(name: string) {
+        if (typeof document !== "undefined") {
+          const cookie = document.cookie
+            .split("; ")
+            .find(row => row.startsWith(`${name}=`));
+          return cookie ? cookie.split("=")[1] : undefined;
+        }
+        return undefined;
+      },
+      set(name: string, value: string, options: any) {
+        if (typeof document !== "undefined") {
+          let cookieString = `${name}=${value}`;
+
+          if (options?.expires) {
+            cookieString += `; expires=${options.expires.toUTCString()}`;
+          }
+          if (options?.maxAge) {
+            cookieString += `; max-age=${options.maxAge}`;
+          }
+          if (options?.domain) {
+            cookieString += `; domain=${options.domain}`;
+          }
+          if (options?.path) {
+            cookieString += `; path=${options.path}`;
+          }
+          if (options?.secure) {
+            cookieString += `; secure`;
+          }
+          if (options?.httpOnly) {
+            cookieString += `; httponly`;
+          }
+          if (options?.sameSite) {
+            cookieString += `; samesite=${options.sameSite}`;
+          }
+
+          document.cookie = cookieString;
+        }
+      },
+      remove(name: string, options: any) {
+        if (typeof document !== "undefined") {
+          let cookieString = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+
+          if (options?.domain) {
+            cookieString += `; domain=${options.domain}`;
+          }
+          if (options?.path) {
+            cookieString += `; path=${options.path}`;
+          }
+
+          document.cookie = cookieString;
+        }
+      },
+    },
+  }
 );
 
 // Type-safe database types

@@ -174,11 +174,60 @@ export async function getCurrentUser() {
         "🔍 Available cookies:",
         allCookies.map(c => c.name)
       );
+      console.log("🌍 Environment details:", {
+        nodeEnv: process.env.NODE_ENV,
+        supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasServiceRole: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        totalCookiesFound: allCookies.length,
+      });
     }
 
     console.log("🔍 getCurrentUser: Creating Supabase client...");
-    // Use the new server auth client
-    const supabase = await createServerAuthClient();
+    // Use anonymous key for authentication, not service role
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            try {
+              const cookie = cookieStore.get(name);
+              return cookie?.value;
+            } catch (error) {
+              console.warn("Error getting cookie in session:", name, error);
+              return undefined;
+            }
+          },
+          set(name: string, value: string, options: any) {
+            try {
+              cookieStore.set({
+                name,
+                value,
+                ...options,
+                httpOnly: options.httpOnly ?? true,
+                secure: options.secure ?? process.env.NODE_ENV === "production",
+                sameSite: options.sameSite ?? "lax",
+                path: options.path ?? "/",
+              });
+            } catch (error) {
+              console.warn("Error setting cookie in session:", name, error);
+            }
+          },
+          remove(name: string, options: any) {
+            try {
+              cookieStore.set({
+                name,
+                value: "",
+                expires: new Date(0),
+                ...options,
+              });
+            } catch (error) {
+              console.warn("Error removing cookie in session:", name, error);
+            }
+          },
+        },
+      }
+    );
     console.log("🔍 getCurrentUser: Supabase client created", {
       client: !!supabase,
     });
