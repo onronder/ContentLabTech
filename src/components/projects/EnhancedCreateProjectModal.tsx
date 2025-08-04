@@ -1336,7 +1336,7 @@ export const EnhancedCreateProjectModal: React.FC<
       localStorage.removeItem("draft-project");
 
       // Notify parent component
-      onProjectCreated(result.project);
+      onProjectCreated(result.data.project);
 
       // Reset form and close
       formState.resetForm();

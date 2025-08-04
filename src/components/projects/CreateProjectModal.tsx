@@ -305,7 +305,7 @@ export const CreateProjectModal = ({
       loadingManager.completeCurrentStep();
 
       // Success handling
-      onProjectCreated(result.project);
+      onProjectCreated(result.data.project);
       resetForm();
     } catch (err) {
       console.error("Error creating project:", err);
