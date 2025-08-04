@@ -10,6 +10,8 @@ import {
   validateTeamAccess,
   type AuthContext,
 } from "@/lib/auth/withApiAuth-v2";
+import { validateInput } from "@/lib/security/validation";
+import { enterpriseLogger } from "@/lib/monitoring/enterprise-logger";
 
 // Connection pooling and caching are handled by optimized-queries module
 
@@ -123,9 +125,8 @@ async function handlePost(request: NextRequest, context: AuthContext) {
     const dbDuration = Date.now() - startTime;
 
     if (createError) {
-      enterpriseLogger.error("Project creation database error", {
+      enterpriseLogger.error("Project creation database error", createError, {
         requestId,
-        error: createError.message,
         code: createError.code,
         userId: context.user.id,
         teamId: body.teamId,
@@ -164,13 +165,15 @@ async function handlePost(request: NextRequest, context: AuthContext) {
       requestId
     );
   } catch (error) {
-    enterpriseLogger.error("Project creation error", {
-      requestId,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      userId: context.user.id,
-      ipAddress,
-    });
+    enterpriseLogger.error(
+      "Project creation error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        requestId,
+        userId: context.user.id,
+        ipAddress,
+      }
+    );
 
     return NextResponse.json(
       {

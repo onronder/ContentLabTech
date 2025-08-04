@@ -157,14 +157,20 @@ export function createApiMiddleware(options: MiddlewareOptions = {}) {
         // Check for malicious patterns in URL
         const urlCheck = detectMaliciousPatterns(url);
         if (urlCheck.isMalicious && urlCheck.risk === "critical") {
-          enterpriseLogger.error("Malicious URL pattern detected", {
-            requestId,
-            url,
-            patterns: urlCheck.detectedPatterns,
-            risk: urlCheck.risk,
-            ipAddress,
-            userAgent,
-          });
+          enterpriseLogger.error(
+            "Malicious URL pattern detected",
+            new Error(
+              `Malicious URL pattern detected: ${urlCheck.detectedPatterns.join(", ")}`
+            ),
+            {
+              requestId,
+              url,
+              patterns: urlCheck.detectedPatterns,
+              risk: urlCheck.risk,
+              ipAddress,
+              userAgent,
+            }
+          );
 
           return new NextResponse("Bad Request", {
             status: 400,
@@ -366,16 +372,18 @@ export function createApiMiddleware(options: MiddlewareOptions = {}) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      enterpriseLogger.error("API middleware error", {
-        requestId,
-        method,
-        url,
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined,
-        duration,
-        ipAddress,
-        userAgent,
-      });
+      enterpriseLogger.error(
+        "API middleware error",
+        error instanceof Error ? error : new Error(errorMessage),
+        {
+          requestId,
+          method,
+          url,
+          duration,
+          ipAddress,
+          userAgent,
+        }
+      );
 
       // Record error metrics
       if (enableMonitoring) {

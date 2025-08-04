@@ -159,12 +159,14 @@ async function handleGet(request: NextRequest, context: any) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    enterpriseLogger.error("System metrics retrieval error", {
-      requestId,
-      userId: user.id,
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    enterpriseLogger.error(
+      "System metrics retrieval error",
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        requestId,
+        userId: user.id,
+      }
+    );
 
     return NextResponse.json(
       {
@@ -323,12 +325,14 @@ async function handlePost(request: NextRequest, context: any) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    enterpriseLogger.error("System metrics admin action error", {
-      requestId,
-      userId: user.id,
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    enterpriseLogger.error(
+      "System metrics admin action error",
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        requestId,
+        userId: user.id,
+      }
+    );
 
     return NextResponse.json(
       {

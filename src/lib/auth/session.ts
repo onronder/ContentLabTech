@@ -353,7 +353,7 @@ export async function getUserTeams(userId?: string) {
       return [];
     }
 
-    return teams.map(t => ({
+    return teams.map((t: any) => ({
       ...t.team,
       user_role: t.role,
     }));

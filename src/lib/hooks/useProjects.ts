@@ -86,10 +86,12 @@ interface UseProjectsActions {
 }
 
 // Circuit breaker for API calls
-const projectsCircuitBreaker = new CircuitBreaker({
+const projectsCircuitBreaker = new CircuitBreaker("useProjects", {
   failureThreshold: 3,
   recoveryTimeout: 15000,
   monitoringPeriod: 30000,
+  halfOpenMaxAttempts: 3,
+  successThreshold: 2,
 });
 
 // Cache management
@@ -202,7 +204,7 @@ export function useProjects(
     circuitBreakerState: "CLOSED",
   });
 
-  const refreshIntervalRef = useRef<NodeJS.Timeout>();
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
 
   /**
@@ -238,7 +240,7 @@ export function useProjects(
           loading: !prev.projects.length,
           isRefreshing: !!prev.projects.length,
           error: null,
-          circuitBreakerState: projectsCircuitBreaker.getState(),
+          circuitBreakerState: projectsCircuitBreaker.getMetrics().state,
         }));
 
         // Check cache first (if enabled and not forced)
@@ -272,13 +274,22 @@ export function useProjects(
         const url = `/api/projects?${params.toString()}`;
 
         // Use circuit breaker for API call
-        const response = await projectsCircuitBreaker.execute(async () => {
+        const circuitResult = await projectsCircuitBreaker.execute(async () => {
           return await fetchWithRetry(url, {
             method: "GET",
             credentials: "include",
           });
         });
 
+        // Handle circuit breaker result
+        if (!circuitResult.success) {
+          throw (
+            circuitResult.error ||
+            new Error("Circuit breaker prevented execution")
+          );
+        }
+
+        const response = circuitResult.data!;
         const result: ProjectsResponse = await response.json();
 
         if (!result.success) {
@@ -311,23 +322,26 @@ export function useProjects(
           isRefreshing: false,
           error: null,
           lastFetch: new Date(),
-          circuitBreakerState: projectsCircuitBreaker.getState(),
+          circuitBreakerState: projectsCircuitBreaker.getMetrics().state,
         });
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
 
-        enterpriseLogger.error("Failed to fetch projects", {
-          error: errorMessage,
-          teamId,
-          circuitBreakerState: projectsCircuitBreaker.getState(),
-        });
+        enterpriseLogger.error(
+          "Failed to fetch projects",
+          error instanceof Error ? error : new Error(errorMessage),
+          {
+            teamId,
+            circuitBreakerState: projectsCircuitBreaker.getMetrics().state,
+          }
+        );
 
         safeSetState({
           loading: false,
           isRefreshing: false,
           error: errorMessage,
-          circuitBreakerState: projectsCircuitBreaker.getState(),
+          circuitBreakerState: projectsCircuitBreaker.getMetrics().state,
         });
       }
     },
@@ -342,7 +356,7 @@ export function useProjects(
       try {
         safeSetState(prev => ({ ...prev, error: null }));
 
-        const response = await projectsCircuitBreaker.execute(async () => {
+        const circuitResult = await projectsCircuitBreaker.execute(async () => {
           return await fetchWithRetry("/api/projects", {
             method: "POST",
             credentials: "include",
@@ -350,6 +364,15 @@ export function useProjects(
           });
         });
 
+        // Handle circuit breaker result
+        if (!circuitResult.success) {
+          throw (
+            circuitResult.error ||
+            new Error("Circuit breaker prevented execution")
+          );
+        }
+
+        const response = circuitResult.data!;
         const result: ProjectResponse = await response.json();
 
         if (!result.success) {
@@ -386,11 +409,14 @@ export function useProjects(
         const errorMessage =
           error instanceof Error ? error.message : String(error);
 
-        enterpriseLogger.error("Failed to create project", {
-          error: errorMessage,
-          projectName: projectData.name,
-          teamId: projectData.teamId,
-        });
+        enterpriseLogger.error(
+          "Failed to create project",
+          error instanceof Error ? error : new Error(errorMessage),
+          {
+            projectName: projectData.name,
+            teamId: projectData.teamId,
+          }
+        );
 
         safeSetState(prev => ({ ...prev, error: errorMessage }));
         return null;
@@ -407,7 +433,7 @@ export function useProjects(
       try {
         safeSetState(prev => ({ ...prev, error: null }));
 
-        const response = await projectsCircuitBreaker.execute(async () => {
+        const circuitResult = await projectsCircuitBreaker.execute(async () => {
           return await fetchWithRetry(`/api/projects/${id}`, {
             method: "PATCH",
             credentials: "include",
@@ -415,6 +441,15 @@ export function useProjects(
           });
         });
 
+        // Handle circuit breaker result
+        if (!circuitResult.success) {
+          throw (
+            circuitResult.error ||
+            new Error("Circuit breaker prevented execution")
+          );
+        }
+
+        const response = circuitResult.data!;
         const result: ProjectResponse = await response.json();
 
         if (!result.success) {
@@ -451,10 +486,13 @@ export function useProjects(
         const errorMessage =
           error instanceof Error ? error.message : String(error);
 
-        enterpriseLogger.error("Failed to update project", {
-          error: errorMessage,
-          projectId: id,
-        });
+        enterpriseLogger.error(
+          "Failed to update project",
+          error instanceof Error ? error : new Error(errorMessage),
+          {
+            projectId: id,
+          }
+        );
 
         safeSetState(prev => ({ ...prev, error: errorMessage }));
         return null;
@@ -471,13 +509,22 @@ export function useProjects(
       try {
         safeSetState(prev => ({ ...prev, error: null }));
 
-        const response = await projectsCircuitBreaker.execute(async () => {
+        const circuitResult = await projectsCircuitBreaker.execute(async () => {
           return await fetchWithRetry(`/api/projects/${id}`, {
             method: "DELETE",
             credentials: "include",
           });
         });
 
+        // Handle circuit breaker result
+        if (!circuitResult.success) {
+          throw (
+            circuitResult.error ||
+            new Error("Circuit breaker prevented execution")
+          );
+        }
+
+        const response = circuitResult.data!;
         if (!response.ok) {
           const errorResult = await response.json().catch(() => ({}));
           throw new Error(
@@ -505,10 +552,13 @@ export function useProjects(
         const errorMessage =
           error instanceof Error ? error.message : String(error);
 
-        enterpriseLogger.error("Failed to delete project", {
-          error: errorMessage,
-          projectId: id,
-        });
+        enterpriseLogger.error(
+          "Failed to delete project",
+          error instanceof Error ? error : new Error(errorMessage),
+          {
+            projectId: id,
+          }
+        );
 
         safeSetState(prev => ({ ...prev, error: errorMessage }));
         return false;
@@ -554,6 +604,12 @@ export function useProjects(
         }
       };
     }
+
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
   }, [autoRefresh, refreshInterval, fetchProjects, state.loading]);
 
   // Initial fetch

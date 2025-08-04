@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
     let userProfiles: any[] = [];
 
     if (teamMembers && teamMembers.length > 0) {
-      const userIds = teamMembers.map(m => m.user_id);
+      const userIds = teamMembers.map((m: any) => m.user_id);
 
       // Try to get user profiles using service role if available
       try {
@@ -174,7 +174,7 @@ export async function GET(request: NextRequest) {
           });
 
           if (!usersError && users) {
-            userProfiles = users.filter(u => userIds.includes(u.id));
+            userProfiles = users.filter((u: any) => userIds.includes(u.id));
             console.log(
               `✅ [${requestId}] Found ${userProfiles.length} user profiles`
             );
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
             .in("id", userIds);
 
           if (!profilesError && profiles) {
-            userProfiles = profiles.map(p => ({
+            userProfiles = profiles.map((p: any) => ({
               id: p.id,
               email: p.email || "unknown@example.com",
               user_metadata: {
@@ -227,32 +227,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform the data to match expected interface
-    const members: TeamMemberResponse[] = (teamMembers || []).map(member => {
-      const userProfile = userProfiles.find(u => u.id === member.user_id);
-      const lastSignIn = userProfile?.last_sign_in_at;
-      const isRecentlyActive = lastSignIn
-        ? new Date(lastSignIn) > new Date(Date.now() - 15 * 60 * 1000) // 15 minutes
-        : false;
+    const members: TeamMemberResponse[] = (teamMembers || []).map(
+      (member: any) => {
+        const userProfile = userProfiles.find(u => u.id === member.user_id);
+        const lastSignIn = userProfile?.last_sign_in_at;
+        const isRecentlyActive = lastSignIn
+          ? new Date(lastSignIn) > new Date(Date.now() - 15 * 60 * 1000) // 15 minutes
+          : false;
 
-      return {
-        id: `${member.team_id}-${member.user_id}`, // Synthetic ID from composite key
-        email:
-          userProfile?.email ||
-          `user_${member.user_id.substring(0, 8)}@team.local`,
-        fullName:
-          userProfile?.user_metadata?.full_name ||
-          userProfile?.user_metadata?.name ||
-          userProfile?.email?.split("@")[0] ||
-          `User ${member.user_id.substring(0, 8)}`,
-        avatar:
-          userProfile?.user_metadata?.avatar_url ||
-          userProfile?.user_metadata?.picture,
-        role: member.role,
-        isOnline: isRecentlyActive,
-        lastActive: lastSignIn || member.created_at,
-        joinedAt: member.created_at,
-      };
-    });
+        return {
+          id: `${member.team_id}-${member.user_id}`, // Synthetic ID from composite key
+          email:
+            userProfile?.email ||
+            `user_${member.user_id.substring(0, 8)}@team.local`,
+          fullName:
+            userProfile?.user_metadata?.full_name ||
+            userProfile?.user_metadata?.name ||
+            userProfile?.email?.split("@")[0] ||
+            `User ${member.user_id.substring(0, 8)}`,
+          avatar:
+            userProfile?.user_metadata?.avatar_url ||
+            userProfile?.user_metadata?.picture,
+          role: member.role,
+          isOnline: isRecentlyActive,
+          lastActive: lastSignIn || member.created_at,
+          joinedAt: member.created_at,
+        };
+      }
+    );
 
     // Get team information
     const { data: team } = await supabase

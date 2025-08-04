@@ -15,21 +15,26 @@ import { SimpleRateLimiter } from "@/lib/security/simple-rate-limiter";
 import { CircuitBreaker } from "@/lib/resilience/circuit-breaker";
 
 // Rate limiter for URL analysis (more restrictive due to external API costs)
-const urlAnalysisRateLimiter = new SimpleRateLimiter({
+const urlAnalysisRateLimiter = new SimpleRateLimiter();
+
+// Add a custom rule for URL analysis
+urlAnalysisRateLimiter.addRule("url-analysis", {
+  identifier: "url-analysis",
+  limit: 10, // 10 requests per minute per IP
   windowMs: 60 * 1000, // 1 minute
-  maxRequests: 10, // 10 requests per minute per IP
-  keyGenerator: req =>
-    req.headers.get("x-forwarded-for") ||
-    req.headers.get("x-real-ip") ||
-    "unknown",
 });
 
 // Circuit breaker for external API calls
-const externalApiCircuitBreaker = new CircuitBreaker({
-  failureThreshold: 5,
-  recoveryTimeout: 30000,
-  monitoringPeriod: 60000,
-});
+const externalApiCircuitBreaker = new CircuitBreaker(
+  "url-analysis-external-api",
+  {
+    failureThreshold: 5,
+    recoveryTimeout: 30000,
+    monitoringPeriod: 60000,
+    halfOpenMaxAttempts: 3,
+    successThreshold: 2,
+  }
+);
 
 interface AnalyzeUrlRequest {
   url: string;
@@ -158,7 +163,7 @@ async function performUrlAnalysis(
 
   try {
     // Use circuit breaker for external API calls
-    const analysisResult = await externalApiCircuitBreaker.execute(async () => {
+    const circuitResult = await externalApiCircuitBreaker.execute(async () => {
       // Mock analysis - replace with actual implementation
       const response = await fetch(url, {
         method: "HEAD",
@@ -217,6 +222,15 @@ async function performUrlAnalysis(
       return analysis;
     });
 
+    // Handle circuit breaker result
+    if (!circuitResult.success) {
+      throw (
+        circuitResult.error || new Error("Circuit breaker prevented execution")
+      );
+    }
+
+    const analysisResult = circuitResult.data!;
+
     enterpriseLogger.info("URL analysis completed", {
       requestId,
       url,
@@ -227,12 +241,15 @@ async function performUrlAnalysis(
 
     return analysisResult;
   } catch (error) {
-    enterpriseLogger.error("URL analysis failed", {
-      requestId,
-      url,
-      error: error instanceof Error ? error.message : String(error),
-      duration: Date.now() - startTime,
-    });
+    enterpriseLogger.error(
+      "URL analysis failed",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        requestId,
+        url,
+        duration: Date.now() - startTime,
+      }
+    );
 
     return {
       url,
@@ -249,17 +266,25 @@ async function handlePost(request: NextRequest, context: AuthContext) {
 
   try {
     // Apply rate limiting
-    const rateLimitResult = await urlAnalysisRateLimiter.isAllowed(
-      request,
-      requestId
+    const clientIp =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      ipAddress ||
+      "unknown";
+
+    const rateLimitResult = await urlAnalysisRateLimiter.checkRateLimit(
+      "url-analysis",
+      clientIp
     );
+
     if (!rateLimitResult.allowed) {
       enterpriseLogger.warn("URL analysis rate limit exceeded", {
         requestId,
-        ipAddress,
+        ipAddress: clientIp,
         remaining: rateLimitResult.remaining,
       });
 
+      const rule = urlAnalysisRateLimiter.getRule("url-analysis");
       return NextResponse.json(
         {
           error: "Rate limit exceeded for URL analysis",
@@ -275,7 +300,7 @@ async function handlePost(request: NextRequest, context: AuthContext) {
             "Retry-After": Math.ceil(
               (rateLimitResult.resetTime - Date.now()) / 1000
             ).toString(),
-            "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+            "X-RateLimit-Limit": (rule?.limit || 10).toString(),
             "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
           },
         }
@@ -328,18 +353,20 @@ async function handlePost(request: NextRequest, context: AuthContext) {
       200,
       {
         analysisType,
-        circuitBreakerState: externalApiCircuitBreaker.getState(),
+        circuitBreakerState: externalApiCircuitBreaker.getMetrics().state,
       },
       requestId
     );
   } catch (error) {
-    enterpriseLogger.error("URL analysis error", {
-      requestId,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      userId: context.user.id,
-      ipAddress,
-    });
+    enterpriseLogger.error(
+      "URL analysis error",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        requestId,
+        userId: context.user.id,
+        ipAddress,
+      }
+    );
 
     return NextResponse.json(
       {
@@ -357,7 +384,7 @@ async function handleGet(request: NextRequest, context: AuthContext) {
   const { requestId } = context;
 
   try {
-    const circuitBreakerState = externalApiCircuitBreaker.getState();
+    const circuitBreakerState = externalApiCircuitBreaker.getMetrics().state;
     const metrics = externalApiCircuitBreaker.getMetrics();
 
     return createSuccessResponse(
@@ -369,8 +396,8 @@ async function handleGet(request: NextRequest, context: AuthContext) {
           metrics: {
             successCount: metrics.successCount,
             failureCount: metrics.failureCount,
-            timeoutCount: metrics.timeoutCount,
-            errorRate: metrics.errorRate,
+            totalRequests: metrics.totalRequests,
+            isAvailable: metrics.isAvailable,
           },
         },
         capabilities: [

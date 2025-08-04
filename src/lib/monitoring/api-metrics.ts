@@ -117,15 +117,20 @@ export function recordRequestMetrics(
 
   // Log errors
   if (metrics.statusCode >= 400) {
-    enterpriseLogger.error("API request error", {
-      requestId: metrics.requestId,
-      method: metrics.method,
-      url: metrics.url,
-      statusCode: metrics.statusCode,
-      errorType: metrics.errorType,
-      errorMessage: metrics.errorMessage,
-      duration: metrics.duration,
-    });
+    enterpriseLogger.error(
+      "API request error",
+      new Error(
+        `${metrics.errorType || "HTTP Error"}: ${metrics.errorMessage || "Unknown error"}`
+      ),
+      {
+        requestId: metrics.requestId,
+        method: metrics.method,
+        url: metrics.url,
+        statusCode: metrics.statusCode,
+        errorType: metrics.errorType,
+        duration: metrics.duration,
+      }
+    );
   }
 }
 

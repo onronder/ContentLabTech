@@ -79,9 +79,8 @@ function validateEnvironment(): { isValid: boolean; error?: string } {
 
   if (!isValid) {
     const error = `Missing required environment variables: ${missingVars.join(", ")}`;
-    enterpriseLogger.error("Environment validation failed", {
+    enterpriseLogger.error("Environment validation failed", new Error(error), {
       missingVars,
-      error,
     });
     return { isValid: false, error };
   }
@@ -239,12 +238,14 @@ export async function createClient(requestId?: string) {
     return client;
   } catch (error) {
     const duration = Date.now() - startTime;
-    enterpriseLogger.error("Critical error creating Supabase client", {
-      requestId,
-      duration,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    enterpriseLogger.error(
+      "Critical error creating Supabase client",
+      error instanceof Error ? error : new Error(String(error)),
+      {
+        requestId,
+        duration,
+      }
+    );
     throw error;
   }
 }

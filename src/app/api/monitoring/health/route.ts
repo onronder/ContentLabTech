@@ -39,11 +39,14 @@ async function checkDatabase(requestId: string): Promise<HealthCheckResult> {
     const responseTime = Date.now() - startTime;
 
     if (error) {
-      enterpriseLogger.error("Database health check failed", {
-        requestId,
-        error: error.message,
-        responseTime,
-      });
+      enterpriseLogger.error(
+        "Database health check failed",
+        new Error(error.message),
+        {
+          requestId,
+          responseTime,
+        }
+      );
 
       return {
         component: "database",
@@ -74,11 +77,14 @@ async function checkDatabase(requestId: string): Promise<HealthCheckResult> {
     const responseTime = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    enterpriseLogger.error("Database health check exception", {
-      requestId,
-      error: errorMessage,
-      responseTime,
-    });
+    enterpriseLogger.error(
+      "Database health check exception",
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        requestId,
+        responseTime,
+      }
+    );
 
     return {
       component: "database",
@@ -367,11 +373,13 @@ async function handleGet(request: NextRequest) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    enterpriseLogger.error("Health check failed", {
-      requestId,
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    enterpriseLogger.error(
+      "Health check failed",
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        requestId,
+      }
+    );
 
     return NextResponse.json(
       {
@@ -437,10 +445,13 @@ async function handlePost(request: NextRequest) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    enterpriseLogger.error("Health monitoring POST error", {
-      requestId,
-      error: errorMessage,
-    });
+    enterpriseLogger.error(
+      "Health monitoring POST error",
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        requestId,
+      }
+    );
 
     return NextResponse.json(
       {

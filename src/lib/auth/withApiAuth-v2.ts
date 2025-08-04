@@ -20,13 +20,13 @@ export interface AuthContext {
 }
 
 // Initialize rate limiter for authentication endpoints
-const authRateLimiter = new SimpleRateLimiter({
+const authRateLimiter = new SimpleRateLimiter();
+
+// Add a custom rule for authentication
+authRateLimiter.addRule("auth", {
+  identifier: "auth",
+  limit: 100, // 100 requests per window per IP
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 100, // 100 requests per window per IP
-  keyGenerator: req =>
-    req.headers.get("x-forwarded-for") ||
-    req.headers.get("x-real-ip") ||
-    "unknown",
 });
 
 /**
@@ -74,9 +74,15 @@ export function withApiAuth<T extends any[]>(
     try {
       // Apply rate limiting (unless bypassed)
       if (!rateLimitBypass) {
-        const rateLimitResult = await authRateLimiter.isAllowed(
-          request,
-          requestId
+        const clientIp =
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          ipAddress ||
+          "unknown";
+
+        const rateLimitResult = await authRateLimiter.checkRateLimit(
+          "auth",
+          clientIp
         );
         if (!rateLimitResult.allowed) {
           enterpriseLogger.warn("Authentication rate limit exceeded", {
@@ -103,7 +109,9 @@ export function withApiAuth<T extends any[]>(
                 "Retry-After": Math.ceil(
                   (rateLimitResult.resetTime - Date.now()) / 1000
                 ).toString(),
-                "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+                "X-RateLimit-Limit": (
+                  authRateLimiter.getRule("auth")?.limit || 100
+                ).toString(),
                 "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
                 "X-RateLimit-Reset": new Date(
                   rateLimitResult.resetTime
@@ -305,15 +313,15 @@ export function withApiAuth<T extends any[]>(
         enterpriseLogger.info("Handler completed successfully", {
           requestId,
           duration,
-          status: response.status,
+          status: (response as any).status,
         });
       }
 
       // Ensure proper CORS and security headers
-      const enhancedResponse = new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: new Headers(response.headers),
+      const enhancedResponse = new Response((response as any).body, {
+        status: (response as any).status,
+        statusText: (response as any).statusText,
+        headers: new Headers((response as any).headers),
       });
 
       // Add security headers
@@ -335,15 +343,17 @@ export function withApiAuth<T extends any[]>(
       const isTimeout = errorMessage.includes("timeout");
       const status = isTimeout ? 408 : 500;
 
-      enterpriseLogger.error("Authentication system error", {
-        requestId,
-        error: errorMessage,
-        stack: error instanceof Error ? error.stack : undefined,
-        method: request.method,
-        url: request.url,
-        ipAddress,
-        isTimeout,
-      });
+      enterpriseLogger.error(
+        "Authentication system error",
+        error instanceof Error ? error : new Error(errorMessage),
+        {
+          requestId,
+          method: request.method,
+          url: request.url,
+          ipAddress,
+          isTimeout,
+        }
+      );
 
       return NextResponse.json(
         {
@@ -448,10 +458,10 @@ export async function validateTeamAccess(
       .eq("team_id", teamId)
       .single();
 
-    const { data: membership, error } = await Promise.race([
+    const { data: membership, error } = (await Promise.race([
       queryPromise,
       queryTimeout,
-    ]);
+    ])) as any;
 
     if (error) {
       enterpriseLogger.warn("Team access database error", {
@@ -527,13 +537,16 @@ export async function validateTeamAccess(
     const errorMessage = error instanceof Error ? error.message : String(error);
     const isTimeout = errorMessage.includes("timeout");
 
-    enterpriseLogger.error("Team access validation error", {
-      requestId,
-      error: errorMessage,
-      isTimeout,
-      userId,
-      teamId,
-    });
+    enterpriseLogger.error(
+      "Team access validation error",
+      error instanceof Error ? error : new Error(errorMessage),
+      {
+        requestId,
+        isTimeout,
+        userId,
+        teamId,
+      }
+    );
 
     return {
       hasAccess: false,
