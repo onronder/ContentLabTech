@@ -23,6 +23,11 @@ interface Project {
   content_goals?: string[];
   competitors?: string[];
   settings?: Record<string, unknown>;
+  stats?: {
+    contentCount: number;
+    competitorCount: number;
+    lastActivity: string;
+  };
 }
 
 interface CreateProjectRequest {

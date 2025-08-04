@@ -98,7 +98,9 @@ async function handlePost(request: NextRequest, context: AuthContext) {
       name: body.name.trim(),
       description: body.description?.trim() || null,
       website_url:
-        body.website_url && validateInput(body.website_url, "url")
+        body.website_url &&
+        body.website_url.trim() &&
+        validateInput(body.website_url, "url")
           ? body.website_url
           : null,
       target_keywords: Array.isArray(body.target_keywords)
