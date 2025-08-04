@@ -610,12 +610,12 @@ export function useProjects(
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [autoRefresh, refreshInterval, fetchProjects, state.loading]);
+  }, [autoRefresh, refreshInterval]);
 
   // Initial fetch
   useEffect(() => {
     fetchProjects();
-  }, [fetchProjects]);
+  }, [teamId]); // Only depend on teamId, not fetchProjects itself
 
   // Cleanup on unmount
   useEffect(() => {
