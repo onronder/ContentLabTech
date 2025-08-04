@@ -26,93 +26,159 @@ interface CreateProjectRequest {
 }
 
 async function handlePost(request: NextRequest, context: AuthContext) {
-  console.log("📤 POST request received for project creation");
+  const { requestId, ipAddress } = context;
 
   try {
     const body: CreateProjectRequest = await request.json();
-    console.log("📊 Request body parsed:", {
-      teamId: body.teamId,
-      name: body.name,
-      hasDescription: !!body.description,
-    });
 
-    // Validate required fields
-    if (!body.teamId || !body.name) {
-      return new Response(
-        JSON.stringify({
-          error: "Team ID and project name are required",
-          code: "MISSING_REQUIRED_FIELDS",
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+    // Input validation
+    if (!validateInput(body.name, "text", { minLength: 1, maxLength: 100 })) {
+      return NextResponse.json(
+        {
+          error: "Project name must be between 1 and 100 characters",
+          code: "INVALID_PROJECT_NAME",
+          requestId,
+        },
+        { status: 400 }
       );
     }
 
-    // Validate team access
+    if (!validateInput(body.teamId, "uuid")) {
+      return NextResponse.json(
+        {
+          error: "Invalid team ID format",
+          code: "INVALID_TEAM_ID",
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+
+    enterpriseLogger.info("Project creation request", {
+      requestId,
+      teamId: body.teamId,
+      projectName: body.name,
+      userId: context.user.id,
+      ipAddress,
+    });
+
+    // Validate team access with enhanced error handling
     const teamAccess = await validateTeamAccess(
       context.supabase,
       context.user.id,
       body.teamId,
-      "member"
+      "member",
+      requestId
     );
 
     if (!teamAccess.hasAccess) {
-      return new Response(
-        JSON.stringify({
+      enterpriseLogger.warn("Team access denied for project creation", {
+        requestId,
+        userId: context.user.id,
+        teamId: body.teamId,
+        error: teamAccess.error,
+        ipAddress,
+      });
+
+      return NextResponse.json(
+        {
           error: teamAccess.error || "Access denied to team",
           code: "ACCESS_DENIED",
-        }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
+          requestId,
+        },
+        { status: 403 }
       );
     }
 
-    // Create project with simple data
+    // Sanitize and validate project data
     const projectData = {
       team_id: body.teamId,
-      name: body.name,
-      description: body.description || null,
-      website_url: body.website_url || null,
-      target_keywords: body.target_keywords || [],
-      target_audience: body.target_audience || null,
-      content_goals: body.content_goals || [],
-      competitors: body.competitors || [],
-      settings: body.settings || {},
+      name: body.name.trim(),
+      description: body.description?.trim() || null,
+      website_url:
+        body.website_url && validateInput(body.website_url, "url")
+          ? body.website_url
+          : null,
+      target_keywords: Array.isArray(body.target_keywords)
+        ? body.target_keywords.slice(0, 50)
+        : [],
+      target_audience: body.target_audience?.trim() || null,
+      content_goals: Array.isArray(body.content_goals)
+        ? body.content_goals.slice(0, 20)
+        : [],
+      competitors: Array.isArray(body.competitors)
+        ? body.competitors.slice(0, 10)
+        : [],
+      settings: typeof body.settings === "object" ? body.settings : {},
       status: "active",
       created_by: context.user.id,
     };
 
-    console.log("📊 Creating project with data:", projectData);
-
+    const startTime = Date.now();
     const { data: newProject, error: createError } = await context.supabase
       .from("projects")
       .insert(projectData)
       .select()
       .single();
+    const dbDuration = Date.now() - startTime;
 
     if (createError) {
-      console.error("❌ Project creation failed:", createError);
-      return new Response(
-        JSON.stringify({
+      enterpriseLogger.error("Project creation database error", {
+        requestId,
+        error: createError.message,
+        code: createError.code,
+        userId: context.user.id,
+        teamId: body.teamId,
+        dbDuration,
+      });
+
+      return NextResponse.json(
+        {
           error: "Failed to create project",
           code: "DATABASE_ERROR",
-          details: createError.message,
-        }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
+          requestId,
+          details:
+            process.env.NODE_ENV === "development"
+              ? createError.message
+              : undefined,
+        },
+        { status: 500 }
       );
     }
 
-    console.log("✅ Project created successfully:", newProject?.id);
-
-    return createSuccessResponse({
-      project: newProject,
+    enterpriseLogger.info("Project created successfully", {
+      requestId,
+      projectId: newProject?.id,
+      projectName: newProject?.name,
+      userId: context.user.id,
+      teamId: body.teamId,
+      dbDuration,
     });
+
+    return createSuccessResponse(
+      {
+        project: newProject,
+      },
+      201,
+      undefined,
+      requestId
+    );
   } catch (error) {
-    console.error("❌ Project creation error:", error);
-    return new Response(
-      JSON.stringify({
+    enterpriseLogger.error("Project creation error", {
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId: context.user.id,
+      ipAddress,
+    });
+
+    return NextResponse.json(
+      {
         error: "Internal server error",
         code: "INTERNAL_ERROR",
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+        requestId,
+      },
+      { status: 500 }
     );
   }
 }

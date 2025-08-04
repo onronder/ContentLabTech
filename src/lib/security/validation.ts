@@ -416,6 +416,83 @@ export function validateIPAddress(ip: string): boolean {
 }
 
 /**
+ * Simplified input validation function
+ */
+export function validateInput(
+  value: any,
+  type:
+    | "uuid"
+    | "email"
+    | "url"
+    | "text"
+    | "number"
+    | "jwt"
+    | "alphanumeric_extended"
+    | "boolean",
+  options?: {
+    minLength?: number;
+    maxLength?: number;
+    min?: number;
+    max?: number;
+  }
+): boolean {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  const opts = options || {};
+
+  try {
+    switch (type) {
+      case "uuid":
+        return securitySchemas.id.safeParse(value).success;
+
+      case "email":
+        return securitySchemas.email.safeParse(value).success;
+
+      case "url":
+        return securitySchemas.url.safeParse(value).success;
+
+      case "text":
+        const textSchema = z
+          .string()
+          .min(opts.minLength || 0)
+          .max(opts.maxLength || 10000);
+        return textSchema.safeParse(value).success;
+
+      case "number":
+        const numberSchema = z
+          .number()
+          .min(opts.min || 0)
+          .max(opts.max || 2147483647);
+        return numberSchema.safeParse(value).success;
+
+      case "jwt":
+        // Basic JWT format validation
+        if (typeof value !== "string") return false;
+        const jwtParts = value.split(".");
+        return jwtParts.length === 3 && jwtParts.every(part => part.length > 0);
+
+      case "alphanumeric_extended":
+        // Allow alphanumeric, dashes, underscores, dots for cookie names
+        return (
+          typeof value === "string" &&
+          /^[a-zA-Z0-9_.-]+$/.test(value) &&
+          value.length <= 255
+        );
+
+      case "boolean":
+        return securitySchemas.boolean.safeParse(value).success;
+
+      default:
+        return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Create validation error response
  */
 export function createValidationErrorResponse(
