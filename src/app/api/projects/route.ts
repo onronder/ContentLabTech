@@ -122,7 +122,17 @@ async function handlePost(request: NextRequest, context: AuthContext) {
     const { data: newProject, error: createError } = await context.supabase
       .from("projects")
       .insert(projectData)
-      .select()
+      .select(
+        `
+        *,
+        teams!inner (
+          id,
+          name,
+          description,
+          owner_id
+        )
+      `
+      )
       .single();
     const dbDuration = Date.now() - startTime;
 
@@ -158,15 +168,21 @@ async function handlePost(request: NextRequest, context: AuthContext) {
       dbDuration,
     });
 
-    // Add stats to the new project for consistency with GET endpoint
+    // Add stats and format team data for consistency with GET endpoint
     const projectWithStats = {
       ...newProject,
+      team: newProject?.teams || null, // teams is from the join, rename to team
       stats: {
         contentCount: 0,
         competitorCount: 0,
         lastActivity: newProject?.created_at || new Date().toISOString(),
       },
     };
+
+    // Remove the teams property since we renamed it to team
+    if ("teams" in projectWithStats) {
+      delete (projectWithStats as any).teams;
+    }
 
     return createSuccessResponse(
       {
@@ -269,7 +285,13 @@ async function handleGet(request: NextRequest, context: AuthContext) {
         created_at,
         updated_at,
         team_id,
-        created_by
+        created_by,
+        teams!inner (
+          id,
+          name,
+          description,
+          owner_id
+        )
       `
       )
       .in("team_id", teamIds)
@@ -326,8 +348,9 @@ async function handleGet(request: NextRequest, context: AuthContext) {
             .order("created_at", { ascending: false })
             .limit(1);
 
-          return {
+          const enrichedProject = {
             ...project,
+            team: project.teams || null, // teams is from the join, rename to team
             stats: {
               contentCount: contentCount || 0,
               competitorCount: competitorCount || 0,
@@ -335,17 +358,30 @@ async function handleGet(request: NextRequest, context: AuthContext) {
                 recentContent?.[0]?.created_at || project.updated_at,
             },
           };
+
+          // Remove the teams property since we renamed it to team
+          if ("teams" in enrichedProject) {
+            delete (enrichedProject as any).teams;
+          }
+          return enrichedProject;
         } catch (error) {
           console.error(`Error enriching project ${project.id}:`, error);
           // Return project with default stats if enrichment fails
-          return {
+          const enrichedProject = {
             ...project,
+            team: project.teams || null, // teams is from the join, rename to team
             stats: {
               contentCount: 0,
               competitorCount: 0,
               lastActivity: project.updated_at,
             },
           };
+
+          // Remove the teams property since we renamed it to team
+          if ("teams" in enrichedProject) {
+            delete (enrichedProject as any).teams;
+          }
+          return enrichedProject;
         }
       })
     );
